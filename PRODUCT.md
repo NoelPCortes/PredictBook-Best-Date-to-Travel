@@ -1,6 +1,6 @@
 # PredictBook: Product Overview
 
-This document describes what PredictBook is meant to do and what it will not do. For setup and run instructions, see [README.md](README.md).
+This document describes what PredictBook is meant to do and what it will not do. For setup and run instructions, see [README.md](README.md). For the database tables, see [docs/database.md](docs/database.md).
 
 PredictBook is a web application that helps travelers find the best dates to fly. Crowd levels and date suggestions are calculated by the backend from historical flight and booking records. They are not produced by an AI model.
 
@@ -11,20 +11,31 @@ Travelers often have a hard time choosing flight dates because of crowded airpor
 ## Users
 
 - **Travelers** search for flights, check expected airport crowd levels, and look at recommended low-crowd dates.
-- **Staff** log in to a dashboard with summary charts of busy travel days.
+- **Staff** log in to a dashboard with summary charts of busy travel days. Staff accounts are created by an admin, not through public sign-up.
 
 ## Features
 
-- **User accounts:** sign-up, login, profile updates, and logout, with separate access for Travelers and Staff.
-- **Flight search and details:** search by starting location, destination, and date. View the airline, departure and arrival times, destination, and open seats.
-- **Traffic calendar:** a color-coded calendar of expected airport crowd levels (Low, Medium, High) for different airports and dates.
+- **User accounts and authentication:** sign-up, sign-in, profile updates, and logout, with separate access for Travelers and Staff.
+  - Sign-up and sign-in connect to the users table in the PostgreSQL database.
+  - Passwords are hashed and never stored in plain text.
+  - Sign-in is token-based. The frontend uses the token for later requests.
+  - Public sign-up creates Traveler accounts only. Staff accounts are created by an admin. Whether Staff with the position Head or HR can also create them is still to be decided.
+- **Flight search and details:** search by starting location, destination, and date. View the airline, departure and arrival times, destination, and open seats. Ticket prices are not shown.
+- **Traffic calendar:** a color-coded calendar of expected airport crowd levels (Low, Medium, High) for different airports and dates. The color of each date changes with the crowd level stored for that airport and date: Low is green, Medium is amber, and High is red. Each date also shows the level as text, so color is never the only signal.
 - **Prediction tool:** estimates crowd levels from historical flight and booking records, using backend logic.
 - **Smart date suggestions:** checks crowd levels and open seats to recommend the best dates to fly, and explains why.
 - **Staff dashboard:** summary charts of upcoming crowd trends and busy travel days.
 
+## Privacy
+
+- Traveler personal information is kept private.
+- The system does not store passenger names, booking reference numbers, or payment details.
+- The Staff dashboard shows summary charts only, never individual traveler details.
+
 ## Out of Scope
 
 - Processing ticket payments, credit card fees, or sending official airline tickets
+- Storing passenger names, booking reference numbers, or ticket prices
 - Direct connections to private, real-time airline reservation networks
 - Live radar or GPS tracking of aircraft or passengers
 - Mobile apps for iPhone or Android

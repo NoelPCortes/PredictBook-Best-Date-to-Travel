@@ -1,9 +1,16 @@
 # CODING_STANDARDS
 
 This file tells Codex how to write code in this project.
-Follow `PROMPTING_RULES.md` for how to handle requests, and ask the owner whenever a standard here does not cover the situation.
+Follow `PROMPTING_RULES.md` for how to handle requests, `frontend/UI_STYLE_GUIDE.md` for everything the user sees, and `docs/database.md` for the database. Ask the owner whenever a standard here does not cover the situation.
 
-**Stack:** Django + PostgreSQL. Frontend and API layer (for example React + Django REST Framework): TBD until confirmed by the project owner.
+**Stack:**
+
+| Layer | Technology |
+|---|---|
+| Frontend | React + TypeScript (Vite), Vitest, ESLint with typescript-eslint, Prettier |
+| Backend | Python, Django, Django REST Framework, Ruff, pytest-django |
+| Database | PostgreSQL |
+| Authentication | Token-based (JWT). Library: TBD, ask before installing |
 
 ---
 
@@ -25,6 +32,7 @@ Follow `PROMPTING_RULES.md` for how to handle requests, and ask the owner whenev
 | Files and modules | `snake_case` | `request_views.py` |
 | JS/React variables, functions | `camelCase` | `fetchRequests` |
 | React components | `PascalCase` | `RequestList` |
+| Frontend feature folders | lowercase with hyphens | `staff-dashboard` |
 
 - Names must describe purpose. Avoid `data`, `temp`, `x`, `obj`, `stuff`.
 - Booleans read like questions: `is_active`, `has_permission`.
@@ -51,7 +59,7 @@ for user in users:
 
 # Good: explains a reason
 # Staff accounts are excluded because they are managed in a separate report.
-active_users = users.filter(is_staff=False)
+active_users = users.filter(role="traveler")
 ```
 
 - Do not comment every line, every function, or every import.
@@ -65,19 +73,49 @@ active_users = users.filter(is_staff=False)
 - Keep views thin. Put business logic in services or model methods, not in views or templates.
 - Use Django's ORM. Do not write raw SQL unless there is a clear reason, and explain that reason.
 - Use `select_related` and `prefetch_related` to avoid repeated queries in loops.
-- Validate input in forms or serializers, not scattered across views.
+- Validate input in serializers, not scattered across views.
 - Always use migrations for schema changes. Never edit the database by hand. Never rewrite or delete an applied migration without asking.
 - Use `get_object_or_404` instead of unguarded `.get()` in views.
 - Check permissions on every view that touches protected data.
 - Handle expected errors with specific exceptions. Never use a bare `except:`.
 - Use type hints on new functions when they add clarity.
 
-## Frontend (TBD until the stack is confirmed)
+## Frontend structure: one folder per feature
+
+- Every feature lives in its own folder inside `frontend/src/features/`, such as `signin`, `signup`, `homepage`, `flights`, `calendar`, `suggestions`, `profile`, and `staff-dashboard`.
+- A feature folder holds that feature's own components, API calls, and types. A feature must not reach into another feature's folder. If two features need the same thing, move it to `src/components` or `src/types`.
+- Shared pieces go in `src/components` (shared UI), `src/api` (shared API client), and `src/types` (shared types).
+- Icons live only in `src/assets/icons`. Do not add an icon library or new icon files without asking.
+- Do not create a new feature folder, or rename one, without asking the owner.
+
+## Frontend code
 
 - Use small, reusable components with a single purpose.
-- Keep API calls in one dedicated place, not scattered through components.
+- Use TypeScript types. Avoid `any`.
+- Keep API calls out of components. Put them in the feature's own API file, using the shared API client.
 - Do not hardcode URLs or ports. Read them from configuration.
 - Handle loading and error states.
+
+## UI/UX: always follow `frontend/UI_STYLE_GUIDE.md`
+
+- Every screen, page, component, and style you create or change must follow `frontend/UI_STYLE_GUIDE.md`. This is not optional.
+- Use only the colors, spacing, sizes, icons, and component looks defined there. Do not invent new ones.
+- Use each icon for the label or purpose the guide gives it.
+- Keep colors and sizes in shared variables in the global stylesheet. Do not hardcode them inside components or templates.
+- Every clickable element needs default, hover, pressed, and focus looks as described in the guide.
+- The traffic calendar picks its colors from the crowd level, as described in the guide. Never store a color in the database.
+- If the guide does not cover a design need, or you think a different style is better, stop, explain why, and wait for approval (see `PROMPTING_RULES.md`).
+
+## Authentication and privacy
+
+- Passwords are hashed with Django's built-in hashing. Never store, log, print, or return a plain text password or a password hash.
+- Sign-up always creates a Traveler. The sign-up request must never be able to set `role` or `position`.
+- Staff accounts are created by an admin only (Head or HR permission: TBD, ask first).
+- Check the user's role on every protected page and endpoint, on the backend as well as the frontend.
+- Use the token flow for sign-in. Do not send the password with any request except sign-in.
+- Do not choose or install the JWT library without asking.
+- Never store passenger names, booking reference numbers, payment details, or ticket prices.
+- Keep personal details private. Never show one user's details to another user, and never put them in logs or error messages.
 
 ## Configuration and secrets
 
@@ -88,8 +126,11 @@ active_users = users.filter(is_staff=False)
 
 ## Database (PostgreSQL)
 
+- `docs/database.md` is the source of truth for tables, fields, and relationships. Follow it exactly.
+- Do not add, remove, or rename a table or field that is not in `docs/database.md` without asking.
+- Update `docs/database.md` in the same change as any approved schema change.
 - Use clear, singular model names and descriptive field names.
-- Set sensible field constraints (`null`, `blank`, `unique`, `max_length`) on purpose, not by default.
+- Set field constraints (`null`, `blank`, `unique`, `max_length`) on purpose, as described in `docs/database.md`.
 - Add indexes only when there is a reason.
 - Never run destructive operations (drop, truncate, bulk delete) without explicit approval.
 
@@ -115,6 +156,9 @@ active_users = users.filter(is_staff=False)
 ## Before you finish
 
 - [ ] Code is readable, with comments only where the logic is confusing.
-- [ ] No secrets or hardcoded config values.
+- [ ] Each feature stays inside its own folder, and shared code is in the shared folders.
+- [ ] Any UI work follows `frontend/UI_STYLE_GUIDE.md`, including its icons.
+- [ ] Any database work matches `docs/database.md`.
+- [ ] No passwords, secrets, or hardcoded config values.
 - [ ] No unused code, imports, or debug output.
 - [ ] Tests were added or updated, and run (or I said I could not run them).

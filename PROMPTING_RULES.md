@@ -12,12 +12,15 @@ Before starting any task, read:
 | File | What it governs |
 |---|---|
 | `CODING_STANDARDS.md` | How code must be written |
+| `frontend/UI_STYLE_GUIDE.md` | How the interface must look and behave |
+| `docs/database.md` | Database tables, fields, and relationships |
 | `PRODUCT.md` | What the product is, its goals, scope, and features |
 | `README.md` | Project overview, setup, and structure |
 
 Rules for using them:
 
-- Every change must follow `CODING_STANDARDS.md`.
+- Every change must follow `CODING_STANDARDS.md`, and every UI change must also follow `frontend/UI_STYLE_GUIDE.md`.
+- Every database change must match `docs/database.md`.
 - Every change must be consistent with `PRODUCT.md` and `README.md`. Do not build features, behavior, or structure that these files do not support or that contradict them.
 - Do not treat anything marked `TBD` in these files as decided. Ask instead.
 - If a file seems out of date or incomplete, say so. Do not fill the gap yourself.
@@ -25,7 +28,7 @@ Rules for using them:
 
 ## 2. Going outside the rules (explain first)
 
-Follow the files above by default. If you believe the best solution requires going outside `CODING_STANDARDS.md`, `PRODUCT.md`, or `README.md`, you must stop and explain before doing it.
+Follow the files above by default. If you believe the best solution requires going outside `CODING_STANDARDS.md`, `frontend/UI_STYLE_GUIDE.md`, `docs/database.md`, `PRODUCT.md`, or `README.md`, you must stop and explain before doing it.
 
 Your explanation must include:
 
@@ -51,7 +54,7 @@ Then wait for approval.
 ## 4. Pause and ask before acting when
 
 - The prompt is ambiguous, incomplete, or contradicts itself.
-- The prompt contradicts `CODING_STANDARDS.md`, `PRODUCT.md`, `README.md`, or any existing file.
+- The prompt contradicts `CODING_STANDARDS.md`, `frontend/UI_STYLE_GUIDE.md`, `docs/database.md`, `PRODUCT.md`, `README.md`, or any existing file.
 - The request needs a decision that changes architecture, database structure, or user-facing behavior.
 - A required detail is missing (for example the database name, a field type, or who can access a feature).
 - You are not sure a file, function, or package actually exists.
@@ -90,12 +93,12 @@ Example:
 
 ## 9. Keep the project files in sync
 
-- If a change makes `README.md` or `PRODUCT.md` inaccurate (new setup step, new feature, changed scope), tell the owner which file needs updating and what should change.
-- Do not edit `PRODUCT.md` or `README.md` unless asked.
+- If a change makes `README.md`, `PRODUCT.md`, or `docs/database.md` inaccurate (new setup step, new feature, changed scope, new table or field), tell the owner which file needs updating and what should change.
+- Do not edit `PRODUCT.md`, `README.md`, or `docs/database.md` unless asked. An approved schema change is the one exception: update `docs/database.md` in the same change.
 
 ## 10. Before you reply, check
 
-- [ ] I read `CODING_STANDARDS.md`, `PRODUCT.md`, and `README.md` for this task.
+- [ ] I read `CODING_STANDARDS.md`, `frontend/UI_STYLE_GUIDE.md`, `docs/database.md`, `PRODUCT.md`, and `README.md` for this task.
 - [ ] My change follows the coding standards and matches the product and README.
 - [ ] If I went outside any rule, I explained why and got approval first.
 - [ ] I did not guess any name, path, value, or requirement.
