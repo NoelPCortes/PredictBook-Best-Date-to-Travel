@@ -3,7 +3,7 @@
 This file defines the look and feel of the interface: colors, buttons, bars, clickable elements, and readability.
 It covers **UI/UX only**. For code rules, see `CODING_STANDARDS.md`. For how to handle requests, see `PROMPTING_RULES.md`.
 
-**Theme:** Blue as the main color. Clean, high contrast, easy to read.
+**Theme:** Blue as the main color on a light page, with dark navy bars and cards. Clean, high contrast, easy to read.
 
 ## How Codex must use this file
 
@@ -12,6 +12,7 @@ It covers **UI/UX only**. For code rules, see `CODING_STANDARDS.md`. For how to 
 - Do not invent new colors, spacing, shadows, or component looks. If a design need is not covered here, stop and ask the owner.
 - If you believe a different style would be better, explain why and wait for approval before using it (see `PROMPTING_RULES.md`).
 - Match the same look for the same kind of element across the whole project. Consistency matters more than variety.
+- The design reference images in `frontend/src/references/` show the intended layouts. Colors, fonts, and sizes come from this file.
 
 ---
 
@@ -24,23 +25,23 @@ It covers **UI/UX only**. For code rules, see `CODING_STANDARDS.md`. For how to 
 | Blue 50 | `#eff6ff` | Light hover backgrounds, info message background |
 | Blue 100 | `#dbeafe` | Pressed backgrounds, badges, light text on dark bars |
 | Blue 500 | `#3b82f6` | Hover borders on inputs and cards |
-| Blue 600 | `#2563eb` | **Main brand color**: primary buttons, active navigation |
-| Blue 700 | `#1d4ed8` | Hover state, links |
-| Blue 800 | `#1e40af` | Pressed state, table headers |
-| Blue 900 | `#1e3a8a` | Top bar and sidebar background |
+| Blue 600 | `#1d4ed8` | **Main brand color**: primary buttons, links, active navigation |
+| Blue 800 | `#1e40af` | Hover state for Blue 600 elements, table headers |
+| Blue 900 | `#1e3a8a` | Pressed state for Blue 600 elements, hover on dark bars |
 
-### Neutrals
+### Navy and neutrals
 
 | Name | Value | Used for |
 |---|---|---|
-| White | `#ffffff` | Cards, panels, inputs, text on blue |
-| Gray 50 | `#f8fafc` | Page background |
+| Navy | `#0f1b2d` | Top bar, sidebar, and dark cards. Same value as Gray 900 |
+| White | `#ffffff` | Cards, panels, inputs, text on blue and navy |
+| Gray 50 | `#f6f8fb` | Page background |
 | Gray 100 | `#f1f5f9` | Disabled input background |
 | Gray 200 | `#e2e8f0` | Disabled buttons, row dividers |
-| Gray 300 | `#cbd5e1` | Borders |
+| Gray 300 | `#d5dce6` | Borders |
 | Gray 500 | `#64748b` | Disabled text |
-| Gray 600 | `#475569` | Secondary text, hints |
-| Gray 900 | `#0f172a` | Body text |
+| Gray 600 | `#4a5668` | Secondary text, hints |
+| Gray 900 | `#0f1b2d` | Body text |
 
 ### Status colors
 
@@ -52,8 +53,8 @@ It covers **UI/UX only**. For code rules, see `CODING_STANDARDS.md`. For how to 
 
 ### Color rules
 
-- Blue is for **actions and navigation** only. Do not use blue for plain text or decoration.
-- Red is for **errors and destructive actions** only. Green is for **success** only. The one exception is the traffic calendar, which uses green, amber, and red for Low, Medium, and High crowd levels (see section 8).
+- Blue is for **actions and navigation**, plus small accent text such as eyebrow labels and card numbers. Do not use blue for body text or decoration.
+- Red is for **errors and destructive actions** only. Green is for **success** only. The one exception is the traffic calendar, which uses its own crowd-level colors for Low, Medium, and High (see section 8).
 - Text must have strong contrast against its background (at least WCAG AA, 4.5:1).
 - Never show meaning by color alone. Pair color with a text label or icon.
 
@@ -61,12 +62,13 @@ It covers **UI/UX only**. For code rules, see `CODING_STANDARDS.md`. For how to 
 
 ## 2. Typography and spacing
 
-- **Font:** the system font stack (system-ui, Segoe UI, Roboto, Arial). Do not add custom fonts without asking.
+- **Fonts:** Space Grotesk for headings (weights 500 and 700) and Inter for body text (weights 400, 500, and 600). Load them from Google Fonts with the system font stack (system-ui, Segoe UI, Roboto, Arial) as the fallback. Do not add other fonts without asking.
 - **Body text:** 16px minimum, line height about 1.6. Small labels can go down to 14px, never lower.
 - **Headings:** clearly larger than body text, tighter line height, with space below.
+- **Eyebrow labels:** small, bold, uppercase, letter-spaced, in Blue 600 on light backgrounds (yellow `#f4c65a` on Navy).
 - **Paragraphs:** keep lines to about 60 to 80 characters.
-- **Spacing scale:** 4, 8, 12, 16, 24, 32px. Use only these values for gaps and padding.
-- **Corners:** 8px rounding for cards, buttons, and panels. 6px for inputs and small items.
+- **Spacing scale:** 4, 8, 12, 16, 20, 24, 32, 40, 48, 64px. Use only these values for gaps and padding.
+- **Corners:** 20px for large cards and panels, 14px for buttons and inputs, 10px for calendar cells and small items.
 - **Transitions:** 150ms for hover and press changes. Turn animations off for users who prefer reduced motion.
 
 ---
@@ -77,9 +79,9 @@ Every button must have these looks: **default, hover, pressed (click), focus, an
 
 | Button | Default | Hover | Pressed (click) |
 |---|---|---|---|
-| **Primary** (main action) | Blue 600 fill, white bold text | Blue 700 fill with a soft blue shadow | Blue 800 fill, no shadow, moves down 1px |
-| **Secondary** (supporting action) | White fill, Blue 600 border, Blue 700 text | Blue 50 fill, Blue 700 border | Blue 100 fill, Blue 800 border, moves down 1px |
-| **Ghost** (low emphasis, like Cancel) | No fill, Blue 700 text | Blue 50 fill | Blue 100 fill, moves down 1px |
+| **Primary** (main action) | Blue 600 fill, white bold text | Blue 800 fill with a soft blue shadow | Blue 900 fill, no shadow, moves down 1px |
+| **Secondary** (supporting action) | White fill, Gray 300 border, Navy text | Blue 50 fill, Blue 600 border, Blue 800 text | Blue 100 fill, Blue 800 border, moves down 1px |
+| **Ghost** (low emphasis, like Cancel) | No fill, Blue 600 text | Blue 50 fill | Blue 100 fill, moves down 1px |
 | **Danger** (delete, remove) | Red fill (`#b91c1c`), white text | Darker red (`#991b1b`) | Darkest red (`#7f1d1d`), moves down 1px |
 
 **Focus (all buttons):** a visible 3px blue ring with a 2px gap, shown for keyboard users.
@@ -88,8 +90,8 @@ Every button must have these looks: **default, hover, pressed (click), focus, an
 Button rules:
 
 - Only **one primary button** per section or form.
-- Minimum height is **44px** so it is easy to tap or click.
-- Bold text, 8px corners, comfortable side padding (24px).
+- Minimum height is **44px** so it is easy to tap or click. Full-width buttons on the sign-in and sign-up forms are 56px.
+- Bold text, 14px corners, comfortable side padding (24px).
 - Button text states the action ("Save record", not "OK").
 - Use a real button for actions and a link for navigation. Never make a plain box act like a button.
 
@@ -101,8 +103,8 @@ Anything clickable must **look** clickable and must show a visible change on hov
 
 | Element | Default | Hover | Pressed | Focus |
 |---|---|---|---|---|
-| **Text link** | Blue 700, underlined | Blue 800 with Blue 50 background | Blue 900 with Blue 100 background | 3px blue ring |
-| **Clickable card or row** | White, gray border, pointer cursor | Blue 50 background, Blue 500 border, light blue shadow | Blue 100 background, Blue 700 border | 3px blue ring |
+| **Text link** | Blue 600, underlined | Blue 800 with Blue 50 background | Blue 900 with Blue 100 background | 3px blue ring |
+| **Clickable card or row** | White, gray border, pointer cursor | Blue 50 background, Blue 500 border, light blue shadow | Blue 100 background, Blue 600 border | 3px blue ring |
 
 Rules:
 
@@ -116,48 +118,49 @@ Rules:
 
 ### PredictBook page navigation
 
-- The Homepage and Traffic Calendar use the existing Blue 900 (`#1e3a8a`) top navigation bar.
-- The My Account page uses the same Blue 900 color for its sidebar.
+- The signed-in Homepage and Traffic Calendar use the Navy top navigation bar with Home and Traffic Calendar links.
+- Staff pages use the same top bar with Dashboard and Charts links. The Dashboard and Charts are separate pages.
+- The My Account page uses a Navy sidebar.
 - The signed-in Homepage provides flight search and an interactive traffic calendar preview.
 - Selecting Traffic Calendar opens the full Traffic Calendar page.
-- Smart date suggestions appear within Traffic Calendar, not as a separate navigation tab.
+- Smart date suggestions appear within Traffic Calendar, not as a separate navigation tab. (The My Account reference image still shows a Suggestions link. TBD: confirm with the owner.)
 - My Account contains Profile Information, Password & Security, and Sign Out.
-- Heads have access to a management interface for assigning Staff by email, promoting Staff to Head, and removing access according to their permissions.
+- Heads have access to a management interface for assigning Staff by email, promoting Staff to Head, and removing access according to their permissions. Its design: TBD.
 - Navigation and management actions must follow the existing buttons, links, forms, icons, and accessibility rules in this guide.
 
 ### Top bar
 
-- Background Blue 900, white text, at least 60px tall, soft shadow underneath.
-- Logo or title on the left, actions or user menu on the right.
+- Background Navy, white text, at least 60px tall, soft shadow underneath.
+- Logo on the left, navigation links next to it, and the user menu on the right.
 
 ### Sidebar
 
-- Background Blue 900, 240px wide on desktop, full width on small screens.
+- Background Navy, 240px wide on desktop, full width on small screens.
 
-### Navigation items (top bar and sidebar)
+### Navigation items
 
-| State | Look |
-|---|---|
-| Default | Light blue text (Blue 100), no background, at least 44px tall |
-| Hover | White text, Blue 800 background |
-| Pressed | Blue 700 background |
-| **Current page** | Blue 600 background, white bold text, and a white bar on the left edge |
-| Focus | 3px white ring |
+| State | Top bar look | Sidebar look |
+|---|---|---|
+| Default | Light blue text (Blue 100), no background, at least 44px tall | Same |
+| Hover | White text, Blue 900 background | Same |
+| Pressed | Blue 800 background | Same |
+| **Current page** | White bold text with a 3px Blue 600 line underneath, and `aria-current="page"` | Blue 600 background, white bold text, rounded corners, and `aria-current="page"` |
+| Focus | 3px white ring | 3px white ring |
 
 ### Tabs
 
 | State | Look |
 |---|---|
 | Default | Gray 600 bold text, no background, transparent bottom line |
-| Hover | Blue 700 text, Blue 50 background |
+| Hover | Blue 800 text, Blue 50 background |
 | Pressed | Blue 100 background |
-| **Selected** | Blue 700 text with a 3px Blue 600 line underneath |
+| **Selected** | Blue 600 text with a 3px Blue 600 line underneath |
 | Focus | 3px blue ring |
 
 Bar rules:
 
 - The current page or selected item must **always** be visibly highlighted.
-- Text on dark blue is white or very light blue, never mid-blue.
+- Text on Navy is white or very light blue, never mid-blue.
 - Keep navigation labels short and clear.
 
 ---
@@ -166,7 +169,7 @@ Bar rules:
 
 | State | Input look |
 |---|---|
-| Default | White background, 2px Gray 300 border, 44px minimum height, 16px text |
+| Default | White background, 1px Gray 300 border, 14px corners, 44px minimum height, 16px text |
 | Hover | Border turns Blue 500 |
 | Focus | Border turns Blue 600 with a soft blue glow around it |
 | Disabled | Gray 100 background, Gray 500 text, "not allowed" cursor |
@@ -174,7 +177,7 @@ Bar rules:
 
 Rules:
 
-- Every input has a **visible label** above it. Do not use placeholder text as the label.
+- Every input has a **visible label**. The label sits at the top of the input box in small, bold, Gray 600 text. Do not use placeholder text as the label.
 - Hints appear below the field in small Gray 600 text.
 - Error messages say what is wrong and how to fix it, right next to the field.
 
@@ -182,7 +185,7 @@ Rules:
 
 ## 7. Cards, tables, badges, and alerts
 
-**Cards:** white background, 1px Gray 300 border, 8px corners, 24px padding, very light shadow.
+**Cards:** white background, 20px corners, 24px padding, very light shadow. A 1px Gray 300 border is optional. Dark cards use Navy with white text.
 
 **Tables:**
 - Header row: Blue 800 background with white text.
@@ -209,23 +212,25 @@ Rules:
 - Selecting Traffic Calendar in navigation opens the full interactive calendar.
 - The full Traffic Calendar includes smart date suggestions based on crowd levels and available seats.
 - Selecting a calendar date updates the corresponding date information.
-- Calendar and prediction information must come from the available data; sample values must be clearly identified.
+- Calendar and prediction information must come from the available data. Sample values must be clearly identified, for example with a "Sample data" label.
 
 Each date on the calendar changes color based on the crowd level stored for that airport and date. The database stores only the level. The frontend picks the color.
 
 | Crowd level | Date cell text | Date cell background | Text label shown |
 |---|---|---|---|
-| Low | `#15803d` | `#dcfce7` | Low |
-| Medium | `#b45309` | `#fef3c7` | Medium |
-| High | `#b91c1c` | `#fee2e2` | High |
+| Low | `#0f1b2d` | `#bfe9dc` | Low |
+| Medium | `#0f1b2d` | `#f4c65a` | Medium |
+| High | `#ffffff` | `#c2410c` | High |
 | No data | Gray 500 | Gray 100 | No data |
 
 Rules:
 
-- Every date shows its level as text as well as color. Never rely on color alone.
+- Never rely on color alone. The three levels differ in lightness (Low is light, Medium is mid, High is dark). A level is also shown as text in the legend, in the selected date's details (for example a "Low crowd" chip), and in each date's accessible name (for example "January 14, 2026, Low crowd").
+- A crowd level chip shows a dot and the text "Low crowd", "Medium crowd", or "High crowd".
 - Show a legend with all three levels near the calendar.
 - Today is marked with a bold date number.
-- The selected date gets a 3px Blue 600 outline in addition to its level color.
+- The selected date gets a solid Blue 600 fill, white bold text, and a white ring. Its level stays available as text in the details panel and the accessible name.
+- Suggested dates get a dark Navy outline (a ring with a white gap) and the accessible name "Suggested date".
 - Clickable date cells follow the clickable rules in section 4 (hover, pressed, focus), without hiding their level color.
 - Month navigation uses `chevron-leftIcon` and `chevron-rightIcon` in buttons at least 44px wide and tall.
 - If the colors or levels change, ask the owner first.
@@ -297,7 +302,7 @@ Home (homepage navigation), Email (email field), and Lock (password field). Ask 
 - Sizes: 16px inline with small text, 20px by default, 24px in bars. Keep an icon the same size across the same kind of element.
 - An icon sits beside a text label whenever there is room. An icon-only button needs an accessible name and a 44px tap target.
 - Icons that only decorate a label are hidden from screen readers.
-- Black icons on white or light surfaces are fine. Icons on dark Blue 900 bars need a white version. The owner supplies white versions or SVGs (TBD). Until then, ask before placing an icon on a dark bar.
+- Black icons on white or light surfaces are fine. Icons on dark Navy bars need a white version. The owner supplies white versions or SVGs (TBD). Until then, ask before placing an icon on a dark bar.
 - `CalendarLogo` and `AirplaneIconColored` keep their own colors. Never recolor them.
 - Show images at the size they are needed. Do not load a large image to display a small one.
 
@@ -318,7 +323,7 @@ Home (homepage navigation), Email (email field), and Lock (password field). Ask 
 - [ ] I followed this guide and used only its colors, spacing, and component looks.
 - [ ] Every clickable element has default, hover, pressed, and focus looks.
 - [ ] Icons come from `src/assets/icons` and match the labels in section 9.
-- [ ] The calendar colors follow the crowd level and always show a text label.
+- [ ] The calendar colors follow the crowd level and the level is always available as text.
 - [ ] The current page or selected item is clearly highlighted.
 - [ ] Text is readable with strong contrast.
 - [ ] Meaning is never shown by color alone.
