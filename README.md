@@ -27,7 +27,7 @@ PredictBook/
 │   ├── requirements.txt
 │   ├── .env.example
 │   ├── config/              Settings, URLs, WSGI/ASGI
-│   ├── accounts/            Sign-up, login, profiles, Traveler/Staff roles
+│   ├── accounts/             Sign-up, login, profiles, Traveler/Staff/Head roles, role management
 │   ├── flights/             Airports, airlines, flights, flight search
 │   ├── traffic/             Historical records, crowd levels, prediction logic
 │   ├── suggestions/         Best-date recommendation logic
@@ -70,7 +70,7 @@ The `docs/` folder explains how the codebase is built. Keep these files updated 
 | `docs/backend.md` | Each Django app (`accounts`, `flights`, `traffic`, `suggestions`, `dashboard`), its models, and its API endpoints |
 | `docs/frontend.md` | Folder structure, pages, shared components, and how the frontend calls the API |
 | `docs/database.md` | Tables, fields, and relationships |
-| `docs/features/accounts.md` | Sign-up, login, profiles, and Traveler/Staff roles |
+| `docs/features/accounts.md` | Sign-up, login, profiles, Traveler/Staff/Head roles, and Head management permissions |
 | `docs/features/flight-search.md` | Flight search and flight details |
 | `docs/features/traffic-calendar.md` | The crowd-level calendar and how Low, Medium, and High are calculated |
 | `docs/features/date-suggestions.md` | How the best dates are chosen and explained |

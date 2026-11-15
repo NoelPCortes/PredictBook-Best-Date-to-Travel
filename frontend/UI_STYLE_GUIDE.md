@@ -114,6 +114,17 @@ Rules:
 
 ## 5. Bars and navigation
 
+### PredictBook page navigation
+
+- The Homepage and Traffic Calendar use the existing Blue 900 (`#1e3a8a`) top navigation bar.
+- The My Account page uses the same Blue 900 color for its sidebar.
+- The signed-in Homepage provides flight search and an interactive traffic calendar preview.
+- Selecting Traffic Calendar opens the full Traffic Calendar page.
+- Smart date suggestions appear within Traffic Calendar, not as a separate navigation tab.
+- My Account contains Profile Information, Password & Security, and Sign Out.
+- Heads have access to a management interface for assigning Staff by email, promoting Staff to Head, and removing access according to their permissions.
+- Navigation and management actions must follow the existing buttons, links, forms, icons, and accessibility rules in this guide.
+
 ### Top bar
 
 - Background Blue 900, white text, at least 60px tall, soft shadow underneath.
@@ -193,6 +204,12 @@ Rules:
 ---
 
 ## 8. Traffic calendar
+
+- The Homepage calendar preview allows users to select dates and view available crowd-level and flight information.
+- Selecting Traffic Calendar in navigation opens the full interactive calendar.
+- The full Traffic Calendar includes smart date suggestions based on crowd levels and available seats.
+- Selecting a calendar date updates the corresponding date information.
+- Calendar and prediction information must come from the available data; sample values must be clearly identified.
 
 Each date on the calendar changes color based on the crowd level stored for that airport and date. The database stores only the level. The frontend picks the color.
 

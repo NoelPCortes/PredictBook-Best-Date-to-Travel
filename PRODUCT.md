@@ -11,20 +11,34 @@ Travelers often have a hard time choosing flight dates because of crowded airpor
 ## Users
 
 - **Travelers** search for flights, check expected airport crowd levels, and look at recommended low-crowd dates.
-- **Staff** log in to a dashboard with summary charts of busy travel days. Staff accounts are created by an admin, not through public sign-up.
+- **Staff** log in to a dashboard with summary charts of busy travel days. Staff access is assigned by a Head using an email address.
+- **Heads** manage Staff access, promote Staff to Head, and remove access according to the role-management rules. Heads also retain Staff access.
 
 ## Features
 
-- **User accounts and authentication:** sign-up, sign-in, profile updates, and logout, with separate access for Travelers and Staff.
+- **User accounts and authentication:** sign-up, sign-in, profile updates, and logout, with separate access for Travelers, Staff, and Heads.
   - Sign-up and sign-in connect to the users table in the PostgreSQL database.
   - Passwords are hashed and never stored in plain text.
   - Sign-in is token-based. The frontend uses the token for later requests.
-  - Public sign-up creates Traveler accounts only. Staff accounts are created by an admin. Whether Staff with the position Head or HR can also create them is still to be decided.
+  - Public sign-up does not allow users to select Staff or Head access. Staff access is assigned by a Head using an email address, whether an account already exists or not.
 - **Flight search and details:** search by starting location, destination, and date. View the airline, departure and arrival times, destination, and open seats. Ticket prices are not shown.
 - **Traffic calendar:** a color-coded calendar of expected airport crowd levels (Low, Medium, High) for different airports and dates. The color of each date changes with the crowd level stored for that airport and date: Low is green, Medium is amber, and High is red. Each date also shows the level as text, so color is never the only signal.
 - **Prediction tool:** estimates crowd levels from historical flight and booking records, using backend logic.
 - **Smart date suggestions:** checks crowd levels and open seats to recommend the best dates to fly, and explains why.
 - **Staff dashboard:** summary charts of upcoming crowd trends and busy travel days.
+- **Role management:**
+  - Django administrators create the initial Heads.
+  - A Head can assign Staff access by entering an email address, whether the account already exists or not.
+  - A Head can promote Staff members to Head.
+  - A Head can remove Staff access, returning the user to Traveler.
+  - A Head can remove Head access only from Heads they promoted, or from themselves.
+  - A Head cannot remove the Head who promoted them.
+  - A Head created by a Django administrator can only have Head access removed by the administrator or themselves.
+  - Removing Head access returns the user to Staff.
+  - Fully revoking Staff access returns the user to Traveler.
+  - Removing a Head does not affect the Heads they previously promoted.
+  - Role removal does not delete the user's account.
+  - Heads have a management interface to assign Staff by email, promote Staff to Head, and remove access according to these permissions.
 
 ## Privacy
 

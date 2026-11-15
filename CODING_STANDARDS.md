@@ -109,10 +109,16 @@ active_users = users.filter(role="traveler")
 ## Authentication and privacy
 
 - Passwords are hashed with Django's built-in hashing. Never store, log, print, or return a plain text password or a password hash.
-- Sign-up always creates a Traveler. The sign-up request must never be able to set `role` or `position`.
-- Staff accounts are created by an admin only (Head or HR permission: TBD, ask first).
+- Public sign-up does not allow users to set `role` or `position`. Users without a prior Staff assignment register as Travelers. Users whose email was previously assigned Staff access by a Head receive Staff access when they register.
+- Staff access is assigned by Heads using an email address, whether the account exists or not. Public sign-up must not allow users to choose Staff or Head access.
+- Django administrators create initial Heads. Heads can promote Staff members to Head.
+- Heads can remove Head access only from Heads they promoted or themselves, and cannot remove the Head who promoted them.
+- Admin-created Heads can have Head access removed only by Django administrators or themselves.
+- Removing Head access returns a user to Staff. Fully revoking Staff access returns the user to Traveler.
+- Removing a Head must not affect the Heads they previously promoted.
+- Role changes must not delete user accounts.
 - Check the user's role on every protected page and endpoint, on the backend as well as the frontend.
-- Use the token flow for sign-in. Do not send the password with any request except sign-in.
+- Use the token flow for sign-in. Send passwords only when required for sign-up, sign-in, or authorized password changes. Never include passwords in unrelated requests, logs, or responses.
 - Do not choose or install the JWT library without asking.
 - Never store passenger names, booking reference numbers, payment details, or ticket prices.
 - Keep personal details private. Never show one user's details to another user, and never put them in logs or error messages.
