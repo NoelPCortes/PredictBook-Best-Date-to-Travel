@@ -6,6 +6,16 @@ PredictBook is a web application that helps travelers find the best dates to fly
 
 For the problem, users, features, scope, and success criteria, see [PRODUCT.md](PRODUCT.md).
 
+## Project Documents
+
+| File | What it covers |
+|---|---|
+| [PRODUCT.md](PRODUCT.md) | What the product does and does not do |
+| [docs/database.md](docs/database.md) | Database tables, fields, and relationships |
+| [CODING_STANDARDS.md](CODING_STANDARDS.md) | How code must be written |
+| [frontend/UI_STYLE_GUIDE.md](frontend/UI_STYLE_GUIDE.md) | How the interface must look and behave |
+| [PROMPTING_RULES.md](PROMPTING_RULES.md) | How Codex handles requests in this project |
+
 ## Tech Stack
 
 | Layer | Technology |
@@ -15,6 +25,7 @@ For the problem, users, features, scope, and success criteria, see [PRODUCT.md](
 | Backend | Python, Django, Django REST Framework |
 | Linting and testing (backend) | Ruff, pytest-django |
 | Database | PostgreSQL |
+| Authentication | Token-based (JWT). Library: TBD |
 
 ## Repository Layout
 
@@ -27,7 +38,7 @@ PredictBook/
 │   ├── requirements.txt
 │   ├── .env.example
 │   ├── config/              Settings, URLs, WSGI/ASGI
-│   ├── accounts/             Sign-up, login, profiles, Traveler/Staff/Head roles, role management
+│   ├── accounts/            Sign-up, login, profiles, Traveler/Staff/Head roles, role management
 │   ├── flights/             Airports, airlines, flights, flight search
 │   ├── traffic/             Historical records, crowd levels, prediction logic
 │   ├── suggestions/         Best-date recommendation logic
@@ -36,10 +47,14 @@ PredictBook/
 │   └── tests/               Backend tests
 ├── frontend/                React + TypeScript (Vite) app
 │   ├── src/
-│   │   ├── api/             API client
+│   │   ├── api/             Shared API client
+│   │   ├── assets/icons/    Icons (see the UI style guide)
 │   │   ├── components/      Shared UI (calendar, flight cards, charts)
-│   │   ├── pages/           Search, Calendar, Suggestions, Profile, Staff Dashboard
+│   │   ├── features/        One folder per feature (see the coding standards)
+│   │   ├── pages/           TBD: not yet decided alongside features/
+│   │   ├── references/      Design reference images (never rendered on a page)
 │   │   └── types/           Shared TypeScript types
+│   ├── UI_STYLE_GUIDE.md
 │   ├── .env.example
 │   └── package.json
 ├── docs/                    Documentation (see Docs Layout below)
@@ -55,6 +70,8 @@ PredictBook/
 │       ├── date-suggestions.md
 │       └── staff-dashboard.md
 ├── .gitignore
+├── CODING_STANDARDS.md      How code must be written
+├── PROMPTING_RULES.md       How Codex handles requests
 ├── PRODUCT.md               What the product does and does not do
 └── README.md                Setup and overview
 ```
@@ -74,7 +91,7 @@ The `docs/` folder explains how the codebase is built. Keep these files updated 
 | `docs/features/flight-search.md` | Flight search and flight details |
 | `docs/features/traffic-calendar.md` | The crowd-level calendar and how Low, Medium, and High are calculated |
 | `docs/features/date-suggestions.md` | How the best dates are chosen and explained |
-| `docs/features/staff-dashboard.md` | The Staff summary charts |
+| `docs/features/staff-dashboard.md` | The Staff Dashboard and Charts pages |
 
 Each feature doc should cover what the feature does, which backend app and frontend page it uses, and how it works.
 
@@ -238,10 +255,15 @@ python manage.py startapp suggestions
 python manage.py startapp dashboard
 pip freeze > requirements.txt
 cd ..
+```
 
+Before the first `python manage.py migrate`, create the custom user model in `accounts` and set `AUTH_USER_MODEL` in `settings.py` (see [docs/database.md](docs/database.md)). Changing it after the first migration is difficult.
+
+```bash
 # Frontend (the React + TypeScript template includes ESLint with typescript-eslint)
 npm create vite@latest frontend -- --template react-ts
 cd frontend
 npm install
 npm install -D vitest prettier
+npm install react-router-dom       # page routing
 ```

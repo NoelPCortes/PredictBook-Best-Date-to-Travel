@@ -20,12 +20,15 @@ Travelers often have a hard time choosing flight dates because of crowded airpor
   - Sign-up and sign-in connect to the users table in the PostgreSQL database.
   - Passwords are hashed and never stored in plain text.
   - Sign-in is token-based. The frontend uses the token for later requests.
+  - Users can sign in with their username or their email address.
   - Public sign-up does not allow users to select Staff or Head access. Staff access is assigned by a Head using an email address, whether an account already exists or not.
+- **Home page:** after signing in, users see a Home page with flight search and a traffic calendar preview.
+  - "Your bookings", "Your upcoming booking", and "Recent searches" on the Home page are sample data for now. The system does not store bookings (see Privacy), so they must be labeled as sample data until a decision is made.
 - **Flight search and details:** search by starting location, destination, and date. View the airline, departure and arrival times, destination, and open seats. Ticket prices are not shown.
-- **Traffic calendar:** a color-coded calendar of expected airport crowd levels (Low, Medium, High) for different airports and dates. The color of each date changes with the crowd level stored for that airport and date: Low is green, Medium is amber, and High is red. Each date also shows the level as text, so color is never the only signal.
+- **Traffic calendar:** a color-coded calendar of expected airport crowd levels (Low, Medium, High) for different airports and dates. The color of each date changes with the crowd level stored for that airport and date: Low is light green, Medium is amber, and High is dark orange. Each level is also available as text (in the legend, in the selected date's details, and in each date's accessible label), so color is never the only signal.
 - **Prediction tool:** estimates crowd levels from historical flight and booking records, using backend logic.
 - **Smart date suggestions:** checks crowd levels and open seats to recommend the best dates to fly, and explains why.
-- **Staff dashboard:** summary charts of upcoming crowd trends and busy travel days.
+- **Staff dashboard and charts:** two separate pages. The Dashboard shows summary numbers and upcoming high-crowd days. The Charts page shows crowd trends and busy travel days.
 - **Role management:**
   - Django administrators create the initial Heads.
   - A Head can assign Staff access by entering an email address, whether the account already exists or not.

@@ -11,7 +11,8 @@ Django names each table `<app>_<model>` (for example `accounts_user`). This file
 
 | Table | Django app | Purpose |
 |---|---|---|
-| `users` | `accounts` | Accounts for Travelers and Staff |
+| `users` | `accounts` | Accounts for Travelers, Staff, and Heads |
+| `staff_assignments` | `accounts` | Emails a Head has assigned as Staff, including people who have not signed up yet |
 | `airports` | `flights` | Airports used by flights, forecasts, and history |
 | `airlines` | `flights` | Airlines that operate flights |
 | `flights` | `flights` | Flight details and open seats (no passenger data) |
@@ -21,13 +22,15 @@ Django names each table `<app>_<model>` (for example `accounts_user`). This file
 These features have **no table of their own**, because they are calculated from the tables above:
 
 - **Smart date suggestions** (`suggestions` app): read `crowd_forecasts` and `flights`.
-- **Staff dashboard charts** (`dashboard` app): read `crowd_forecasts` and `historical_records`.
+- **Staff dashboard and charts** (`dashboard` app): read `crowd_forecasts` and `historical_records`.
 
 ## 2. Relationships
 
 - One airline has many flights.
 - One airport has many departing flights and many arriving flights.
 - One airport has many crowd forecasts and many historical records.
+- One Head can promote many Staff members to Head. Each promoted Head points back to the Head who promoted them (`promoted_by`).
+- One Head can create many Staff assignments.
 - Users are not linked to flights. There are no bookings, so no passenger is tied to a flight.
 
 ---
@@ -44,8 +47,8 @@ Uses a **custom Django user model**. This must be set up before the first migrat
 | username | text (up to 150) | yes | Unique |
 | email | email | yes | Unique |
 | password | hashed text | yes | Stored only as a Django hash. Never plain text. Never returned by the API. |
-| role | choice: `traveler`, `staff` | yes | Defaults to `traveler` |
-| position | choice | staff only | Empty for travelers. Known values: Head, HR. Other positions: TBD |
+| role | choice: `traveler`, `staff`, `head` | yes | Defaults to `traveler` |
+| promoted_by | link to `users` | no | The Head who promoted this user to Head. Empty for Travelers, for Staff, and for Heads created by a Django administrator |
 | first_name | text | no | Can be added on the profile page |
 | last_name | text | no | Can be added on the profile page |
 | is_active | yes/no | yes | Defaults to yes. If no, the user cannot sign in |
@@ -54,13 +57,39 @@ Uses a **custom Django user model**. This must be set up before the first migrat
 
 Rules:
 
-- **Sign-up always creates a Traveler.** The sign-up request must not be able to choose the role or position.
-- **Staff accounts are created by an admin.** Admin means a Django superuser.
-- Staff with the position Head or HR may also create staff accounts. **TBD until the owner confirms.** Until then, only an admin can.
+- **Sign-up creates a Traveler**, unless the email already has a row in `staff_assignments`. In that case the new account gets the Staff role. The sign-up request must not be able to choose the role or `promoted_by`.
+- **Heads are created in two ways:** a Django administrator creates the initial Heads (`promoted_by` stays empty), or a Head promotes a Staff member (`promoted_by` is set to that Head).
+- **Staff access is assigned by a Head** using an email address. If an account with that email exists, its role becomes `staff`. If not, a row is added to `staff_assignments` and applied when that person signs up.
+- A Head keeps Staff access. Heads can open every Staff page.
+- **Removing roles:**
+  - Removing Head access sets the role to `staff` and clears `promoted_by`.
+  - Fully revoking Staff access sets the role to `traveler`.
+  - Removing a role never deletes the account.
+  - Removing a Head does not change the Heads that person promoted.
+- **Who can remove a Head:** a Head can remove Head access only from the Heads they promoted, or from themselves. A Head cannot remove the Head who promoted them. A Head with an empty `promoted_by` (created by a Django administrator) can only be removed by a Django administrator or by that Head.
+- Username and email are both unique, so either can be used to sign in.
 - Django also has built-in `is_staff` and `is_superuser` flags. `is_staff` means "can open the Django admin site." It is **not** the same as our Staff role. Use `role` for all app logic.
 - Phone number, home airport, and similar extras are not included.
 
-### 3.2 `airports`
+### 3.2 `staff_assignments`
+
+Emails that a Head has assigned as Staff. This lets a Head assign Staff access before the person has an account.
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| id | auto number | yes | Primary key |
+| email | email | yes | Unique |
+| assigned_by | link to `users` | yes | The Head who assigned it |
+| assigned_at | date and time | yes | Set automatically |
+
+Rules:
+
+- When a person signs up with an assigned email, the account gets the Staff role.
+- If the account already exists when the Head assigns the email, the role is changed directly. TBD: whether a row is still kept in that case.
+- If a Head fully revokes Staff access before the person signs up, the row is deleted.
+- Do not add other fields without asking.
+
+### 3.3 `airports`
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
@@ -70,7 +99,7 @@ Rules:
 | city | text | yes | |
 | country | text | yes | |
 
-### 3.3 `airlines`
+### 3.4 `airlines`
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
@@ -78,7 +107,7 @@ Rules:
 | name | text | yes | Unique |
 | code | text | yes | Unique short code |
 
-### 3.4 `flights`
+### 3.5 `flights`
 
 Flight details only. This is **not** a passenger ticket.
 
@@ -104,7 +133,7 @@ Rules:
 - **No passenger names and no booking reference numbers.** Open seats are a count only.
 - Terminal, gate, flight status, and cabin class are not included. Add them only if the owner asks.
 
-### 3.5 `crowd_forecasts`
+### 3.6 `crowd_forecasts`
 
 Expected airport crowd level for each airport and date. This table feeds the traffic calendar, the date suggestions, and the Staff charts.
 
@@ -125,7 +154,7 @@ Rules:
 - Keep forecasts after their date passes. Comparing them with `historical_records` shows whether the 75% accuracy goal is met.
 - The rules that turn data into Low, Medium, or High (thresholds) are **TBD**. They will be written in `docs/features/traffic-calendar.md`.
 
-### 3.6 `historical_records`
+### 3.7 `historical_records`
 
 Past daily totals per airport. The prediction logic uses these to calculate forecasts.
 
@@ -151,7 +180,7 @@ Rules:
 - Passwords are hashed by Django's built-in password hashing. They are never stored or logged in plain text.
 - API responses never include the `password` field.
 - Sign-in uses tokens. The password is only sent at sign-in, and the token is used for later requests.
-- A user's profile details are visible only to that user and admins.
+- A user's profile details are visible only to that user and admins. TBD: what a Head can see about the Staff and Heads they manage (at least the email, to manage access).
 - The Staff dashboard shows summary charts only, never individual traveler details.
 - No table stores passenger names, booking references, payment details, or ticket prices.
 - Secrets and database credentials stay in `backend/.env` and are never committed.
@@ -166,6 +195,9 @@ Rules:
 
 ## 6. Open items (TBD)
 
-- Whether Staff with the position Head or HR can create staff accounts, and the full list of staff positions.
+- Whether a `staff_assignments` row is kept when the account already exists.
+- What happens to `promoted_by` if the promoting Head's account is ever deleted. Role removal does not delete accounts, so this only matters if deleting accounts is added later.
+- What a Head can see about the users they manage.
 - How `crowd_level` is calculated (thresholds), and what `crowd_score` measures.
+- How crowd levels for "All Airports" are combined, since forecasts are stored per airport.
 - The dataset for flights, airports, airlines, and historical records.

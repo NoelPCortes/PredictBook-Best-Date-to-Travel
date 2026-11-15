@@ -66,6 +66,7 @@ active_users = users.filter(role="traveler")
 - Do not leave commented-out code.
 - Keep comments short and up to date. Delete a comment if the code changes and it no longer applies.
 - Docstrings are for public functions or classes whose purpose is not obvious from the name.
+- A `TODO` comment is allowed only to mark a connection point the owner has described (for example where an API call will be added later). Say what is missing.
 
 ## Python / Django
 
@@ -75,6 +76,7 @@ active_users = users.filter(role="traveler")
 - Use `select_related` and `prefetch_related` to avoid repeated queries in loops.
 - Validate input in serializers, not scattered across views.
 - Always use migrations for schema changes. Never edit the database by hand. Never rewrite or delete an applied migration without asking.
+- Set the custom user model (`AUTH_USER_MODEL`) before the first migration.
 - Use `get_object_or_404` instead of unguarded `.get()` in views.
 - Check permissions on every view that touches protected data.
 - Handle expected errors with specific exceptions. Never use a bare `except:`.
@@ -85,7 +87,9 @@ active_users = users.filter(role="traveler")
 - Every feature lives in its own folder inside `frontend/src/features/`, such as `signin`, `signup`, `homepage`, `flights`, `calendar`, `suggestions`, `profile`, and `staff-dashboard`.
 - A feature folder holds that feature's own components, API calls, and types. A feature must not reach into another feature's folder. If two features need the same thing, move it to `src/components` or `src/types`.
 - Shared pieces go in `src/components` (shared UI), `src/api` (shared API client), and `src/types` (shared types).
-- Icons live only in `src/assets/icons`. Do not add an icon library or new icon files without asking.
+- Icons live only in `src/assets/icons`. Do not add an icon library or new icon files without asking. Do not draw icons or logos inline as SVG.
+- Design reference images live in `src/references`. Never import them or render them on a page.
+- Whether `src/pages` is used alongside `src/features` is TBD. Ask before creating files there.
 - Do not create a new feature folder, or rename one, without asking the owner.
 
 ## Frontend code
@@ -95,6 +99,7 @@ active_users = users.filter(role="traveler")
 - Keep API calls out of components. Put them in the feature's own API file, using the shared API client.
 - Do not hardcode URLs or ports. Read them from configuration.
 - Handle loading and error states.
+- Sample data used before the backend exists lives in typed constants, never inside component markup, and is clearly labeled as sample data on screen.
 
 ## UI/UX: always follow `frontend/UI_STYLE_GUIDE.md`
 
@@ -109,12 +114,12 @@ active_users = users.filter(role="traveler")
 ## Authentication and privacy
 
 - Passwords are hashed with Django's built-in hashing. Never store, log, print, or return a plain text password or a password hash.
-- Public sign-up does not allow users to set `role` or `position`. Users without a prior Staff assignment register as Travelers. Users whose email was previously assigned Staff access by a Head receive Staff access when they register.
+- Public sign-up does not allow users to set `role` or `promoted_by`. Users register as Travelers, unless their email was previously assigned Staff access by a Head. In that case they receive Staff access when they register.
 - Staff access is assigned by Heads using an email address, whether the account exists or not. Public sign-up must not allow users to choose Staff or Head access.
 - Django administrators create initial Heads. Heads can promote Staff members to Head.
 - Heads can remove Head access only from Heads they promoted or themselves, and cannot remove the Head who promoted them.
 - Admin-created Heads can have Head access removed only by Django administrators or themselves.
-- Removing Head access returns a user to Staff. Fully revoking Staff access returns the user to Traveler.
+- Removing Head access returns a user to Staff. Fully revoking Staff access returns a user to Traveler.
 - Removing a Head must not affect the Heads they previously promoted.
 - Role changes must not delete user accounts.
 - Check the user's role on every protected page and endpoint, on the backend as well as the frontend.
@@ -158,6 +163,7 @@ active_users = users.filter(role="traveler")
 - Keep changes small and focused on one purpose.
 - Use clear commit messages in the imperative form: `Add request status filter`.
 - Do not commit generated files, virtual environments, or `.env`.
+- Do not run `git commit` or `git push` unless the owner asks.
 
 ## Before you finish
 
