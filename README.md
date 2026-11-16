@@ -189,6 +189,13 @@ refresh clears the session and redirects to Sign-In.
 
 ## Account areas
 
+For sample flight data, run `python manage.py seed_staff` first, then
+`python manage.py seed_sample_data` from `backend/`. The latter requires the
+existing Staff user named by `SEED_STAFF_USERNAME` and idempotently creates five
+Philippine airports, three airlines, and five flights per day for the next 14
+days (including today in Philippine time). Its output contains counts and a
+sample-data notice only. These are sample schedules, not real airline data.
+
 No additional dependency, migration, environment variable, or setup command is
 needed for the role pages and own-profile UI.
 
