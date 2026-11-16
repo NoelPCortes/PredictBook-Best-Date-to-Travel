@@ -74,6 +74,53 @@ def signup_fields(**overrides):
     }
 
 
+@pytest.mark.parametrize(
+    "role,dashboard_status,head_status",
+    [("traveler", 403, 403), ("staff", 200, 403), ("head", 200, 200)],
+)
+def test_role_area_endpoints_enforce_current_role(
+    client,
+    make_user,
+    role,
+    dashboard_status,
+    head_status,
+):
+    authorize(client, make_user("actor", role))
+    dashboard_response = client.get("/api/dashboard/")
+    head_response = client.get("/api/accounts/head/")
+    assert dashboard_response.status_code == dashboard_status
+    assert head_response.status_code == head_status
+    if dashboard_status == 200:
+        assert set(dashboard_response.data) == {"detail", "is_sample"}
+        assert dashboard_response.data["is_sample"] is True
+        assert "sample data" in dashboard_response.data["detail"]
+    if head_status == 200:
+        assert set(head_response.data) == {"detail"}
+
+
+@pytest.mark.parametrize("path", ["/api/dashboard/", "/api/accounts/head/"])
+def test_role_area_endpoints_require_authentication(client, path):
+    assert client.get(path).status_code == 401
+
+
+@pytest.mark.parametrize("path", ["/api/dashboard/", "/api/accounts/head/"])
+def test_role_area_endpoints_reject_access_after_role_revocation(
+    client, make_user, path
+):
+    user = make_user("actor", "head")
+    authorize(client, user)
+    assert client.get(path).status_code == 200
+    user.role = "traveler"
+    user.save(update_fields=["role"])
+    assert client.get(path).status_code == 403
+
+
+@pytest.mark.parametrize("path", ["/api/dashboard/", "/api/accounts/head/"])
+def test_django_admin_flags_do_not_grant_role_area_access(client, make_user, path):
+    authorize(client, make_user("admin", is_staff=True, is_superuser=True))
+    assert client.get(path).status_code == 403
+
+
 def test_signup_hashes_password_and_returns_only_safe_profile(client):
     response = post(
         client, "signup", **signup_fields(first_name="Ada", last_name="Lee")

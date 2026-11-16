@@ -80,6 +80,13 @@ class PasswordChangeView(generics.GenericAPIView):
         return Response({"detail": "Password changed."})
 
 
+class HeadAreaView(APIView):
+    permission_classes = (IsAuthenticated, IsHead)
+
+    def get(self, request):
+        return Response({"detail": "Head management access granted."})
+
+
 class HeadManagementView(APIView):
     permission_classes = (
         IsAuthenticated,
