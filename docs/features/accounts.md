@@ -14,15 +14,20 @@ The existing frontend forms now live in `features/signin` and `features/signup`.
 They preserve client validation and call the existing `signin/` and `signup/`
 endpoints. Sign-Up displays backend field errors and password validation messages
 beside their inputs and focuses the first invalid field. Successful Sign-Up opens
-Sign-In. Sign-In stores the returned tokens and keeps only safe profile fields in
-memory, then opens `/home`.
+Sign-In with the success alert **Account created. Please sign in.**, using
+`successIcon`. Editing the Sign-In form or navigating away clears the message;
+the navigation state is consumed so revisiting does not restore it. Sign-In
+stores the returned tokens and keeps only safe profile fields in memory, then
+opens the landing page for the role returned by the backend.
 
 `features/homepage` reuses the existing Home UI. It displays the signed-in username;
 all other flight/calendar/booking/search values remain labeled sample data.
-`profile/` restores the current user's profile after reload. Home is protected;
-signed-in visitors to Sign-In or Sign-Up go to Home. `/` stays public. Sign out
-calls `logout/` with the refresh token, then clears the local session even if the
-request fails. Profile/password screens and Head management UI remain pending.
+`profile/` restores the current user's profile after reload. Home is
+Traveler-only; Staff and Heads have separate areas as described below. `/` stays
+public. Sign out calls `logout/` with the refresh token, then clears the local
+session even if the request fails. The Staff dashboard, Head assignment form,
+and own-profile/password page are implemented. Charts and promote/remove/revoke
+management screens are outside this task.
 
 ## Endpoint contract
 
@@ -41,16 +46,98 @@ Passwords and password hashes are never returned. Protected endpoints require
 | `profile/` | GET | none | profile | Signed-in user |
 | `profile/` | PATCH | Any of first_name, last_name, username, email | profile | Signed-in user |
 | `password/change/` | POST | current_password, new_password | detail | Signed-in user |
+| `head/` | GET | none | detail | Head |
 | `staff/assign/` | POST | email | detail | Head |
 | `heads/promote/` | POST | email | detail | Head; target must be Staff |
 | `heads/remove/` | POST | email, role (`staff` or `traveler`) | detail | Head; self or Head they promoted |
 | `staff/revoke/` | POST | email | detail | Head; existing Staff or pending assignment |
+
+The separate approved endpoint `GET /api/dashboard/` accepts no request fields
+and returns `detail` plus `is_sample: true`. It admits Staff and Heads and
+provides a server-side access gate; dashboard figures are still frontend sample
+constants, not calculated database forecasts. `GET /api/accounts/head/` likewise
+provides a Head-only gate and returns only `detail`.
 
 Success responses use 200 except sign-up (201). Invalid fields and invalid role
 transitions return 400. Missing/invalid authentication returns 401. Authenticated
 callers without required permissions return 403. Revoking an unknown pending
 email returns 404. Management responses include only `detail`, without profile
 fields. Requests containing unsupported or read-only account fields return 400.
+
+## Role redirects and frontend routes
+
+| Route | Access | Behavior |
+|---|---|---|
+| `/` | Public, including signed-in visitors | Existing Landing page |
+| `/signin`, `/signup` | Signed-out visitors | Signed-in visitors go to their role landing page |
+| `/home` | Traveler | Traveler landing page; existing sample information |
+| `/staff/dashboard` | Staff and Head | Staff landing page; sample dashboard |
+| `/head` | Head | Head landing page; Assign Staff by email |
+| `/profile` | All authenticated roles | Own profile, password change, Sign Out |
+
+`ROLE_LANDING_PATHS` defines Traveler -> `/home`, Staff -> `/staff/dashboard`,
+and Head -> `/head`. `SessionBootstrap` restores the profile from the backend.
+`SessionRoute` handles authentication and redirects signed-in visitors away from
+credential forms. `RoleRoute` sends signed-out visitors to `/signin` and users
+with another role to their own landing page. Heads also pass Staff route guards.
+The profile is held in memory, not persisted as a browser role authority.
+
+Frontend guards control navigation, while backend permissions enforce access.
+`IsStaffOrHead` and `IsHead` in `accounts/permissions.py` require active,
+authenticated users and check the current database role. Both protected area
+views also require `IsAuthenticated`. No token gives 401; an authenticated
+wrong role gives 403. `is_staff` and `is_superuser` do not bypass app roles;
+revoking a role blocks an existing JWT on the next protected backend request.
+The Staff and Head pages request their backend access gates before showing
+summary content or the assignment form. The backend rechecks Head permission
+again when an assignment is submitted. These gates do not protect a live Home
+data API: Home still renders frontend sample data.
+
+## Profile and password UI
+
+The top-bar username links to `/profile`. Its Navy sidebar links to the user's
+role landing page, Profile Information, Password & Security, and Sign Out.
+The reference layout is adapted without photo uploads or an edit pencil; the
+avatar uses only `UserCircleIcon`. Role is plain read-only text.
+
+Profile Information submits only `username`, `email`, `first_name`, and
+`last_name` using `PATCH /api/accounts/profile/`. Success updates the in-memory
+profile, and a reload retrieves persisted values from `GET` on the same path.
+The endpoint accepts no target ID and always uses the authenticated user. `role`,
+`promoted_by`, password, and target-ID fields in the body are rejected with 400.
+Duplicate identities return field errors without partial updates. Supplying a
+target ID as a query parameter still returns only the caller; user-ID subroutes
+do not exist.
+
+Password & Security asks for Current password, New password, and Confirm new
+password. Confirmation must match locally and is never sent to the API.
+`POST /api/accounts/password/change/` receives only `current_password` and
+`new_password`; the backend validates the current password and Django's default
+password rules. Failures leave the password unchanged. Success clears the input
+fields. Backend validation messages appear beside their fields with
+`aria-describedby`, `aria-invalid`, and focus on the first invalid input;
+success and general errors appear as text alerts/status messages. Both forms
+disable their action while saving. Passwords stay masked; no password is stored
+in profile state or browser storage.
+
+## Staff and Head pages
+
+The Staff page follows `Staff dashboard@1x.png` with Dashboard-only navigation
+and a visible Sample data label. It reuses the typed January 2026 daily levels
+in `src/data/homeSample.ts`. Counts are computed as 8 High, 11 Medium, and 12 Low;
+Sunday has the most high-crowd days when real January dates are used. Busiest
+weekday means the weekday(s) with the most High days; ties are retained.
+
+Next 7 days and upcoming High days use the live local date, include today, and
+update once per minute. Dates outside January have no sample crowd level. After
+January 2026, the upcoming sample list is empty rather than shifting the fixture
+into a future month. The page adds no dataset, forecast logic, Charts page,
+or All Airports aggregation rule.
+
+The Head page shows Head management and one Email/Assign Staff form, using the
+existing `POST /api/accounts/staff/assign/`. It displays backend success/no-op
+messages or field/general errors. Head and Dashboard navigation uses only
+existing routes. No promote/remove/revoke UI was added.
 
 ## Authentication and passwords
 
@@ -98,7 +185,7 @@ password. Password fields are write-only and hashed using Django's password API.
 - Role removal never deletes accounts or changes Heads the removed Head promoted.
   Role updates are transactional, lock affected users, and recheck the acting
   Head's current role. JWT authentication reads the current user from the database.
-- `IsStaffOrHead` admits both Staff and Heads for future protected Staff endpoints;
+- `IsStaffOrHead` admits both Staff and Heads to the protected dashboard endpoint;
   Travelers are denied. Only authenticated Heads can use management endpoints.
 - Profile endpoints always operate on the signed-in user. Role, promoter, password,
   and another user's ID cannot be set through profile updates. Management accepts
@@ -123,12 +210,21 @@ Run `python -m pytest` from `backend/`. Tests use PostgreSQL's separate test
 database and cover sign-up/password validation, assignment consumption and
 rollback, sign-in, token lifetimes/rotation/logout ownership, profile privacy,
 password changes, authorization, Head removal chains, Staff access, admin
-registration, protected deletion, and database constraints.
+registration, protected deletion, and database constraints. Profile tests cover
+all roles, saved-value reloads, protected-field rejection without partial updates,
+identity uniqueness, failed password validation preserving the original password,
+and attempts to target another user. Area endpoint tests cover the complete
+Traveler/Staff/Head matrix, missing authentication, and revocation with existing
+tokens.
 
 Frontend Vitest tests mock the API and cover field error associations, safe
 Sign-Up payloads, Sign-In storage/navigation, protected routes, restored sessions,
 logout success/failure, and one-attempt refresh behavior. Backend seed tests cover
 creation, updates, DEBUG/placeholder/missing-variable refusal, Head preservation,
 identity conflicts, password hashing, output privacy, and pending assignment
-preservation. These automated tests do not establish browser rendering or live
-browser integration by themselves.
+preservation. Dashboard tests cover real weekday alignment, counts, live-date
+filtering, month boundaries, and midnight rollover. Head and profile UI tests
+cover form payloads, backend errors, authorization gates, and saved-profile
+restoration after remounting with a fresh backend response. Automated UI checks
+use jsdom and API mocks; the new screens have not been visually verified in a
+live browser. These tests do not establish a pixel-perfect reference match.

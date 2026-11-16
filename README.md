@@ -187,6 +187,29 @@ request fails. Tokens are stored in localStorage only through the shared auth
 storage module. A 401 causes one refresh attempt, then a single retry; failed
 refresh clears the session and redirects to Sign-In.
 
+## Account areas
+
+No additional dependency, migration, environment variable, or setup command is
+needed for the role pages and own-profile UI.
+
+| Role | Sign-in landing page | Other account access |
+|---|---|---|
+| Traveler | `/home` | `/profile` |
+| Staff | `/staff/dashboard` | `/profile` |
+| Head | `/head` | `/staff/dashboard` and `/profile` |
+
+The top-bar username opens My account. Users can edit their own username, email,
+first name and last name, or change their password with their current password.
+Role is read-only. Successful registration shows **Account created. Please sign
+in.** The profile and password API already enforce ownership and validation;
+frontend guards are backed by current-role checks on protected Staff/Head APIs.
+
+The Staff dashboard is explicitly sample data for January 2026. Its upcoming
+panels use the live local date; they show no upcoming sample days after that
+month. The Head page assigns Staff by email. No Charts page or promote/remove
+screens were added. See [accounts](docs/features/accounts.md) and
+[frontend](docs/frontend.md) for paths, payloads, guards, and limitations.
+
 ## Environment Variables
 
 ### `backend/.env`
