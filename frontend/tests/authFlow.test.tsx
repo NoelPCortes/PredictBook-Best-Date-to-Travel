@@ -25,6 +25,9 @@ beforeEach(() => {
   clearSession()
   vi.stubEnv('VITE_API_URL', 'https://api.example.test')
   fetchMock.mockReset()
+  fetchMock.mockImplementation(url => String(url).endsWith('/api/dashboard/')
+    ? Promise.resolve(response({ detail: 'Dashboard uses sample data.', is_sample: true }))
+    : Promise.reject(new Error('Unexpected API request')))
   vi.stubGlobal('fetch', fetchMock)
   container = document.createElement('div')
   document.body.append(container)
@@ -242,7 +245,7 @@ describe('role redirects and access', () => {
     await submit()
     expect(currentPath()).toBe(destination)
     expect(readTokens()).toEqual(tokens)
-    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(fetchMock).toHaveBeenCalledTimes(role === 'staff' ? 2 : 1)
   })
 
   it.each([
@@ -257,7 +260,7 @@ describe('role redirects and access', () => {
     await render(requested)
     expect(currentPath()).toBe(destination)
     expect(String(fetchMock.mock.calls[0][0])).toContain('/api/accounts/profile/')
-    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(fetchMock).toHaveBeenCalledTimes(destination === '/staff/dashboard' ? 2 : 1)
   })
 
   it.each([

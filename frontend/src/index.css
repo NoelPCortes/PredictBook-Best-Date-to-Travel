@@ -6,4 +6,6 @@
 @media(max-width:600px){.nav-inner{margin:0 5%;flex-wrap:wrap;padding:16px 0;gap:16px}.nav-links{width:100%;justify-content:space-between;gap:8px;font-size:12px}.brand{font-size:24px}h1{font-size:48px}h2{font-size:28px}.intro{font-size:17px}.search-bar,.feature-grid,.steps{grid-template-columns:1fr}.calendar{padding:18px 14px}.calendar-day{height:36px}.calendar-grid{gap:5px}.legend{gap:10px}.site-footer{flex-direction:column;gap:12px}.feature-card{padding:22px}.steps{gap:24px}}
 :root { --action-hover: #1e40af; --action-pressed: #1e3a8a; --disabled-bg: #e2e8f0; --disabled-text: #64748b; --space-4: 4px; --space-8: 8px; --space-16: 16px; --space-24: 24px; --control-radius: 14px; --control-transition: 150ms; }
 :root { --success-text: #15803d; --success-background: #dcfce7; --alert-border-width: 5px; --alert-icon-size: 20px; --alert-font-size: 16px; }
+:root { --space-12: 12px; --space-32: 32px; --space-40: 40px; --staff-content-width: 1280px; --staff-title-size: 40px; --staff-value-size: 40px; --staff-section-size: 20px; --staff-label-size: 14px; --staff-panel-height: 400px; --staff-nav-height: 44px; --nav-text: #dbeafe; }
+:root { --no-data-background: #f1f5f9; }
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}

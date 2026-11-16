@@ -1,7 +1,6 @@
 ﻿import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { useAuth, clearSession } from '../../api/authState'
-import { logout } from './api'
+import { useAuth } from '../../api/authState'
+import { useSignOut } from '../../components/useSignOut'
 import AppNavbar from '../../components/AppNavbar'
 import HomeCalendar, { CrowdChip } from '../../components/HomeCalendar'
 import Icon from '../../components/Icon'
@@ -10,14 +9,7 @@ import './HomePage.css'
 
 export default function HomePage() {
   const { profile } = useAuth()
-  const navigate = useNavigate()
-  const [isSigningOut, setIsSigningOut] = useState(false)
-  async function signOut() {
-    if (isSigningOut) return
-    setIsSigningOut(true)
-    try { await logout() } catch { /* Local sign-out must complete even without a connection. */ }
-    finally { clearSession(); navigate('/signin', { replace: true }) }
-  }
+  const { signOut, isSigningOut } = useSignOut()
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
   return <>
