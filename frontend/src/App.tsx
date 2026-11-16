@@ -15,6 +15,8 @@ import HeadPage from './features/head/HeadPage'
 import ProfilePage from './features/profile/ProfilePage'
 import FlightListPage from './features/flights/FlightListPage'
 import FlightFormPage from './features/flights/FlightFormPage'
+import ForecastListPage from './features/calendar/ForecastListPage'
+import ForecastFormPage from './features/calendar/ForecastFormPage'
 
 function SessionBootstrap({ children }: { children: ReactNode }) {
   const navigate = useNavigate()
@@ -56,6 +58,9 @@ export function AppRoutes() {
     <Route path="/staff/flights" element={<RoleRoute allowedRoles={['staff', 'head']}><FlightListPage /></RoleRoute>} />
     <Route path="/staff/flights/new" element={<RoleRoute allowedRoles={['staff', 'head']}><FlightFormPage /></RoleRoute>} />
     <Route path="/staff/flights/:id/edit" element={<RoleRoute allowedRoles={['staff', 'head']}><FlightFormPage /></RoleRoute>} />
+    <Route path="/staff/forecasts" element={<RoleRoute allowedRoles={['staff', 'head']}><ForecastListPage /></RoleRoute>} />
+    <Route path="/staff/forecasts/new" element={<RoleRoute allowedRoles={['staff', 'head']}><ForecastFormPage /></RoleRoute>} />
+    <Route path="/staff/forecasts/:id/edit" element={<RoleRoute allowedRoles={['staff', 'head']}><ForecastFormPage /></RoleRoute>} />
     <Route path="/head" element={<RoleRoute allowedRoles={['head']}><HeadPage /></RoleRoute>} />
     <Route path="/profile" element={<SessionRoute isProtected><ProfilePage /></SessionRoute>} />
   </Routes></SessionBootstrap>

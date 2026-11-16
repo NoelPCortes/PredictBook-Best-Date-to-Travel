@@ -10,5 +10,6 @@
 :root { --no-data-background: #f1f5f9; }
 :root { --error-text: #b91c1c; --error-background: #fee2e2; --input-hover-border: #3b82f6; }
 :root { --record-hover: #eff6ff; --record-action-shadow: 0 2px 8px #dbeafe; --danger-hover: #991b1b; --danger-pressed: #7f1d1d; }
+:root { --calendar-cell-radius: 10px; }
 :root { --account-sidebar-width: 240px; --account-avatar-column: 200px; --account-avatar-size: 96px; --account-section-size: 24px; }
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
