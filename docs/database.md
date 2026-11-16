@@ -28,7 +28,7 @@ These features have **no table of their own**, because they are calculated from 
 
 All project-defined foreign keys use `on_delete=PROTECT`: `User.promoted_by`,
 `StaffAssignment.assigned_by`, `Flight.airline`, `Flight.origin`,
-`Flight.destination`, `CrowdForecast.airport`, and `HistoricalRecord.airport`.
+`Flight.destination`, `Flight.created_by`, `CrowdForecast.airport`, and `HistoricalRecord.airport`.
 Deleting a referenced user, airport, or airline is blocked. In particular, a user
 who promoted other Heads or assigned pending Staff emails cannot be deleted while
 those references remain. Role removal never deletes accounts. SimpleJWT's
@@ -39,7 +39,7 @@ those references remain. Role removal never deletes accounts. SimpleJWT's
 - One airport has many crowd forecasts and many historical records.
 - One Head can promote many Staff members to Head. Each promoted Head points back to the Head who promoted them (`promoted_by`).
 - One Head can create many Staff assignments.
-- Users are not linked to flights. There are no bookings, so no passenger is tied to a flight.
+- One user can create many flights through `Flight.created_by`. This records the author, not a passenger. There are no bookings.
 
 ---
 
@@ -122,6 +122,7 @@ Flight details only. This is **not** a passenger ticket.
 | Field | Type | Required | Notes |
 |---|---|---|---|
 | id | auto number | yes | Primary key |
+| created_by | link to `users` | yes | Set by the server to the signed-in creator; `on_delete=PROTECT` |
 | airline | link to `airlines` | yes | |
 | flight_number | CharField (10) | yes | |
 | origin | link to `airports` | yes | |
@@ -137,6 +138,9 @@ Rules:
 - Arrival must be after departure.
 - Available seats must be between 0 and total seats.
 - The same airline, flight number, and departure time cannot appear twice.
+- Any signed-in user can read flights. Staff and Heads can create them. Staff can update or delete only their own flights; Heads can update or delete any flight. Travelers cannot write.
+- Requests containing `created_by` are rejected with a field-level 400 error. Ownership cannot be reassigned by clients.
+- Traveler responses omit creator information. Staff and Head responses include `created_by_username` and a server-computed `can_edit`; other users' email addresses are never included.
 - **No price.** Ticket prices are not stored or shown.
 - **No passenger names and no booking reference numbers.** Open seats are a count only.
 - Terminal, gate, flight status, and cabin class are not included. Add them only if the owner asks.

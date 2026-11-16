@@ -13,6 +13,8 @@ import { ROLE_LANDING_PATHS } from './types/auth'
 import StaffDashboard from './features/staff-dashboard/StaffDashboard'
 import HeadPage from './features/head/HeadPage'
 import ProfilePage from './features/profile/ProfilePage'
+import FlightListPage from './features/flights/FlightListPage'
+import FlightFormPage from './features/flights/FlightFormPage'
 
 function SessionBootstrap({ children }: { children: ReactNode }) {
   const navigate = useNavigate()
@@ -51,6 +53,9 @@ export function AppRoutes() {
     <Route path="/signup" element={<SessionRoute><SignUpPage /></SessionRoute>} />
     <Route path="/home" element={<RoleRoute allowedRoles={['traveler']}><HomePage /></RoleRoute>} />
     <Route path="/staff/dashboard" element={<RoleRoute allowedRoles={['staff', 'head']}><StaffDashboard /></RoleRoute>} />
+    <Route path="/staff/flights" element={<RoleRoute allowedRoles={['staff', 'head']}><FlightListPage /></RoleRoute>} />
+    <Route path="/staff/flights/new" element={<RoleRoute allowedRoles={['staff', 'head']}><FlightFormPage /></RoleRoute>} />
+    <Route path="/staff/flights/:id/edit" element={<RoleRoute allowedRoles={['staff', 'head']}><FlightFormPage /></RoleRoute>} />
     <Route path="/head" element={<RoleRoute allowedRoles={['head']}><HeadPage /></RoleRoute>} />
     <Route path="/profile" element={<SessionRoute isProtected><ProfilePage /></SessionRoute>} />
   </Routes></SessionBootstrap>
