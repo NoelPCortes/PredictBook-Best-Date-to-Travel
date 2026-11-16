@@ -702,7 +702,7 @@ def test_user_relationship_deletion_is_protected(head, make_user):
 
 
 @pytest.fixture
-def flight_fields():
+def flight_fields(make_user):
     origin = Airport.objects.create(
         code="CEB", name="Cebu", city="Cebu", country="Philippines"
     )
@@ -712,6 +712,7 @@ def flight_fields():
     airline = Airline.objects.create(name="Sample airline", code="SA")
     departure = timezone.now()
     return {
+        "created_by": make_user("flight_owner", "staff"),
         "airline": airline,
         "flight_number": "SA100",
         "origin": origin,
@@ -746,6 +747,16 @@ def test_flight_database_constraints(flight_fields, violation):
 @pytest.mark.parametrize("available", [0, 100])
 def test_flight_accepts_seat_boundaries(flight_fields, available):
     Flight.objects.create(**{**flight_fields, "available_seats": available})
+
+
+def test_flight_creator_is_required_and_protected(flight_fields):
+    flight = Flight.objects.create(**flight_fields)
+    with pytest.raises(ProtectedError):
+        flight.created_by.delete()
+    without_owner = {key: value for key, value in flight_fields.items() if key != "created_by"}
+    without_owner["flight_number"] = "SA102"
+    with pytest.raises(IntegrityError), transaction.atomic():
+        Flight.objects.create(**without_owner)
 
 
 @pytest.mark.parametrize("model", [CrowdForecast, HistoricalRecord])
