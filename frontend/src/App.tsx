@@ -17,6 +17,7 @@ import FlightListPage from './features/flights/FlightListPage'
 import FlightFormPage from './features/flights/FlightFormPage'
 import ForecastListPage from './features/calendar/ForecastListPage'
 import ForecastFormPage from './features/calendar/ForecastFormPage'
+import TrafficCalendarPage from './features/calendar/TrafficCalendarPage'
 
 function SessionBootstrap({ children }: { children: ReactNode }) {
   const navigate = useNavigate()
@@ -54,6 +55,7 @@ export function AppRoutes() {
     <Route path="/signin" element={<SessionRoute><SignInPage /></SessionRoute>} />
     <Route path="/signup" element={<SessionRoute><SignUpPage /></SessionRoute>} />
     <Route path="/home" element={<RoleRoute allowedRoles={['traveler']}><HomePage /></RoleRoute>} />
+    <Route path="/calendar" element={<RoleRoute allowedRoles={['traveler']}><TrafficCalendarPage /></RoleRoute>} />
     <Route path="/staff/dashboard" element={<RoleRoute allowedRoles={['staff', 'head']}><StaffDashboard /></RoleRoute>} />
     <Route path="/staff/flights" element={<RoleRoute allowedRoles={['staff', 'head']}><FlightListPage /></RoleRoute>} />
     <Route path="/staff/flights/new" element={<RoleRoute allowedRoles={['staff', 'head']}><FlightFormPage /></RoleRoute>} />
