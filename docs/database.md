@@ -12,7 +12,7 @@ Django names each table `<app>_<model>` (for example `accounts_user`). This file
 | Table | Django app | Purpose |
 |---|---|---|
 | `users` | `accounts` | Accounts for Travelers, Staff, and Heads |
-| `staff_assignments` | `accounts` | Emails a Head has assigned as Staff, including people who have not signed up yet |
+| `staff_assignments` | `accounts` | Pending Staff assignments for emails without user accounts |
 | `airports` | `flights` | Airports used by flights, forecasts, and history |
 | `airlines` | `flights` | Airlines that operate flights |
 | `flights` | `flights` | Flight details and open seats (no passenger data) |
@@ -62,7 +62,7 @@ Rules:
 - **Staff access is assigned by a Head** using an email address. If an account with that email exists, its role becomes `staff`. If not, a row is added to `staff_assignments` and applied when that person signs up.
 - A Head keeps Staff access. Heads can open every Staff page.
 - **Removing roles:**
-  - Removing Head access sets the role to `staff` and clears `promoted_by`.
+  - When removing Head access (including their own), the authorized acting Head chooses role staff or traveler, and promoted_by is cleared.
   - Fully revoking Staff access sets the role to `traveler`.
   - Removing a role never deletes the account.
   - Removing a Head does not change the Heads that person promoted.
@@ -84,8 +84,8 @@ Emails that a Head has assigned as Staff. This lets a Head assign Staff access b
 
 Rules:
 
-- When a person signs up with an assigned email, the account gets the Staff role.
-- If the account already exists when the Head assigns the email, the role is changed directly. TBD: whether a row is still kept in that case.
+- Keep assignments only for emails that have not signed up. When a person signs up with an assigned email, create the Staff account and delete the pending assignment in the same transaction.
+- If an account already exists, change its role directly to staff without creating an assignment row. If it is already Staff or Head, make no change and return a clear message; never downgrade a Head.
 - If a Head fully revokes Staff access before the person signs up, the row is deleted.
 - Do not add other fields without asking.
 
@@ -195,7 +195,6 @@ Rules:
 
 ## 6. Open items (TBD)
 
-- Whether a `staff_assignments` row is kept when the account already exists.
 - What happens to `promoted_by` if the promoting Head's account is ever deleted. Role removal does not delete accounts, so this only matters if deleting accounts is added later.
 - What a Head can see about the users they manage.
 - How `crowd_level` is calculated (thresholds), and what `crowd_score` measures.

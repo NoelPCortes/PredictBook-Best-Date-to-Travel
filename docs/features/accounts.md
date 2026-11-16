@@ -1,4 +1,4 @@
-﻿# Accounts and access
+# Accounts and access
 
 [Documentation index](../README.md) · [Sign-in page](../pages/sign-in.md) · [Sign-up page](../pages/sign-up.md)
 
@@ -26,7 +26,7 @@ The Head management interface is planned; no route is registered.
 
 ## Backend integration work
 
-Authentication is planned to use tokens, with Django password hashing and permission checks on protected backend endpoints as well as frontend pages. The JWT library and API contracts remain TBD.
+Authentication is planned to use tokens, with Django password hashing and permission checks on protected backend endpoints as well as frontend pages. The approved JWT library is djangorestframework-simplejwt (installed version 5.5.1), including its token_blacklist app. Endpoint contracts and token lifetimes are awaiting approval; authentication endpoints are not implemented yet.
 
 The [database specification](../database.md) still describes the older Head/HR position rules and administrator-created Staff. It must be reconciled with the requirements above before account model/permission implementation. This guide does not prescribe replacement schema fields.
 

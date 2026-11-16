@@ -37,7 +37,7 @@ Travelers often have a hard time choosing flight dates because of crowded airpor
   - A Head can remove Head access only from Heads they promoted, or from themselves.
   - A Head cannot remove the Head who promoted them.
   - A Head created by a Django administrator can only have Head access removed by the administrator or themselves.
-  - Removing Head access returns the user to Staff.
+  - When removing Head access (including their own), the authorized acting Head chooses whether the user returns to Staff or is fully revoked to Traveler. The removed user's promoted_by link is cleared.
   - Fully revoking Staff access returns the user to Traveler.
   - Removing a Head does not affect the Heads they previously promoted.
   - Role removal does not delete the user's account.

@@ -25,7 +25,7 @@ For the problem, users, features, scope, and success criteria, see [PRODUCT.md](
 | Backend | Python, Django, Django REST Framework |
 | Linting and testing (backend) | Ruff, pytest-django |
 | Database | PostgreSQL |
-| Authentication | Token-based (JWT). Library: TBD |
+| Authentication | Token-based (JWT), djangorestframework-simplejwt with token_blacklist |
 
 ## Repository Layout
 
@@ -245,7 +245,7 @@ You only need this section if the `backend/` and `frontend/` folders do not exis
 mkdir backend && cd backend
 python -m venv .venv
 source .venv/bin/activate          # Windows (cmd): .venv\Scripts\activate
-pip install django djangorestframework django-cors-headers "psycopg[binary]" python-dotenv
+pip install django djangorestframework djangorestframework-simplejwt django-cors-headers "psycopg[binary]" python-dotenv
 pip install pytest-django ruff
 django-admin startproject config .
 python manage.py startapp accounts
@@ -256,6 +256,8 @@ python manage.py startapp dashboard
 pip freeze > requirements.txt
 cd ..
 ```
+
+Enable DRF JWTAuthentication and add rest_framework_simplejwt.token_blacklist to INSTALLED_APPS. The blacklist app tracks outstanding and revoked refresh tokens through library-managed migrations.
 
 Before the first `python manage.py migrate`, create the custom user model in `accounts` and set `AUTH_USER_MODEL` in `settings.py` (see [docs/database.md](docs/database.md)). Changing it after the first migration is difficult.
 

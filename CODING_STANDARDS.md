@@ -10,7 +10,7 @@ Follow `PROMPTING_RULES.md` for how to handle requests, `frontend/UI_STYLE_GUIDE
 | Frontend | React + TypeScript (Vite), Vitest, ESLint with typescript-eslint, Prettier |
 | Backend | Python, Django, Django REST Framework, Ruff, pytest-django |
 | Database | PostgreSQL |
-| Authentication | Token-based (JWT). Library: TBD, ask before installing |
+| Authentication | Token-based (JWT), djangorestframework-simplejwt with token_blacklist |
 
 ---
 
@@ -119,12 +119,12 @@ active_users = users.filter(role="traveler")
 - Django administrators create initial Heads. Heads can promote Staff members to Head.
 - Heads can remove Head access only from Heads they promoted or themselves, and cannot remove the Head who promoted them.
 - Admin-created Heads can have Head access removed only by Django administrators or themselves.
-- Removing Head access returns a user to Staff. Fully revoking Staff access returns a user to Traveler.
+- When an authorized Head removes Head access (including their own), the acting Head chooses Staff or full revocation to Traveler. Clear promoted_by on the removed user. Fully revoking Staff access returns a user to Traveler.
 - Removing a Head must not affect the Heads they previously promoted.
 - Role changes must not delete user accounts.
 - Check the user's role on every protected page and endpoint, on the backend as well as the frontend.
 - Use the token flow for sign-in. Send passwords only when required for sign-up, sign-in, or authorized password changes. Never include passwords in unrelated requests, logs, or responses.
-- Do not choose or install the JWT library without asking.
+- Use djangorestframework-simplejwt and its token_blacklist app for JWT authentication.
 - Never store passenger names, booking reference numbers, payment details, or ticket prices.
 - Keep personal details private. Never show one user's details to another user, and never put them in logs or error messages.
 
