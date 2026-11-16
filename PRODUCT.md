@@ -4,6 +4,16 @@ This document describes what PredictBook is meant to do and what it will not do.
 
 PredictBook is a web application that helps travelers find the best dates to fly. Crowd levels and date suggestions are calculated by the backend from historical flight and booking records. They are not produced by an AI model.
 
+## Accounts implementation status
+
+The backend provides sign-up, username/email sign-in, token refresh, logout,
+self-only profile updates, password changes, and Head role management. JWT access
+tokens last 15 minutes; refresh tokens last 7 days and rotate with blacklisting.
+Head management returns result messages without profile details. The existing
+frontend sign-in/sign-up forms are not connected to these endpoints yet; profile,
+route guards, and Head management UI remain pending. See
+[accounts API documentation](docs/features/accounts.md) for the contract.
+
 ## Problem
 
 Travelers often have a hard time choosing flight dates because of crowded airports, unpredictable crowd levels, and changing seat availability. Most booking sites show flight schedules and open seats, but not one simple view that combines flight searches with expected airport crowd levels and date suggestions. Staff also need an easy way to see upcoming crowd patterns.

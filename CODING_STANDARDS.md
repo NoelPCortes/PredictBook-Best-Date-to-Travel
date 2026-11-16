@@ -125,6 +125,9 @@ active_users = users.filter(role="traveler")
 - Check the user's role on every protected page and endpoint, on the backend as well as the frontend.
 - Use the token flow for sign-in. Send passwords only when required for sign-up, sign-in, or authorized password changes. Never include passwords in unrelated requests, logs, or responses.
 - Use djangorestframework-simplejwt and its token_blacklist app for JWT authentication.
+- Access tokens last 15 minutes; refresh tokens last 7 days. Rotate refresh tokens and blacklist the replaced token. Logout requires the signed-in user's own refresh token and blacklists it. Existing access tokens expire normally.
+- Apply Django's default password validators to sign-up and password changes and return their validation messages. Password changes require the current password.
+- Head management API responses contain only a result message; profile details remain private. Role permissions read the current database role on every request, not a role cached in a JWT.
 - Never store passenger names, booking reference numbers, payment details, or ticket prices.
 - Keep personal details private. Never show one user's details to another user, and never put them in logs or error messages.
 

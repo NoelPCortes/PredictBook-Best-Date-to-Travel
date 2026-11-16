@@ -26,6 +26,14 @@ These features have **no table of their own**, because they are calculated from 
 
 ## 2. Relationships
 
+All project-defined foreign keys use `on_delete=PROTECT`: `User.promoted_by`,
+`StaffAssignment.assigned_by`, `Flight.airline`, `Flight.origin`,
+`Flight.destination`, `CrowdForecast.airport`, and `HistoricalRecord.airport`.
+Deleting a referenced user, airport, or airline is blocked. In particular, a user
+who promoted other Heads or assigned pending Staff emails cannot be deleted while
+those references remain. Role removal never deletes accounts. SimpleJWT's
+`token_blacklist` foreign keys retain the library's own deletion behavior.
+
 - One airline has many flights.
 - One airport has many departing flights and many arriving flights.
 - One airport has many crowd forecasts and many historical records.
@@ -44,13 +52,13 @@ Uses a **custom Django user model**. This must be set up before the first migrat
 | Field | Type | Required | Notes |
 |---|---|---|---|
 | id | auto number | yes | Primary key |
-| username | text (up to 150) | yes | Unique |
-| email | email | yes | Unique |
+| username | CharField (150) | yes | Unique |
+| email | EmailField (254) | yes | Unique |
 | password | hashed text | yes | Stored only as a Django hash. Never plain text. Never returned by the API. |
-| role | choice: `traveler`, `staff`, `head` | yes | Defaults to `traveler` |
+| role | CharField (8), choice: `traveler`, `staff`, `head` | yes | Defaults to `traveler` |
 | promoted_by | link to `users` | no | The Head who promoted this user to Head. Empty for Travelers, for Staff, and for Heads created by a Django administrator |
-| first_name | text | no | Can be added on the profile page |
-| last_name | text | no | Can be added on the profile page |
+| first_name | CharField (150; blank allowed) | no | Can be added on the profile page |
+| last_name | CharField (150; blank allowed) | no | Can be added on the profile page |
 | is_active | yes/no | yes | Defaults to yes. If no, the user cannot sign in |
 | date_joined | date and time | yes | Set automatically |
 | last_login | date and time | no | Set automatically |
@@ -78,7 +86,7 @@ Emails that a Head has assigned as Staff. This lets a Head assign Staff access b
 | Field | Type | Required | Notes |
 |---|---|---|---|
 | id | auto number | yes | Primary key |
-| email | email | yes | Unique |
+| email | EmailField (254) | yes | Unique |
 | assigned_by | link to `users` | yes | The Head who assigned it |
 | assigned_at | date and time | yes | Set automatically |
 
@@ -94,18 +102,18 @@ Rules:
 | Field | Type | Required | Notes |
 |---|---|---|---|
 | id | auto number | yes | Primary key |
-| code | text (3 letters) | yes | Unique, for example `CEB` |
-| name | text | yes | |
-| city | text | yes | |
-| country | text | yes | |
+| code | CharField (3 letters) | yes | Unique, for example `CEB` |
+| name | CharField (150) | yes | |
+| city | CharField (100) | yes | |
+| country | CharField (100) | yes | |
 
 ### 3.4 `airlines`
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
 | id | auto number | yes | Primary key |
-| name | text | yes | Unique |
-| code | text | yes | Unique short code |
+| name | CharField (100) | yes | Unique |
+| code | CharField (10) | yes | Unique short code |
 
 ### 3.5 `flights`
 
@@ -115,13 +123,13 @@ Flight details only. This is **not** a passenger ticket.
 |---|---|---|---|
 | id | auto number | yes | Primary key |
 | airline | link to `airlines` | yes | |
-| flight_number | text | yes | |
+| flight_number | CharField (10) | yes | |
 | origin | link to `airports` | yes | |
 | destination | link to `airports` | yes | |
 | departure_time | date and time | yes | Stored with time zone |
 | arrival_time | date and time | yes | Stored with time zone |
-| total_seats | whole number | yes | |
-| available_seats | whole number | yes | |
+| total_seats | PositiveIntegerField | yes | |
+| available_seats | PositiveIntegerField | yes | |
 
 Rules:
 
@@ -142,10 +150,10 @@ Expected airport crowd level for each airport and date. This table feeds the tra
 | id | auto number | yes | Primary key |
 | airport | link to `airports` | yes | |
 | date | date | yes | |
-| crowd_level | choice: `low`, `medium`, `high` | yes | Must always be set |
-| crowd_score | number | no | The value behind the level, such as expected seats booked. Exact meaning: TBD |
+| crowd_level | CharField (6), choice: `low`, `medium`, `high` | yes | Must always be set |
+| crowd_score | FloatField (null=True, blank=True) | no | The value behind the level, such as expected seats booked. Exact meaning: TBD |
 | calculated_at | date and time | yes | When this forecast was made |
-| data_source | text | no | Which dataset it came from. TBD |
+| data_source | CharField (100; null=True, blank=True) | no | Which dataset it came from. TBD |
 
 Rules:
 
@@ -163,9 +171,9 @@ Past daily totals per airport. The prediction logic uses these to calculate fore
 | id | auto number | yes | Primary key |
 | airport | link to `airports` | yes | |
 | date | date | yes | |
-| total_flights | whole number | yes | |
-| seats_total | whole number | yes | |
-| seats_booked | whole number | yes | |
+| total_flights | PositiveIntegerField | yes | |
+| seats_total | PositiveIntegerField | yes | |
+| seats_booked | PositiveIntegerField | yes | |
 
 Rules:
 
@@ -180,7 +188,7 @@ Rules:
 - Passwords are hashed by Django's built-in password hashing. They are never stored or logged in plain text.
 - API responses never include the `password` field.
 - Sign-in uses tokens. The password is only sent at sign-in, and the token is used for later requests.
-- A user's profile details are visible only to that user and admins. TBD: what a Head can see about the Staff and Heads they manage (at least the email, to manage access).
+- A user's profile details are visible only to that user and admins. Head management accepts a target email and returns only a result message, without profile details.
 - The Staff dashboard shows summary charts only, never individual traveler details.
 - No table stores passenger names, booking references, payment details, or ticket prices.
 - Secrets and database credentials stay in `backend/.env` and are never committed.
@@ -195,8 +203,6 @@ Rules:
 
 ## 6. Open items (TBD)
 
-- What happens to `promoted_by` if the promoting Head's account is ever deleted. Role removal does not delete accounts, so this only matters if deleting accounts is added later.
-- What a Head can see about the users they manage.
 - How `crowd_level` is calculated (thresholds), and what `crowd_score` measures.
 - How crowd levels for "All Airports" are combined, since forecasts are stored per airport.
 - The dataset for flights, airports, airlines, and historical records.

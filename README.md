@@ -144,7 +144,7 @@ python manage.py createsuperuser
 python manage.py runserver         # http://localhost:8000
 
 # Tests and lint
-pytest
+python -m pytest
 ruff check .
 ```
 
@@ -162,6 +162,25 @@ npm run dev                        # http://localhost:5173
 npm test                           # Vitest
 npm run lint                       # ESLint
 ```
+
+## Accounts API
+
+The backend implements the approved [accounts contract](docs/features/accounts.md)
+under `/api/accounts/`. Sign-in returns access and refresh tokens plus a safe
+profile. Send `Authorization: Bearer <access>` for protected requests. Access
+tokens last 15 minutes; refresh tokens last 7 days and rotate, blacklisting the
+previous refresh token. Logout blacklists the caller's refresh token; existing
+access tokens expire normally.
+
+`accounts.User` is configured before the initial migrations. After running
+`createsuperuser`, sign in to `/admin/` and create or edit an initial Head, set
+`role=head`, and leave `promoted_by` empty. The app's Staff/Head roles do not grant
+Django admin access. No other project models are registered in admin.
+
+Backend tests run against Django's separate PostgreSQL test database (the database
+user needs permission to create it). They cover accounts, role permissions, and
+schema constraints. They do not switch to SQLite. The React forms still use their
+existing TODO submission handlers; connecting the frontend is pending.
 
 ## Environment Variables
 
