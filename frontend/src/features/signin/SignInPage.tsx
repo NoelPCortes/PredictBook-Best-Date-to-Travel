@@ -7,6 +7,7 @@ import AuthField from '../../components/AuthField'
 import { signin } from './api'
 import { writeTokens } from '../../api/authStorage'
 import { setProfile } from '../../api/authState'
+import { ROLE_LANDING_PATHS } from '../../types/auth'
 
 const sampleDays: readonly SampleDay[] = [
   { day: 5, level: 'Medium' }, { day: 6, level: 'Low' },
@@ -49,7 +50,7 @@ export default function SignInPage() {
       const result = await signin(usernameRef.current!.value.trim(), passwordRef.current!.value)
       writeTokens({ access: result.access, refresh: result.refresh })
       setProfile(result.profile)
-      navigate('/home', { replace: true })
+      navigate(ROLE_LANDING_PATHS[result.profile.role], { replace: true })
     } catch {
       setServerError('Unable to sign in. Check your credentials and try again.')
       requestAnimationFrame(() => errorRef.current?.focus())

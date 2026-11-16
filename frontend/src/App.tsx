@@ -8,6 +8,8 @@ import HomePage from './features/homepage/HomePage'
 import { loadProfile } from './features/homepage/api'
 import { clearSession, setProfile, useAuth } from './api/authState'
 import { readTokens } from './api/authStorage'
+import RoleRoute from './components/RoleRoute'
+import { ROLE_LANDING_PATHS } from './types/auth'
 
 function SessionBootstrap({ children }: { children: ReactNode }) {
   const navigate = useNavigate()
@@ -35,7 +37,7 @@ export function SessionRoute({ children, isProtected = false }: { children: Reac
   const { profile, isLoading } = useAuth()
   if (isLoading) return <p role="status">Checking your session…</p>
   if (isProtected && !profile) return <Navigate to="/signin" replace />
-  if (!isProtected && profile) return <Navigate to="/home" replace />
+  if (!isProtected && profile) return <Navigate to={ROLE_LANDING_PATHS[profile.role]} replace />
   return children
 }
 
@@ -44,7 +46,9 @@ export function AppRoutes() {
     <Route path="/" element={<LandingPage />} />
     <Route path="/signin" element={<SessionRoute><SignInPage /></SessionRoute>} />
     <Route path="/signup" element={<SessionRoute><SignUpPage /></SessionRoute>} />
-    <Route path="/home" element={<SessionRoute isProtected><HomePage /></SessionRoute>} />
+    <Route path="/home" element={<RoleRoute allowedRoles={['traveler']}><HomePage /></RoleRoute>} />
+    <Route path="/staff/dashboard" element={<RoleRoute allowedRoles={['staff', 'head']}><p role="status">Staff dashboard is not available yet.</p></RoleRoute>} />
+    <Route path="/head" element={<RoleRoute allowedRoles={['head']}><p role="status">Head management is not available yet.</p></RoleRoute>} />
   </Routes></SessionBootstrap>
 }
 

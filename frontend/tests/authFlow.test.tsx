@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act } from 'react'
 import { createRoot } from 'react-dom/client'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, useLocation } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AppRoutes } from '../src/App'
 import { clearSession } from '../src/api/authState'
@@ -40,7 +40,15 @@ afterEach(async () => {
 })
 
 async function render(path: string) {
-  await act(async () => { root.render(<MemoryRouter initialEntries={[path]}><AppRoutes /></MemoryRouter>) })
+  await act(async () => { root.render(<MemoryRouter initialEntries={[path]}><AppRoutes /><CurrentPath /></MemoryRouter>) })
+}
+
+function CurrentPath() {
+  return <output data-testid="current-path">{useLocation().pathname}</output>
+}
+
+function currentPath() {
+  return container.querySelector('[data-testid="current-path"]')?.textContent
 }
 
 function input(name: string, value: string) {
@@ -156,6 +164,78 @@ describe('connected account flows', () => {
     expect(container.querySelector('[role="alert"]')?.textContent).toContain('Check your credentials')
     expect(readTokens()).toBeNull()
     expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('role redirects and access', () => {
+  it.each([
+    ['traveler', '/home'],
+    ['staff', '/staff/dashboard'],
+    ['head', '/head'],
+  ])('sends %s to its landing page after signin', async (role, destination) => {
+    fetchMock.mockResolvedValueOnce(response({ ...tokens, profile: { ...profile, role } }))
+    await render('/signin')
+    input('username', profile.username)
+    input('password', 'Test-flow-password-927!')
+    await submit()
+    expect(currentPath()).toBe(destination)
+    expect(readTokens()).toEqual(tokens)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it.each([
+    ['traveler', '/staff/dashboard', '/home'],
+    ['traveler', '/head', '/home'],
+    ['staff', '/home', '/staff/dashboard'],
+    ['staff', '/head', '/staff/dashboard'],
+    ['head', '/home', '/head'],
+  ])('redirects %s away from %s to %s', async (role, requested, destination) => {
+    writeTokens(tokens)
+    fetchMock.mockResolvedValueOnce(response({ ...profile, role }))
+    await render(requested)
+    expect(currentPath()).toBe(destination)
+    expect(String(fetchMock.mock.calls[0][0])).toContain('/api/accounts/profile/')
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it.each([
+    ['traveler', '/home'],
+    ['staff', '/staff/dashboard'],
+    ['head', '/head'],
+    ['head', '/staff/dashboard'],
+  ])('allows %s to visit %s', async (role, requested) => {
+    writeTokens(tokens)
+    fetchMock.mockResolvedValueOnce(response({ ...profile, role }))
+    await render(requested)
+    expect(currentPath()).toBe(requested)
+    expect(container.textContent).not.toContain('Welcome back')
+  })
+
+  it.each(['/home', '/staff/dashboard', '/head'])('sends signed-out visitors from %s to signin', async requested => {
+    await render(requested)
+    expect(currentPath()).toBe('/signin')
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['staff', '/signin', '/staff/dashboard'],
+    ['staff', '/signup', '/staff/dashboard'],
+    ['head', '/signin', '/head'],
+    ['head', '/signup', '/head'],
+  ])('sends restored %s sessions from %s to %s', async (role, requested, destination) => {
+    writeTokens(tokens)
+    fetchMock.mockResolvedValueOnce(response({ ...profile, role }))
+    await render(requested)
+    expect(currentPath()).toBe(destination)
+  })
+
+  it.each(['/staff/dashboard', '/head'])('rejects invalid sessions opening %s', async requested => {
+    writeTokens(tokens)
+    fetchMock.mockResolvedValueOnce(response({}, 401)).mockResolvedValueOnce(response({}, 401))
+    await render(requested)
+    expect(currentPath()).toBe('/signin')
+    expect(readTokens()).toBeNull()
+    expect(fetchMock).toHaveBeenCalledTimes(2)
   })
 })
 

@@ -9,3 +9,9 @@ export type Profile = {
 
 export type Tokens = { access: string; refresh: string }
 export type SigninResponse = Tokens & { profile: Profile }
+
+export const ROLE_LANDING_PATHS: Record<Profile['role'], string> = {
+  traveler: '/home',
+  staff: '/staff/dashboard',
+  head: '/head',
+}
