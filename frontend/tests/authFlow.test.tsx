@@ -4,7 +4,7 @@ import { createRoot } from 'react-dom/client'
 import { MemoryRouter, useLocation } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AppRoutes } from '../src/App'
-import { clearSession } from '../src/api/authState'
+import { clearSession, setProfile } from '../src/api/authState'
 import { readTokens, writeTokens } from '../src/api/authStorage'
 import { ApiError, apiRequest } from '../src/api/client'
 import { signup } from '../src/features/signup/api'
@@ -235,6 +235,75 @@ describe('connected account flows', () => {
 })
 
 describe('role redirects and access', () => {
+  it.each(['traveler', 'staff', 'head'])('allows %s to view its own profile', async role => {
+    writeTokens(tokens)
+    fetchMock.mockResolvedValueOnce(response({ ...profile, role }))
+    await render('/profile')
+    expect(currentPath()).toBe('/profile')
+    expect(container.querySelector('h1')?.textContent).toBe('My account')
+    expect(container.querySelector<HTMLInputElement>('[name="username"]')?.value).toBe(profile.username)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('redirects a signed-out profile visitor to signin', async () => {
+    await render('/profile')
+    expect(currentPath()).toBe('/signin')
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('reloads saved profile values from the backend after remounting the app', async () => {
+    writeTokens(tokens)
+    let stored = { ...profile }
+    fetchMock.mockImplementation((url, options) => {
+      if (String(url).endsWith('/profile/')) {
+        if (options?.method === 'PATCH') stored = { ...stored, ...JSON.parse(options.body as string) }
+        return Promise.resolve(response(stored))
+      }
+      return Promise.reject(new Error('Unexpected API request'))
+    })
+    await render('/profile')
+    const username = container.querySelector<HTMLInputElement>('[name="username"]')!
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(username, 'persisted_username')
+      username.dispatchEvent(new Event('input', { bubbles: true }))
+    })
+    await act(async () => container.querySelector('#profile-information form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })))
+    const update = fetchMock.mock.calls.find(([, options]) => options?.method === 'PATCH')!
+    expect(Object.keys(JSON.parse(update[1]!.body as string)).sort()).toEqual(['email', 'first_name', 'last_name', 'username'])
+    expect(new Headers(update[1]!.headers).get('Authorization')).toBe('Bearer test-access')
+    await act(async () => root.unmount())
+    setProfile(null)
+    root = createRoot(container)
+    await render('/profile')
+    expect(container.querySelector<HTMLInputElement>('[name="username"]')?.value).toBe('persisted_username')
+    expect(fetchMock.mock.calls.filter(([, options]) => !options?.method || options.method === 'GET')).toHaveLength(2)
+  })
+
+  it('signs out from the profile sidebar and clears tokens', async () => {
+    writeTokens(tokens)
+    fetchMock.mockResolvedValueOnce(response(profile)).mockResolvedValueOnce(response({ detail: 'Signed out.' }))
+    await render('/profile')
+    await act(async () => container.querySelector<HTMLButtonElement>('.profile-sidebar button')!.click())
+    expect(readTokens()).toBeNull()
+    expect(currentPath()).toBe('/signin')
+    const request = fetchMock.mock.calls.find(([url]) => String(url).endsWith('/logout/'))!
+    expect(JSON.parse(request[1]!.body as string)).toEqual({ refresh: tokens.refresh })
+  })
+
+  it('sends only current and new passwords to the existing password endpoint', async () => {
+    writeTokens(tokens)
+    fetchMock.mockResolvedValueOnce(response(profile)).mockResolvedValueOnce(response({ detail: 'Password changed.' }))
+    await render('/profile')
+    input('current_password', 'Current-Test-Password-29!')
+    input('new_password', 'New-Test-Password-38!')
+    input('confirm_password', 'New-Test-Password-38!')
+    await act(async () => container.querySelector('#password-security form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })))
+    const request = fetchMock.mock.calls.find(([url]) => String(url).endsWith('/password/change/'))!
+    expect(request[1]!.method).toBe('POST')
+    expect(JSON.parse(request[1]!.body as string)).toEqual({ current_password: 'Current-Test-Password-29!', new_password: 'New-Test-Password-38!' })
+    expect(container.querySelector('#password-security [role="status"]')?.textContent).toBe('Password changed.')
+  })
+
   it('sends the Head assignment form email to the existing protected endpoint', async () => {
     writeTokens(tokens)
     fetchMock.mockImplementation(url => {

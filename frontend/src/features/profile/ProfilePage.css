@@ -1,0 +1,39 @@
+.profile-page { --signin-error: var(--error-text); display: grid; grid-template-columns: var(--account-sidebar-width) minmax(0, 1fr); min-height: 100vh; }
+.profile-sidebar { background: var(--ink); padding: var(--space-32) var(--space-16); display: flex; flex-direction: column; gap: var(--space-40); color: var(--white); }
+.profile-sidebar .brand { font-size: var(--staff-section-size); gap: var(--space-8); }
+.profile-sidebar nav { display: grid; gap: var(--space-8); }
+.profile-sidebar nav p { margin: var(--space-24) var(--space-16) var(--space-8); color: var(--nav-text); text-transform: uppercase; font-size: var(--staff-label-size); font-weight: 600; }
+.profile-sidebar nav a, .profile-sidebar button { padding: var(--space-12) var(--space-16); min-height: var(--staff-nav-height); border-radius: var(--control-radius); color: var(--nav-text); transition: background var(--control-transition); }
+.profile-sidebar nav a[aria-current] { background: var(--accent); color: var(--white); font-weight: 600; }
+.profile-sidebar nav a:hover, .profile-sidebar button:hover { background: var(--action-pressed); color: var(--white); text-decoration: none; }
+.profile-sidebar nav a:active, .profile-sidebar button:active { background: var(--action-hover); }
+.profile-sidebar button { margin-top: auto; background: transparent; border: 1px solid var(--border); text-align: left; cursor: pointer; }
+.profile-sidebar button:disabled { background: var(--disabled-bg); color: var(--disabled-text); cursor: not-allowed; transform: none; }
+.profile-sidebar :focus-visible { outline-color: var(--white); }
+.profile-content { padding: var(--space-40); display: grid; align-content: start; gap: var(--space-24); }
+.profile-content header .eyebrow { margin-bottom: var(--space-12); }
+.profile-content h1 { font-size: var(--staff-title-size); max-width: none; line-height: 1.15; letter-spacing: normal; margin-bottom: var(--space-12); }
+.profile-card { background: var(--white); border: 1px solid var(--border); border-radius: var(--radius); padding: var(--space-24); }
+.profile-card h2 { font-size: var(--account-section-size); letter-spacing: normal; margin-bottom: var(--space-24); }
+.profile-information-layout { display: grid; grid-template-columns: var(--account-avatar-column) minmax(0, 1fr); gap: var(--space-32); }
+.profile-avatar { display: grid; place-items: start center; border-right: 1px solid var(--border); padding-right: var(--space-24); }
+.profile-avatar img { width: var(--account-avatar-size); height: var(--account-avatar-size); }
+.profile-card form { display: grid; gap: var(--space-16); min-width: 0; }
+.profile-card .signin-field input { min-height: var(--staff-nav-height); }
+.profile-card .signin-field:hover { border-color: var(--input-hover-border); }
+.profile-role { border: 1px solid var(--border); border-radius: var(--control-radius); padding: var(--space-12) var(--space-16); }
+.profile-role span { font-size: var(--staff-label-size); color: var(--muted); font-weight: 600; }
+.profile-role p { color: var(--ink); }
+.profile-action { justify-self: start; border-radius: var(--control-radius); padding: var(--space-12) var(--space-24); transition: background var(--control-transition); }
+.profile-action:hover { background: var(--action-hover); filter: none; }
+.profile-action:active { background: var(--action-pressed); }
+.profile-action:disabled { background: var(--disabled-bg); color: var(--disabled-text); cursor: not-allowed; transform: none; }
+.profile-password-layout { display: grid; grid-template-columns: var(--account-avatar-column) minmax(0, 1fr); gap: var(--space-32); }
+.profile-feedback { padding: var(--space-16); border-left: var(--alert-border-width) solid currentColor; }
+.profile-success { background: var(--success-background); color: var(--success-text); }
+.profile-error { background: var(--error-background); color: var(--error-text); }
+.user-chip.account-link:hover { background: var(--action-pressed); text-decoration: none; }
+.user-chip.account-link:active { background: var(--action-hover); }
+@media (max-width: 1000px) { .profile-information-layout, .profile-password-layout { grid-template-columns: 1fr; } .profile-avatar { border-right: 0; padding-right: 0; } .profile-content { padding: var(--space-24); } }
+@media (max-width: 700px) { .profile-page { grid-template-columns: 1fr; } .profile-sidebar { gap: var(--space-24); } .profile-content { padding: var(--space-24) var(--space-16); } }
+@media (prefers-reduced-motion: reduce) { .profile-sidebar nav a, .profile-sidebar button, .profile-action { transition: none; } }

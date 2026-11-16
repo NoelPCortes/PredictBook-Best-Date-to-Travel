@@ -17,7 +17,7 @@ export default function AppNavbar({ userName, onSignOut, isSigningOut, navigatio
             <NavLink to="/calendar"><Icon name="calendar" />Traffic Calendar</NavLink>
           </>}
         </div>
-        <span className="user-chip">{userName}</span>
+        <NavLink to="/profile" className="user-chip account-link" aria-label={`My account: ${userName}`}>{userName}</NavLink>
         <button className="button signout-button" type="button" onClick={onSignOut} disabled={isSigningOut}>{isSigningOut ? 'Signing out?' : 'Sign out'}</button>
       </nav>
     </header>
