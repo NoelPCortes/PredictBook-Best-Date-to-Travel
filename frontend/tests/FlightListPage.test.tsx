@@ -104,7 +104,7 @@ it('prevents duplicate deletion while a request is pending', async () => {
 
 it('marks Flights as the active staff navigation link', async () => {
   await render()
-  expect([...container.querySelectorAll('.app-nav-links a')].map(link => link.textContent)).toEqual(['Dashboard', 'Flights'])
+  expect([...container.querySelectorAll('.app-nav-links a')].map(link => link.textContent)).toEqual(['Dashboard', 'Flights', 'Crowd forecasts'])
   expect(container.querySelector('.app-nav-links a[aria-current="page"]')?.getAttribute('href')).toBe('/staff/flights')
 })
 it('shows an empty table message', async () => {

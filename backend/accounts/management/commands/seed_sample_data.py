@@ -8,6 +8,7 @@ from django.utils import timezone
 
 from accounts.models import User
 from flights.models import Airline, Airport, Flight
+from traffic.models import CrowdForecast
 
 AIRPORTS = (
     ("CEB", "Mactan-Cebu International Airport", "Cebu"),
@@ -22,6 +23,7 @@ AIRLINES = (
     ("Z2", "AirAsia Philippines"),
 )
 PHILIPPINE_TIME = ZoneInfo("Asia/Manila")
+WEEKDAY_LEVELS = ("low", "low", "medium", "medium", "high", "high", "medium")
 
 
 class Command(BaseCommand):
@@ -71,7 +73,24 @@ class Command(BaseCommand):
                     },
                 )
                 flight_count += 1
+        forecast_count = 0
+        for day in range(60):
+            forecast_date = today + timedelta(days=day)
+            for airport in airports:
+                CrowdForecast.objects.update_or_create(
+                    airport=airport,
+                    date=forecast_date,
+                    defaults={
+                        "crowd_level": WEEKDAY_LEVELS[forecast_date.weekday()],
+                        "crowd_score": None,
+                        "calculated_at": timezone.now(),
+                        "data_source": "Sample data",
+                        "created_by": staff,
+                    },
+                )
+                forecast_count += 1
         self.stdout.write("Sample data only; not real airline schedules or predictions.")
         self.stdout.write(f"Airports: {len(airports)}")
         self.stdout.write(f"Airlines: {len(airlines)}")
         self.stdout.write(f"Flights: {flight_count}")
+        self.stdout.write(f"Forecasts: {forecast_count}")

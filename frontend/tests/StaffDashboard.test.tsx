@@ -7,10 +7,10 @@ import { clearSession, setProfile } from '../src/api/authState'
 import { ApiError } from '../src/api/client'
 import { januaryDays } from '../src/data/homeSample'
 import StaffDashboard from '../src/features/staff-dashboard/StaffDashboard'
-import { getDashboardAccess } from '../src/features/staff-dashboard/api'
+import { getDashboardAccess, getOwnRecordCounts } from '../src/features/staff-dashboard/api'
 import { summarizeCrowdDays } from '../src/features/staff-dashboard/summary'
 
-vi.mock('../src/features/staff-dashboard/api', () => ({ getDashboardAccess: vi.fn() }))
+vi.mock('../src/features/staff-dashboard/api', () => ({ getDashboardAccess: vi.fn(), getOwnRecordCounts: vi.fn() }))
 
 let container: HTMLDivElement
 let root: ReturnType<typeof createRoot>
@@ -20,6 +20,7 @@ beforeEach(() => {
   vi.useFakeTimers()
   vi.setSystemTime(new Date(2026, 0, 2, 12))
   vi.mocked(getDashboardAccess).mockReset().mockResolvedValue({ detail: 'Sample data', is_sample: true })
+  vi.mocked(getOwnRecordCounts).mockReset().mockResolvedValue({ flights: 3, forecasts: 5 })
   setProfile({ id: 1, username: 'staff_user', email: 'staff@example.com', first_name: '', last_name: '', role: 'staff' })
   container = document.createElement('div')
   document.body.append(container)
@@ -75,6 +76,27 @@ describe('Staff dashboard calculations', () => {
 })
 
 describe('Staff dashboard page', () => {
+  it('shows counts owned by the signed-in user separately from sample metrics', async () => {
+    await render()
+    expect(getOwnRecordCounts).toHaveBeenCalledOnce()
+    expect(container.querySelector('.own-records h2')?.textContent).toBe('Your records')
+    expect([...container.querySelectorAll('.own-records dd')].map(item => item.textContent)).toEqual(['3', '5'])
+  })
+
+  it('handles count loading and failures without hiding the existing dashboard', async () => {
+    vi.mocked(getOwnRecordCounts).mockRejectedValueOnce(new TypeError('Offline'))
+    await render()
+    expect(container.querySelector('.own-records [role="alert"]')?.textContent).toContain('Unable to load your record counts')
+    expect(container.querySelector('.staff-metrics')).not.toBeNull()
+    await act(async () => container.querySelector<HTMLButtonElement>('.own-records button')!.click())
+    expect(container.querySelectorAll('.own-records dd')).toHaveLength(2)
+  })
+
+  it('shows a loading state for pending counts', async () => {
+    vi.mocked(getOwnRecordCounts).mockReturnValue(new Promise(() => {}))
+    await render()
+    expect(container.querySelector('.own-records [role="status"]')?.textContent).toContain('Loading your records')
+  })
   it('renders real sample metrics, weekdays, and only the available Dashboard navigation', async () => {
     await render()
     expect(getDashboardAccess).toHaveBeenCalledOnce()
@@ -84,7 +106,7 @@ describe('Staff dashboard page', () => {
     expect(container.textContent).toContain('staff_user')
     expect(container.querySelector('.staff-seven-days time')?.textContent).toBe('Fri2Jan')
     expect(container.querySelector('.staff-upcoming strong')?.textContent).toBe('Sat, Jan 3, 2026')
-    expect([...container.querySelectorAll('.app-nav-links a')].map(link => link.textContent)).toEqual(['Dashboard', 'Flights'])
+    expect([...container.querySelectorAll('.app-nav-links a')].map(link => link.textContent)).toEqual(['Dashboard', 'Flights', 'Crowd forecasts'])
     expect(container.querySelector('a[aria-current="page"]')?.getAttribute('href')).toBe('/staff/dashboard')
     expect(container.textContent).not.toContain('Charts')
     expect(container.querySelector('svg')).toBeNull()
@@ -109,6 +131,7 @@ describe('Staff dashboard page', () => {
     await render()
     expect(container.querySelector('[role="status"]')?.textContent).toContain('Checking dashboard access')
     expect(container.querySelector('.staff-metrics')).toBeNull()
+    expect(getOwnRecordCounts).not.toHaveBeenCalled()
   })
 
   it.each([403, 500])('withholds dashboard content after a server %s response', async status => {

@@ -28,7 +28,8 @@ These features have **no table of their own**, because they are calculated from 
 
 All project-defined foreign keys use `on_delete=PROTECT`: `User.promoted_by`,
 `StaffAssignment.assigned_by`, `Flight.airline`, `Flight.origin`,
-`Flight.destination`, `Flight.created_by`, `CrowdForecast.airport`, and `HistoricalRecord.airport`.
+`Flight.destination`, `Flight.created_by`, `CrowdForecast.airport`,
+`CrowdForecast.created_by`, and `HistoricalRecord.airport`.
 Deleting a referenced user, airport, or airline is blocked. In particular, a user
 who promoted other Heads or assigned pending Staff emails cannot be deleted while
 those references remain. Role removal never deletes accounts. SimpleJWT's
@@ -40,6 +41,7 @@ those references remain. Role removal never deletes accounts. SimpleJWT's
 - One Head can promote many Staff members to Head. Each promoted Head points back to the Head who promoted them (`promoted_by`).
 - One Head can create many Staff assignments.
 - One user can create many flights through `Flight.created_by`. This records the author, not a passenger. There are no bookings.
+- One user can create many crowd forecasts through `CrowdForecast.created_by`.
 
 ---
 
@@ -144,6 +146,7 @@ Rules:
 - **No price.** Ticket prices are not stored or shown.
 - **No passenger names and no booking reference numbers.** Open seats are a count only.
 - Terminal, gate, flight status, and cabin class are not included. Add them only if the owner asks.
+- Flight entry, display, and departure-date filtering use Philippine time (`Asia/Manila`, UTC+08:00). Django keeps `TIME_ZONE=UTC` and `USE_TZ=True`; timestamps remain timezone-aware.
 
 ### 3.6 `crowd_forecasts`
 
@@ -152,19 +155,25 @@ Expected airport crowd level for each airport and date. This table feeds the tra
 | Field | Type | Required | Notes |
 |---|---|---|---|
 | id | auto number | yes | Primary key |
+| created_by | link to `users` | yes | Set by the server to the signed-in creator; `on_delete=PROTECT` |
 | airport | link to `airports` | yes | |
 | date | date | yes | |
 | crowd_level | CharField (6), choice: `low`, `medium`, `high` | yes | Must always be set |
 | crowd_score | FloatField (null=True, blank=True) | no | The value behind the level, such as expected seats booked. Exact meaning: TBD |
-| calculated_at | date and time | yes | When this forecast was made |
+| calculated_at | date and time | yes | Server sets the current time on create and update; clients cannot send it |
 | data_source | CharField (100; null=True, blank=True) | no | Which dataset it came from. TBD |
 
 Rules:
 
 - One forecast per airport per date.
+- Any signed-in user can read forecasts. Staff and Heads can create them. Staff can update or delete only their own records; Heads can update or delete any record. Travelers cannot write.
+- Requests containing `created_by` or `calculated_at` are rejected with field-level 400 messages.
+- Traveler responses omit creator information. Staff and Head responses include `created_by_username` and the server-computed `can_edit`. Other users' email addresses are never included.
+- A blank data source is stored as `Staff entry`.
 - **The color is not stored.** The frontend picks it from `crowd_level` (see `../frontend/UI_STYLE_GUIDE.md`, traffic calendar).
 - Keep forecasts after their date passes. Comparing them with `historical_records` shows whether the 75% accuracy goal is met.
 - The rules that turn data into Low, Medium, or High (thresholds) are **TBD**. They will be written in `docs/features/traffic-calendar.md`.
+- Staff entry stores the chosen level directly. Sample seeding uses a deterministic weekday pattern and `data_source="Sample data"`; this does not define production prediction thresholds or score meaning.
 
 ### 3.7 `historical_records`
 

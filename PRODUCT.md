@@ -26,6 +26,7 @@ Travelers often have a hard time choosing flight dates because of crowded airpor
 
 ## Features
 
+- **Flight and crowd forecast management:** Staff and Heads create and manage flights and airport/date forecasts. Staff can change their own records; Heads can change any record. Travelers view the stored crowd levels and daily flights through the read-only Traffic Calendar and Home preview.
 - **User accounts and authentication:** sign-up, sign-in, profile updates, and logout, with separate access for Travelers, Staff, and Heads.
   - Sign-up and sign-in connect to the users table in the PostgreSQL database.
   - Passwords are hashed and never stored in plain text.

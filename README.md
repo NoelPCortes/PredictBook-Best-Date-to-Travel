@@ -181,7 +181,8 @@ Backend tests run against Django's separate PostgreSQL test database (the databa
 user needs permission to create it). They cover accounts, role permissions, and
 schema constraints. They do not switch to SQLite. React Sign-Up and Sign-In now
 use the existing API. Home is protected and displays the signed-in username;
-its flight, calendar, booking, and search information remains labeled sample data.
+its calendar now reads airport forecasts and flights from the API. Booking,
+recent-search, and flight-search fixtures remain labeled sample data.
 Sign out blacklists the refresh token and clears the local session even if the
 request fails. Tokens are stored in localStorage only through the shared auth
 storage module. A 401 causes one refresh attempt, then a single retry; failed
@@ -189,12 +190,16 @@ refresh clears the session and redirects to Sign-In.
 
 ## Account areas
 
-For sample flight data, run `python manage.py seed_staff` first, then
+For sample flight and crowd forecast data, run `python manage.py seed_staff` first, then
 `python manage.py seed_sample_data` from `backend/`. The latter requires the
 existing Staff user named by `SEED_STAFF_USERNAME` and idempotently creates five
 Philippine airports, three airlines, and five flights per day for the next 14
-days (including today in Philippine time). Its output contains counts and a
-sample-data notice only. These are sample schedules, not real airline data.
+days and one forecast per airport per day for 60 days (including today in
+Philippine time). Forecasts use a deterministic weekday pattern and the source
+`Sample data`; their scores are left empty because the score meaning is TBD.
+The command prints counts and a sample-data notice only. These are sample
+schedules and forecasts, not real airline data or validated predictions. It
+stops before writing if the configured Staff user does not exist.
 
 No additional dependency, migration, environment variable, or setup command is
 needed for the role pages and own-profile UI.
@@ -216,6 +221,46 @@ panels use the live local date; they show no upcoming sample days after that
 month. The Head page assigns Staff by email. No Charts page or promote/remove
 screens were added. See [accounts](docs/features/accounts.md) and
 [frontend](docs/frontend.md) for paths, payloads, guards, and limitations.
+
+## Flight and crowd forecast management
+
+Staff and Heads can create, view, update, and delete flights and crowd forecasts.
+Staff can change only their own records; Heads can change any record. PostgreSQL
+stores a required, protected creator relationship for both record types. The
+server sets ownership and forecast calculation timestamps; clients cannot send
+those fields. Travelers read the data without creator information. Other users'
+email addresses are never included in these responses.
+
+Run `python manage.py migrate` from `backend/` to apply the ownership migrations.
+The local tables were empty when these migrations were introduced. If adopting
+them with existing flight or forecast rows, obtain an approved ownership backfill
+before applying the required fields; do not invent a default owner.
+
+| Frontend route | Access and purpose |
+|---|---|
+| `/staff/flights` | Staff/Head flight table |
+| `/staff/flights/new` | Staff/Head flight creation |
+| `/staff/flights/:id/edit` | Staff owner or Head flight editing |
+| `/staff/forecasts` | Staff/Head forecast table |
+| `/staff/forecasts/new` | Staff/Head forecast creation |
+| `/staff/forecasts/:id/edit` | Staff owner or Head forecast editing |
+| `/calendar` | Traveler airport calendar and selected-day flights |
+
+Home and Traffic Calendar share the same airport dropdown, month grid, crowd
+legend, and selected-date flight panel. Missing forecasts show `No data`.
+Month navigation remains enabled. Flight entry, display, departure-date filters,
+and sample-day boundaries use Philippine time (`Asia/Manila`, UTC+08:00).
+Django's `TIME_ZONE` remains `UTC`, with timezone-aware flight storage.
+
+Staff navigation contains Dashboard, Flights, and Crowd forecasts. The dashboard
+adds live `Your records` counts through `mine=true`; its other panels remain
+January 2026 sample data. Heads retain management access and access to Staff pages.
+
+The authenticated API provides read-only `/api/flights/airports/` and
+`/api/flights/airlines/`, flight CRUD at `/api/flights/` and `/api/flights/<id>/`,
+and forecast CRUD at `/api/traffic/forecasts/` and
+`/api/traffic/forecasts/<id>/`. Detail updates use PATCH. See
+[backend](docs/backend.md) for filters and validation behavior.
 
 ## Environment Variables
 

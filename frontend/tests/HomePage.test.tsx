@@ -2,14 +2,26 @@
 import { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { MemoryRouter } from 'react-router-dom'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import HomePage from '../src/features/homepage/HomePage'
+import { loadAirports } from '../src/api/lookups'
+import { loadFlights, loadForecasts } from '../src/api/traffic'
+
+vi.mock('../src/api/lookups', () => ({ loadAirports: vi.fn() }))
+vi.mock('../src/api/traffic', () => ({ loadFlights: vi.fn(), loadForecasts: vi.fn() }))
 
 import { setProfile, clearSession } from '../src/api/authState'
 
 let container: HTMLDivElement
 let root: ReturnType<typeof createRoot>
 beforeEach(async () => {
+  vi.useFakeTimers(); vi.setSystemTime(new Date('2026-01-14T04:00:00Z'))
+  vi.mocked(loadAirports).mockResolvedValue([{ id: 1, code: 'CEB', name: 'Cebu', city: 'Cebu', country: 'Philippines' }])
+  vi.mocked(loadForecasts).mockResolvedValue([
+    { id: 1, airport: 1, date: '2026-01-14', crowd_level: 'high', crowd_score: null, calculated_at: '2026-01-01T00:00:00Z', data_source: 'Staff entry' },
+    { id: 2, airport: 1, date: '2026-01-17', crowd_level: 'medium', crowd_score: null, calculated_at: '2026-01-01T00:00:00Z', data_source: 'Staff entry' },
+  ])
+  vi.mocked(loadFlights).mockResolvedValue([])
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
   setProfile({ id: 1, username: 'larce', email: 'larce@example.com', first_name: '', last_name: '', role: 'traveler' })
   container = document.createElement('div')
@@ -21,6 +33,7 @@ afterEach(async () => {
   await act(async () => root.unmount())
   container.remove()
   clearSession()
+  vi.useRealTimers()
 })
 function dayButton(day: number): HTMLButtonElement {
   const button = container.querySelector<HTMLButtonElement>(`button[aria-label^="January ${day},"]`)
@@ -44,29 +57,28 @@ describe('Home page', () => {
     expect(container.querySelector('h1')?.textContent).toBe('Search flights and check airport crowds')
     expect(container.querySelector('.eyebrow')?.textContent).toBe('WELCOME BACK, LARCE')
   })
-  it('renders 31 days, aligns January 1 with Thursday and selects January 14', () => {
-    const grid = container.querySelector('.home-day-grid')
+  it('uses the shared real-data calendar with correct weekdays and enabled navigation', () => {
+    const grid = container.querySelector('.airport-day-grid')
     expect(grid?.querySelectorAll('button')).toHaveLength(31)
-    expect(dayButton(1).style.gridColumnStart).toBe('5')
     expect([...grid!.children].indexOf(dayButton(1))).toBe(11)
     expect(dayButton(14).getAttribute('aria-pressed')).toBe('true')
     expect(grid?.querySelectorAll('[aria-pressed="true"]')).toHaveLength(1)
-    expect(container.querySelectorAll('button[disabled]')).toHaveLength(2)
+    expect(container.querySelectorAll('button[disabled]')).toHaveLength(0)
+    expect(loadForecasts).toHaveBeenCalledWith({ airport: '1', month: '2026-01' })
   })
-  it('starts with January 14 booking information', () => {
-    const panel = container.querySelector('.booking-info')
-    expect(panel?.querySelector('h3')?.textContent).toBe('Wed, Jan 14, 2026')
-    expect(panel?.querySelector('.crowd-chip')?.textContent).toBe('Low crowd')
-    expect([...panel!.querySelectorAll('dd')].map(value => value.textContent)).toEqual(['124', '~ 82%', '1'])
-    expect(panel?.querySelector('dd .app-icon')).not.toBeNull()
+  it('shows the API forecast instead of the January sample level', () => {
+    const panel = container.querySelector('.airport-date-details')
+    expect(panel?.querySelector('h3')?.textContent).toBe('January 14, 2026')
+    expect(panel?.querySelector('.record-crowd-chip')?.textContent).toBe('High crowd')
+    expect(panel?.textContent).toContain('No flights listed for this date.')
+    expect(container.querySelector('.home-sample-label')?.textContent).toBe('Sample data: flight search, bookings, and recent searches.')
   })
-  it('selects January 17 and shows medium crowd with unavailable sample values', async () => {
+  it('selects January 17 and loads flights for that date', async () => {
     await act(async () => dayButton(17).click())
-    const panel = container.querySelector('.booking-info')
-    expect(panel?.querySelector('h3')?.textContent).toBe('Sat, Jan 17, 2026')
-    expect(panel?.querySelector('.crowd-chip')?.textContent).toBe('Medium crowd')
-    expect([...panel!.querySelectorAll('dd')].map(value => value.textContent)).toEqual(['—', '—', '0'])
-    expect(panel?.querySelector('dd .app-icon')).toBeNull()
+    const panel = container.querySelector('.airport-date-details')
+    expect(panel?.querySelector('h3')?.textContent).toBe('January 17, 2026')
+    expect(panel?.querySelector('.record-crowd-chip')?.textContent).toBe('Medium crowd')
+    expect(loadFlights).toHaveBeenLastCalledWith({ origin: '1', date: '2026-01-17' })
     expect(dayButton(17).getAttribute('aria-pressed')).toBe('true')
     expect(dayButton(14).getAttribute('aria-pressed')).toBe('false')
   })

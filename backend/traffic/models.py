@@ -1,7 +1,9 @@
+from django.conf import settings
 from django.db import models
 
 
 class CrowdForecast(models.Model):
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
     class CrowdLevel(models.TextChoices):
         LOW = "low", "Low"
         MEDIUM = "medium", "Medium"
