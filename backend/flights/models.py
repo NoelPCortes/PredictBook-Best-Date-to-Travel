@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 
 
@@ -14,6 +15,7 @@ class Airline(models.Model):
 
 
 class Flight(models.Model):
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
     airline = models.ForeignKey(Airline, on_delete=models.PROTECT)
     flight_number = models.CharField(max_length=10)
     origin = models.ForeignKey(

@@ -84,7 +84,7 @@ describe('Staff dashboard page', () => {
     expect(container.textContent).toContain('staff_user')
     expect(container.querySelector('.staff-seven-days time')?.textContent).toBe('Fri2Jan')
     expect(container.querySelector('.staff-upcoming strong')?.textContent).toBe('Sat, Jan 3, 2026')
-    expect([...container.querySelectorAll('.app-nav-links a')].map(link => link.textContent)).toEqual(['Dashboard'])
+    expect([...container.querySelectorAll('.app-nav-links a')].map(link => link.textContent)).toEqual(['Dashboard', 'Flights'])
     expect(container.querySelector('a[aria-current="page"]')?.getAttribute('href')).toBe('/staff/dashboard')
     expect(container.textContent).not.toContain('Charts')
     expect(container.querySelector('svg')).toBeNull()
