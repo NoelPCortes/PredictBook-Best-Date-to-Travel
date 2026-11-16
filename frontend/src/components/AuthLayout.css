@@ -18,6 +18,8 @@
 .signin-brand .logo-mark { width: 28px; height: 26px; border-top-color: var(--ink); border-top-width: 9px; border-radius: 6px; padding-bottom: 5px; }
 .signin-brand .logo-mark i { width: 5px; height: 5px; }
 .signin-content { width: 100%; max-width: 440px; }
+.auth-success { display: flex; align-items: center; gap: var(--space-8); padding: var(--space-16); margin-top: var(--space-24); color: var(--success-text); background: var(--success-background); border-left: var(--alert-border-width) solid var(--success-text); font-size: var(--alert-font-size); }
+.auth-success img { width: var(--alert-icon-size); height: var(--alert-icon-size); flex-shrink: 0; }
 .signin-content h1 { font-size: 44px; line-height: 1.15; letter-spacing: -1.2px; }
 .signin-intro { margin-top: 14px; font-size: 16px; line-height: 1.6; }
 .signin-content form { margin-top: 32px; display: grid; gap: 16px; }

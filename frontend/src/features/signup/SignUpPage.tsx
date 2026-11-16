@@ -60,7 +60,7 @@ export default function SignUpPage() {
     setIsSubmitting(true)
     try {
       await signup({ username, email, password })
-      navigate('/signin', { replace: true })
+      navigate('/signin', { replace: true, state: { accountCreated: true } })
     } catch (error) {
       const backendErrors: Errors = {}
       if (error instanceof ApiError) {

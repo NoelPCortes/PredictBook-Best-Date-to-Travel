@@ -80,7 +80,69 @@ describe('connected account flows', () => {
     const options = fetchMock.mock.calls[0][1]!
     expect(JSON.parse(options.body as string)).toEqual({ username: 'traveler', email: 'traveler@example.com', password: 'Test-flow-password-927!' })
     expect(container.querySelector('h1')?.textContent).toBe('Welcome back')
+    expect(container.querySelector('.auth-success[role="status"]')?.textContent).toBe('Account created. Please sign in.')
+    expect(container.querySelector('.auth-success img')?.getAttribute('src')).toContain('successIcon.png')
     expect(readTokens()).toBeNull()
+  })
+
+  it.each(['username', 'password'])('dismisses signup success when the signin %s is edited', async name => {
+    fetchMock.mockResolvedValueOnce(response(profile, 201))
+    await render('/signup')
+    validSignup()
+    await submit()
+    expect(container.querySelector('.auth-success')).not.toBeNull()
+    const field = container.querySelector<HTMLInputElement>(`[name="${name}"]`)!
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(field, 'edited')
+      field.dispatchEvent(new Event('input', { bubbles: true }))
+    })
+    expect(container.querySelector('.auth-success')).toBeNull()
+  })
+
+  it('does not restore signup success after navigating away and back', async () => {
+    fetchMock.mockResolvedValueOnce(response(profile, 201))
+    await render('/signup')
+    validSignup()
+    await submit()
+    expect(container.querySelector('.auth-success')).not.toBeNull()
+    await act(async () => container.querySelector<HTMLAnchorElement>('a[href="/signup"]')!.click())
+    await act(async () => container.querySelector<HTMLAnchorElement>('a[href="/signin"]')!.click())
+    expect(container.querySelector('h1')?.textContent).toBe('Welcome back')
+    expect(container.querySelector('.auth-success')).toBeNull()
+  })
+
+  it('does not show signup success when signin is opened directly', async () => {
+    await render('/signin')
+    expect(container.querySelector('.auth-success')).toBeNull()
+  })
+
+  it.each([
+    ['username', ['A user with that username already exists.']],
+    ['email', ['User with this email already exists.']],
+    ['email', ['Enter a valid email address.']],
+    ['password', ['This password is too short.', 'This password is too common.']],
+  ])('shows backend signup errors under %s', async (name, messages) => {
+    fetchMock.mockResolvedValueOnce(response({ [name]: messages }, 400))
+    await render('/signup')
+    validSignup()
+    await submit()
+    const field = container.querySelector<HTMLInputElement>(`[name="${name}"]`)!
+    expect(container.querySelector(`#signup-${name}-error`)?.textContent).toBe(messages.join(' '))
+    expect(field.getAttribute('aria-describedby')).toBe(`signup-${name}-error`)
+    expect(field.getAttribute('aria-invalid')).toBe('true')
+    expect(document.activeElement).toBe(field)
+    expect(currentPath()).toBe('/signup')
+    expect(container.querySelector('.auth-success')).toBeNull()
+  })
+
+  it('does not submit mismatched passwords to the backend', async () => {
+    await render('/signup')
+    validSignup()
+    input('confirmPassword', 'different')
+    await submit()
+    expect(container.querySelector('#signup-confirmPassword-error')?.textContent).toBe('Passwords do not match.')
+    expect(document.activeElement).toBe(container.querySelector('[name="confirmPassword"]'))
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 
   it('signup API preserves optional names while excluding injected role fields', async () => {

@@ -1,6 +1,6 @@
-﻿import { useRef, useState } from 'react'
+﻿import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import AuthLayout from '../../components/AuthLayout'
 import type { SampleDay } from '../../components/AuthLayout'
 import AuthField from '../../components/AuthField'
@@ -8,6 +8,7 @@ import { signin } from './api'
 import { writeTokens } from '../../api/authStorage'
 import { setProfile } from '../../api/authState'
 import { ROLE_LANDING_PATHS } from '../../types/auth'
+import successIcon from '../../assets/icons/successIcon.png'
 
 const sampleDays: readonly SampleDay[] = [
   { day: 5, level: 'Medium' }, { day: 6, level: 'Low' },
@@ -21,6 +22,14 @@ const sampleDays: readonly SampleDay[] = [
 
 export default function SignInPage() {
   const navigate = useNavigate()
+  const location = useLocation()
+  const navigationState = location.state as { accountCreated?: boolean } | null
+  const [hasSignupSuccess, setHasSignupSuccess] = useState(() => navigationState?.accountCreated === true)
+  useEffect(() => {
+    if (navigationState?.accountCreated) {
+      navigate(location.pathname, { replace: true, state: null })
+    }
+  }, [navigationState, location.pathname, navigate])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [serverError, setServerError] = useState('')
   const errorRef = useRef<HTMLParagraphElement>(null)
@@ -64,7 +73,8 @@ export default function SignInPage() {
       intro="Sign in to search flights, check airport crowd levels, and get suggested dates. Staff sign in here too."
       panelTitle="Know the crowd before you book."
       panelIntro="Low, Medium, or High, for every day of your trip." days={sampleDays}>
-      <form onSubmit={handleSubmit} noValidate aria-busy={isSubmitting}>
+      {hasSignupSuccess && <div className="auth-success" role="status"><img src={successIcon} alt="" aria-hidden="true" /><span>Account created. Please sign in.</span></div>}
+      <form onSubmit={handleSubmit} onChange={() => setHasSignupSuccess(false)} noValidate aria-busy={isSubmitting}>
         {serverError && <p ref={errorRef} tabIndex={-1} className="signin-error" role="alert">{serverError}</p>}
         <AuthField ref={usernameRef} id="signin-username" name="username" label="Email or username" type="text" autoComplete="username" placeholder="Enter your email or username" error={errors.username ? 'Enter your email or username.' : undefined} errorId="username-error" />
         <AuthField ref={passwordRef} id="signin-password" name="password" label="Password" type="password" autoComplete="current-password" placeholder="Enter your password" error={errors.password ? 'Enter your password.' : undefined} errorId="password-error" />
