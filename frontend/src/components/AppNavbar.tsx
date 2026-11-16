@@ -1,6 +1,5 @@
 import { NavLink } from 'react-router-dom'
 import Brand from './Brand'
-import Icon from './Icon'
 import './AppNavbar.css'
 
 export default function AppNavbar({ userName, onSignOut, isSigningOut, navigation = 'traveler' }: { userName: string; onSignOut: () => void; isSigningOut: boolean; navigation?: 'traveler' | 'staff' | 'head' }) {
@@ -12,9 +11,9 @@ export default function AppNavbar({ userName, onSignOut, isSigningOut, navigatio
           {navigation === 'head' ? <>
             <NavLink to="/head">Head management</NavLink>
             <NavLink to="/staff/dashboard">Dashboard</NavLink>
-          </> : navigation === 'staff' ? <><NavLink to="/staff/dashboard">Dashboard</NavLink><NavLink to="/staff/flights">Flights</NavLink></> : <>
+          </> : navigation === 'staff' ? <><NavLink to="/staff/dashboard">Dashboard</NavLink><NavLink to="/staff/flights">Flights</NavLink><NavLink to="/staff/forecasts">Crowd forecasts</NavLink></> : <>
             <NavLink to="/home">Home</NavLink>
-            <NavLink to="/calendar"><Icon name="calendar" />Traffic Calendar</NavLink>
+            <NavLink to="/calendar">Traffic Calendar</NavLink>
           </>}
         </div>
         <NavLink to="/profile" className="user-chip account-link" aria-label={`My account: ${userName}`}>{userName}</NavLink>

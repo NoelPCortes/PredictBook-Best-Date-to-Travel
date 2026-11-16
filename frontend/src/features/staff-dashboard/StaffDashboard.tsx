@@ -7,6 +7,7 @@ import { januaryDays } from '../../data/homeSample'
 import { getDashboardAccess } from './api'
 import { summarizeCrowdDays } from './summary'
 import './StaffDashboard.css'
+import OwnRecordsCard from './OwnRecordsCard'
 
 export default function StaffDashboard() {
   const { profile } = useAuth()
@@ -35,6 +36,7 @@ export default function StaffDashboard() {
       {access === 'denied' && <p role="alert">You do not have access to the Staff dashboard.</p>}
       {access === 'error' && <p role="alert">Unable to load the dashboard. Please try again later.</p>}
       {access === 'allowed' && <>
+        <OwnRecordsCard />
         <section className="staff-metrics" aria-label="January crowd summary">
           {(['High', 'Medium', 'Low'] as const).map(level => <article className="staff-card" key={level}>
             <h2><span className={`staff-level-dot staff-level-${level.toLowerCase()}`} aria-hidden="true" />{level} crowd days</h2>

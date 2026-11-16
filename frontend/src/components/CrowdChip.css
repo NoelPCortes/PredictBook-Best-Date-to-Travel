@@ -1,0 +1,4 @@
+.record-crowd-chip { display: inline-flex; align-items: center; gap: var(--space-8); padding: var(--space-8) var(--space-12); border-radius: var(--calendar-cell-radius); color: var(--ink); font-weight: 600; white-space: nowrap; }
+.record-crowd-chip.high { color: var(--white); }
+.record-crowd-chip.no-data { color: var(--disabled-text); background: var(--no-data-background); }
+.record-crowd-chip i { width: var(--space-12); height: var(--space-12); border-radius: 50%; background: currentColor; }

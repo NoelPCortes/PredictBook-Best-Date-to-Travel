@@ -23,7 +23,7 @@ export function createFlight(values: FlightInput) {
   return apiRequest<Flight>('/api/flights/', { method: 'POST', body: JSON.stringify(values) })
 }
 
-export function updateFlight(id: string, values: FlightInput) {
+export function updateFlight(id: string, values: Partial<FlightInput>) {
   return apiRequest<Flight>(`/api/flights/${id}/`, { method: 'PATCH', body: JSON.stringify(values) })
 }
 
