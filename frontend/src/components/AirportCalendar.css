@@ -8,7 +8,7 @@
 .calendar-month-button:hover { background: var(--record-hover); border-color: var(--accent); }
 .calendar-month-button:active { background: var(--nav-text); border-color: var(--action-hover); }
 .airport-calendar :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
-.airport-day-grid { gap: var(--space-8); }
+.airport-day-grid { gap: var(--space-8); grid-template-columns: repeat(7, minmax(var(--staff-nav-height), 1fr)); overflow-x: auto; }
 .airport-day-grid .weekday { font-size: var(--staff-label-size); padding: var(--space-4) 0; }
 .airport-day-grid .calendar-day { min-height: var(--staff-nav-height); height: auto; width: 100%; padding: var(--space-8) 0; font: inherit; border: 1px solid transparent; border-radius: var(--calendar-cell-radius); cursor: pointer; transition: box-shadow var(--control-transition); }
 .airport-calendar .no-data { background: var(--no-data-background); color: var(--disabled-text); }

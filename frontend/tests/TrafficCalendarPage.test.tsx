@@ -101,6 +101,12 @@ it('uses Philippine today across the UTC day boundary', async () => {
   vi.setSystemTime(new Date('2026-01-13T17:00:00Z')); await render()
   expect(loadFlights).toHaveBeenCalledWith({ origin: '1', date: '2026-01-14' })
 })
+it('renders February 29 in a leap year with Tuesday alignment for February 1', async () => {
+  vi.setSystemTime(new Date('2028-02-15T04:00:00Z')); await render()
+  expect(container.querySelectorAll('.airport-day-grid button')).toHaveLength(29)
+  const first = container.querySelector('button[aria-label^="February 1,"]')!
+  expect([...container.querySelector('.airport-day-grid')!.children].indexOf(first)).toBe(9)
+})
 it('shows request errors distinctly from empty data and permits retry', async () => {
   vi.mocked(loadForecasts).mockRejectedValueOnce(new TypeError('Offline'))
   vi.mocked(loadFlights).mockRejectedValueOnce(new TypeError('Offline'))

@@ -85,9 +85,18 @@ it('loads stored values for edit, converts UTC to Philippine input time and show
   expect(field('departure_time').value).toBe('2026-12-01T08:00')
   expect(field('available_seats').value).toBe('25')
   await edit('available_seats', '0'); await submit()
-  expect(updateFlight).toHaveBeenCalledWith('7', expect.objectContaining({ available_seats: '0', departure_time: '2026-12-01T08:00+08:00' }))
+  expect(updateFlight).toHaveBeenCalledWith('7', { available_seats: '0' })
   expect(container.querySelector('[role="status"]')?.textContent).toBe('Flight updated.')
   expect(createFlight).not.toHaveBeenCalled()
+})
+it('preserves untouched timestamp precision when editing other fields', async () => {
+  vi.mocked(getFlight).mockResolvedValue({ ...flight, departure_time: '2026-12-01T00:00:12.123456Z', arrival_time: '2026-12-01T01:30:34.654321Z' })
+  await render('/staff/flights/7/edit'); await edit('total_seats', '200'); await submit()
+  expect(updateFlight).toHaveBeenCalledWith('7', { total_seats: '200' })
+})
+it('sends an explicit Philippine timestamp when the departure field is changed', async () => {
+  await render('/staff/flights/7/edit'); await edit('departure_time', '2026-12-01T08:15'); await submit()
+  expect(updateFlight).toHaveBeenCalledWith('7', { departure_time: '2026-12-01T08:15+08:00' })
 })
 it.each(['airline', 'flight_number', 'origin', 'destination', 'departure_time', 'arrival_time', 'total_seats', 'available_seats'])('shows backend %s messages under the field and focuses it', async name => {
   vi.mocked(createFlight).mockRejectedValueOnce(new ApiError(400, { [name]: ['First message.', 'Second message.'] }))

@@ -25,6 +25,7 @@ function inputValues(flight: Flight): FlightInput {
 function FlightForm({ id }: { id?: string }) {
   const navigate = useNavigate()
   const [values, setValues] = useState<FlightInput>(EMPTY_FLIGHT)
+  const [originalValues, setOriginalValues] = useState<FlightInput | null>(null)
   const [airports, setAirports] = useState<Airport[]>([])
   const [airlines, setAirlines] = useState<Airline[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -39,7 +40,10 @@ function FlightForm({ id }: { id?: string }) {
       .then(([[airportOptions, airlineOptions], flight]) => {
         if (!isActive) return
         setAirports(airportOptions); setAirlines(airlineOptions)
-        if (flight) { setValues(inputValues(flight)); setCanEdit(flight.can_edit === true) }
+        if (flight) {
+          const initialValues = inputValues(flight)
+          setValues(initialValues); setOriginalValues(initialValues); setCanEdit(flight.can_edit === true)
+        }
       })
       .catch(error => {
         if (isActive) setLoadError(error instanceof ApiError && error.status === 404 ? 'Flight not found.' : 'Unable to load the flight form. Please try again.')
@@ -54,8 +58,13 @@ function FlightForm({ id }: { id?: string }) {
     clearErrors(); setIsSaving(true)
     const payload = { ...values, departure_time: flightTimePayload(values.departure_time), arrival_time: flightTimePayload(values.arrival_time) }
     try {
-      if (id) await updateFlight(id, payload)
-      else await createFlight(payload)
+      if (id) {
+        const changes: Partial<FlightInput> = {}
+        for (const field of FIELD_NAMES as (keyof FlightInput)[]) {
+          if (values[field] !== originalValues?.[field]) changes[field] = payload[field]
+        }
+        await updateFlight(id, changes)
+      } else await createFlight(payload)
       navigate('/staff/flights', { state: { success: id ? 'Flight updated.' : 'Flight created.' } })
     } catch (error) {
       showErrors(error, 'Unable to save the flight. Please try again.')
