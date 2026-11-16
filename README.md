@@ -148,6 +148,18 @@ python -m pytest
 ruff check .
 ```
 
+For optional **local sample data**, configure `SEED_FLIGHT_NUMBERS` below and
+ensure the Staff user named by `SEED_STAFF_USERNAME` exists. If it is missing,
+set a non-placeholder `SEED_STAFF_PASSWORD` locally and run
+`python manage.py seed_staff` first. With `DEBUG=True`, run from `backend/`:
+
+```bash
+python manage.py seed_sample_data
+```
+
+This creates invented sample flights, not real timetables. Existing environment
+files must not be replaced. Existing Staff users do not need `seed_staff` rerun.
+
 ### 4. Frontend (React + TypeScript)
 
 ```bash
@@ -190,16 +202,25 @@ refresh clears the session and redirects to Sign-In.
 
 ## Account areas
 
-For sample flight and crowd forecast data, run `python manage.py seed_staff` first, then
-`python manage.py seed_sample_data` from `backend/`. The latter requires the
-existing Staff user named by `SEED_STAFF_USERNAME` and idempotently creates five
-Philippine airports, three airlines, and five flights per day for the next 14
-days and one forecast per airport per day for 60 days (including today in
-Philippine time). Forecasts use a deterministic weekday pattern and the source
-`Sample data`; their scores are left empty because the score meaning is TBD.
-The command prints counts and a sample-data notice only. These are sample
-schedules and forecasts, not real airline data or validated predictions. It
-stops before writing if the configured Staff user does not exist.
+`python manage.py seed_sample_data` is for local development with `DEBUG=True`.
+It seeds seven airports (MNL, CEB, DVO, SIN, NRT, KIX, FUK) in the Philippines,
+Singapore, and Japan, two airlines (Cebu Pacific / 5J and Singapore Airlines / SQ),
+and ten invented flights. Flight numbers come from `SEED_FLIGHT_NUMBERS`, in order.
+The variable must contain exactly ten distinct, nonempty comma-separated values,
+each at most ten characters. The command requires the existing Staff user named
+by `SEED_STAFF_USERNAME` and sets that user as each new flight's creator.
+
+Lookups use `get_or_create` without modifying existing airports or airlines.
+Matching seed-owned flights are updated by airline and flight number, so reruns
+move their times forward and reset seats without adding more sample flights.
+Other users' flights are never changed. Ambiguous seed-owned matches or conflicting
+departures stop the whole operation without partial writes. No rows are deleted.
+Crowd forecasts remain unchanged; crowd-score meaning remains TBD.
+
+The ten departures span tomorrow through nine days after today in the project's
+`TIME_ZONE` (currently UTC). Arrival durations are real elapsed time. These are
+invented local sample schedules, not real timetables or validated predictions.
+Output contains only counts and the sample-data label.
 
 No additional dependency, migration, environment variable, or setup command is
 needed for the role pages and own-profile UI.
@@ -248,8 +269,9 @@ before applying the required fields; do not invent a default owner.
 
 Home and Traffic Calendar share the same airport dropdown, month grid, crowd
 legend, and selected-date flight panel. Missing forecasts show `No data`.
-Month navigation remains enabled. Flight entry, display, departure-date filters,
-and sample-day boundaries use Philippine time (`Asia/Manila`, UTC+08:00).
+Month navigation remains enabled. Flight entry, display, and departure-date filters
+use Philippine time (`Asia/Manila`, UTC+08:00). Sample seeding uses the project's
+`TIME_ZONE` (currently UTC), so its times are converted for frontend display.
 Django's `TIME_ZONE` remains `UTC`, with timezone-aware flight storage.
 
 Staff navigation contains Dashboard, Flights, and Crowd forecasts. The dashboard
@@ -282,9 +304,15 @@ CORS_ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
 SEED_STAFF_USERNAME=seed_staff
 SEED_STAFF_EMAIL=staff@example.com
 SEED_STAFF_PASSWORD=change-me-staff-password
+SEED_FLIGHT_NUMBERS=5J501,5J502,5J503,5J504,5J505,SQ901,SQ902,SQ903,SQ904,SQ905
 ```
 
 Write values without quotes. Set `DEBUG=False` outside local development.
+
+`SEED_FLIGHT_NUMBERS` contains invented sample identifiers for local development,
+not secrets or real timetable information. Its first five values are assigned to
+the Cebu Pacific samples and its final five to the Singapore Airlines samples.
+Keep this list in the local backend environment; never commit `.env`.
 
 The three `SEED_STAFF_*` variables are **for local testing only**. Replace
 `SEED_STAFF_PASSWORD` in your local `backend/.env` with your own password, then
