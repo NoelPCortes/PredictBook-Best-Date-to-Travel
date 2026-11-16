@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import RecordLayout from '../../components/RecordLayout'
 import RecordAlert from '../../components/RecordAlert'
 import { formatFlightTime } from '../../components/flightTime'
@@ -7,10 +7,16 @@ import type { Flight } from '../../types/flights'
 import { listFlights } from './api'
 
 export default function FlightListPage() {
+  const location = useLocation()
+  const navigate = useNavigate()
+  const [success] = useState(() => typeof location.state?.success === 'string' ? location.state.success as string : '')
   const [flights, setFlights] = useState<Flight[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
   const [attempt, setAttempt] = useState(0)
+  useEffect(() => {
+    if (location.state?.success) navigate(location.pathname, { replace: true, state: null })
+  }, [location.pathname, location.state, navigate])
   useEffect(() => {
     let isActive = true
     void listFlights().then(records => { if (isActive) setFlights(records) })
@@ -21,6 +27,7 @@ export default function FlightListPage() {
   return <RecordLayout>
     <header className="record-heading"><h1>Flights</h1><Link className="record-button" to="/staff/flights/new">Add flight</Link></header>
     <p>Flight times are shown in Philippine time (Asia/Manila, UTC+08:00).</p>
+    {success && <RecordAlert kind="success">{success}</RecordAlert>}
     {isLoading && <p role="status">Loading flights…</p>}
     {error && <><RecordAlert kind="error">{error}</RecordAlert><button className="record-button record-secondary" onClick={() => { setIsLoading(true); setError(''); setAttempt(value => value + 1) }}>Try again</button></>}
     {!isLoading && !error && <div className="record-table-scroll" tabIndex={0} role="region" aria-label="Flights table">
