@@ -1,0 +1,33 @@
+.staff-dashboard { max-width: var(--staff-content-width); margin: auto; padding: var(--space-40) var(--space-32); }
+.staff-heading { display: flex; align-items: end; justify-content: space-between; gap: var(--space-24); margin-bottom: var(--space-24); }
+.staff-heading .eyebrow { margin-bottom: var(--space-8); }
+.staff-heading h1 { font-size: var(--staff-title-size); line-height: 1.15; letter-spacing: normal; max-width: none; margin-bottom: var(--space-8); }
+.staff-context { display: flex; flex-wrap: wrap; gap: var(--space-12); }
+.staff-context span { background: var(--white); border: 1px solid var(--border); border-radius: var(--control-radius); padding: var(--space-12) var(--space-16); white-space: nowrap; }
+.staff-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-16); margin-bottom: var(--space-24); }
+.staff-card { background: var(--white); border-radius: var(--radius); padding: var(--space-24); }
+.staff-card h2 { font-size: var(--staff-section-size); letter-spacing: normal; margin-bottom: var(--space-16); }
+.staff-metrics h2 { display: flex; align-items: center; gap: var(--space-8); font: inherit; font-size: var(--staff-label-size); color: var(--muted); margin-bottom: var(--space-8); }
+.staff-metric-value { font-family: 'Space Grotesk', sans-serif; font-size: var(--staff-value-size); font-weight: 700; color: var(--ink); line-height: 1.2; overflow-wrap: anywhere; }
+.staff-level-dot { width: var(--space-12); height: var(--space-12); border-radius: 50%; border: 1px solid var(--muted); }
+.staff-level-high { background: var(--high); color: var(--white); }
+.staff-level-medium { background: var(--medium); color: var(--ink); }
+.staff-level-low { background: var(--low); color: var(--ink); }
+.staff-level-none { background: var(--no-data-background); color: var(--disabled-text); }
+.staff-panels { display: grid; grid-template-columns: 1.15fr 1fr; gap: var(--space-16); }
+.staff-panels > .staff-card { min-height: var(--staff-panel-height); }
+.staff-seven-days { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: var(--space-8); margin: var(--space-24) 0 0; }
+.staff-seven-days li { border-radius: var(--control-radius); padding: var(--space-16) var(--space-4); display: grid; gap: var(--space-8); text-align: center; font-size: var(--staff-label-size); }
+.staff-seven-days time { display: grid; gap: var(--space-8); }
+.staff-seven-days strong { font-size: var(--staff-section-size); }
+.staff-upcoming { list-style: none; padding: 0; margin: 0; display: grid; gap: var(--space-12); }
+.staff-upcoming li { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-12); padding: var(--space-16); border: 1px solid var(--border); border-radius: var(--control-radius); }
+.staff-high-label { border-radius: var(--control-radius); padding: var(--space-4) var(--space-12); background: var(--high); color: var(--white); white-space: nowrap; }
+.app-header-staff .app-nav { gap: var(--space-32); padding: var(--space-8) var(--space-32); }
+.app-header-staff .app-nav-links a { color: var(--nav-text); min-height: var(--staff-nav-height); padding: var(--space-8) var(--space-12); transition: background var(--control-transition); }
+.app-header-staff .app-nav-links a:hover { color: var(--white); background: var(--action-pressed); text-decoration: none; }
+.app-header-staff .app-nav-links a:active { background: var(--action-hover); }
+.app-header-staff .app-nav-links a[aria-current=page] { color: var(--white); }
+@media (max-width: 1000px) { .staff-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } .staff-panels { grid-template-columns: 1fr; } .staff-panels > .staff-card { min-height: auto; } }
+@media (max-width: 600px) { .staff-dashboard { padding: var(--space-24) var(--space-16); } .staff-heading { align-items: start; flex-direction: column; } .staff-metrics { grid-template-columns: 1fr; } .staff-seven-days { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@media (prefers-reduced-motion: reduce) { .app-header-staff .app-nav-links a { transition: none; } }

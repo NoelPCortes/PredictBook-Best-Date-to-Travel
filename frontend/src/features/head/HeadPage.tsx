@@ -1,0 +1,84 @@
+import { useEffect, useRef, useState } from 'react'
+import type { FormEvent } from 'react'
+import { useAuth } from '../../api/authState'
+import { ApiError, fieldMessage } from '../../api/client'
+import AppNavbar from '../../components/AppNavbar'
+import AuthField from '../../components/AuthField'
+import { useSignOut } from '../../components/useSignOut'
+import { assignStaff, getHeadAccess } from './api'
+import '../../components/AuthLayout.css'
+import './HeadPage.css'
+
+export default function HeadPage() {
+  const { profile } = useAuth()
+  const { signOut, isSigningOut } = useSignOut()
+  const [access, setAccess] = useState<'loading' | 'allowed' | 'denied' | 'error'>('loading')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [emailError, setEmailError] = useState('')
+  const [feedback, setFeedback] = useState<{ message: string; isError: boolean } | null>(null)
+  const emailRef = useRef<HTMLInputElement>(null)
+  const feedbackRef = useRef<HTMLParagraphElement>(null)
+  useEffect(() => {
+    let isActive = true
+    void getHeadAccess().then(() => { if (isActive) setAccess('allowed') })
+      .catch(error => { if (isActive) setAccess(error instanceof ApiError && error.status === 403 ? 'denied' : 'error') })
+    return () => { isActive = false }
+  }, [])
+
+  async function handleAssign(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (isSubmitting) return
+    setFeedback(null)
+    setEmailError('')
+    const email = emailRef.current?.value.trim() ?? ''
+    if (!email || emailRef.current?.validity.typeMismatch) {
+      setEmailError(email ? 'Enter a valid email address.' : 'Enter an email address.')
+      emailRef.current?.focus()
+      return
+    }
+    setIsSubmitting(true)
+    try {
+      const result = await assignStaff(email)
+      setFeedback({ message: result.detail, isError: false })
+    } catch (error) {
+      if (error instanceof ApiError) {
+        const message = fieldMessage(error.fields.email)
+        if (message) {
+          setEmailError(message)
+          emailRef.current?.focus()
+          return
+        }
+        if (error.status === 403) {
+          setAccess('denied')
+          return
+        }
+        setFeedback({ message: fieldMessage(error.fields.detail) ?? fieldMessage(error.fields.non_field_errors) ?? 'Unable to assign Staff access. Please try again.', isError: true })
+      } else {
+        setFeedback({ message: 'Unable to assign Staff access. Please try again.', isError: true })
+      }
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  useEffect(() => { if (feedback) feedbackRef.current?.focus() }, [feedback])
+
+  return <>
+    <AppNavbar userName={profile?.username ?? ''} onSignOut={signOut} isSigningOut={isSigningOut} navigation="head" />
+    <main className="head-page">
+      <h1>Head management</h1>
+      {access === 'loading' && <p role="status">Checking Head access…</p>}
+      {access === 'denied' && <p className="head-feedback head-error" role="alert">You do not have access to Head management.</p>}
+      {access === 'error' && <p className="head-feedback head-error" role="alert">Unable to load Head management. Please try again later.</p>}
+      {access === 'allowed' && <section className="head-card" aria-labelledby="head-assign-title">
+        <h2 id="head-assign-title">Assign Staff</h2>
+        <p>Assign Staff access by email. The person can already have an account or register later.</p>
+        <form onSubmit={handleAssign} noValidate aria-busy={isSubmitting} onChange={() => { setEmailError(''); setFeedback(null) }}>
+          <AuthField ref={emailRef} id="head-staff-email" name="email" type="email" autoComplete="email" label="Email" error={emailError || undefined} errorId="head-staff-email-error" />
+          <button className="button head-assign-button" type="submit" disabled={isSubmitting}>{isSubmitting ? 'Assigning Staff…' : 'Assign Staff'}</button>
+        </form>
+        {feedback && <p ref={feedbackRef} tabIndex={-1} role={feedback.isError ? 'alert' : 'status'} className={`head-feedback ${feedback.isError ? 'head-error' : 'head-success'}`}>{feedback.message}</p>}
+      </section>}
+    </main>
+  </>
+}
