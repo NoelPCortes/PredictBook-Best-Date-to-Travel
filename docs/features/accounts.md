@@ -10,9 +10,19 @@ migrations also create the flights and traffic models from [database.md](../data
 Only User is registered in the Django admin, including role and promoted_by on
 creation and editing, so Django administrators can create initial Heads.
 
-The frontend `/signin` and `/signup` forms still validate locally and stop at
-their existing TODO handlers. Home still uses a fixture user. Frontend API wiring,
-route guards, profile/password/logout screens, and Head management UI are pending.
+The existing frontend forms now live in `features/signin` and `features/signup`.
+They preserve client validation and call the existing `signin/` and `signup/`
+endpoints. Sign-Up displays backend field errors and password validation messages
+beside their inputs and focuses the first invalid field. Successful Sign-Up opens
+Sign-In. Sign-In stores the returned tokens and keeps only safe profile fields in
+memory, then opens `/home`.
+
+`features/homepage` reuses the existing Home UI. It displays the signed-in username;
+all other flight/calendar/booking/search values remain labeled sample data.
+`profile/` restores the current user's profile after reload. Home is protected;
+signed-in visitors to Sign-In or Sign-Up go to Home. `/` stays public. Sign out
+calls `logout/` with the refresh token, then clears the local session even if the
+request fails. Profile/password screens and Head management UI remain pending.
 
 ## Endpoint contract
 
@@ -45,8 +55,14 @@ fields. Requests containing unsupported or read-only account fields return 400.
 ## Authentication and passwords
 
 Access tokens last **15 minutes**, refresh tokens **7 days**. Refresh rotates the
-refresh token, blacklists the replaced token, and returns both new tokens. Store
-the new refresh token after each refresh. Logout verifies refresh-token ownership
+refresh token, blacklists the replaced token, and returns both new tokens. The frontend stores both tokens in **localStorage**, exclusively through
+`src/api/authStorage.ts`; safe profile fields stay in memory in `authState.ts`.
+The shared API client reads `VITE_API_URL`, attaches the access token, and tries
+`token/refresh/` once after a protected 401, sharing an in-flight refresh between
+concurrent requests. It stores both rotated tokens and retries once. A failed
+refresh or another 401 clears tokens and redirects to Sign-In. Public credential
+requests do not trigger refresh. Logout reads the current refresh token again on
+retry, so a rotated token is blacklisted. Logout verifies refresh-token ownership
 before blacklisting. Existing access tokens continue until their expiration.
 Password change does not blacklist existing tokens.
 
@@ -88,6 +104,19 @@ password. Password fields are write-only and hashed using Django's password API.
   and another user's ID cannot be set through profile updates. Management accepts
   the target email and returns only a result message.
 
+## Development-only Staff seed
+
+Set `SEED_STAFF_USERNAME`, `SEED_STAFF_EMAIL`, and a non-placeholder
+`SEED_STAFF_PASSWORD` in `backend/.env`, then run `python manage.py seed_staff`.
+This is a local testing command, available only when `DEBUG=True`. It refuses
+missing/empty variables and the placeholder `change-me-staff-password`.
+It creates or updates Staff directly using Django password hashing, preserves
+any matching Head without changing the password or role, rejects username/email
+collisions between different users, and never touches `staff_assignments`.
+Success output contains only the username and created/updated status. Passwords
+are never printed. This command is separate from the Head assignment flow and
+does not grant Django administrator access.
+
 ## Verification
 
 Run `python -m pytest` from `backend/`. Tests use PostgreSQL's separate test
@@ -96,5 +125,10 @@ rollback, sign-in, token lifetimes/rotation/logout ownership, profile privacy,
 password changes, authorization, Head removal chains, Staff access, admin
 registration, protected deletion, and database constraints.
 
-Frontend behavior remains covered separately by the existing frontend tests;
-backend tests do not establish frontend authentication integration.
+Frontend Vitest tests mock the API and cover field error associations, safe
+Sign-Up payloads, Sign-In storage/navigation, protected routes, restored sessions,
+logout success/failure, and one-attempt refresh behavior. Backend seed tests cover
+creation, updates, DEBUG/placeholder/missing-variable refusal, Head preservation,
+identity conflicts, password hashing, output privacy, and pending assignment
+preservation. These automated tests do not establish browser rendering or live
+browser integration by themselves.

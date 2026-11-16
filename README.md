@@ -179,8 +179,13 @@ Django admin access. No other project models are registered in admin.
 
 Backend tests run against Django's separate PostgreSQL test database (the database
 user needs permission to create it). They cover accounts, role permissions, and
-schema constraints. They do not switch to SQLite. The React forms still use their
-existing TODO submission handlers; connecting the frontend is pending.
+schema constraints. They do not switch to SQLite. React Sign-Up and Sign-In now
+use the existing API. Home is protected and displays the signed-in username;
+its flight, calendar, booking, and search information remains labeled sample data.
+Sign out blacklists the refresh token and clears the local session even if the
+request fails. Tokens are stored in localStorage only through the shared auth
+storage module. A 401 causes one refresh attempt, then a single retry; failed
+refresh clears the session and redirects to Sign-In.
 
 ## Environment Variables
 
@@ -198,9 +203,25 @@ DB_HOST=localhost
 DB_PORT=5432
 
 CORS_ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
+
+SEED_STAFF_USERNAME=seed_staff
+SEED_STAFF_EMAIL=staff@example.com
+SEED_STAFF_PASSWORD=change-me-staff-password
 ```
 
 Write values without quotes. Set `DEBUG=False` outside local development.
+
+The three `SEED_STAFF_*` variables are **for local testing only**. Replace
+`SEED_STAFF_PASSWORD` in your local `backend/.env` with your own password, then
+run `python manage.py seed_staff` from `backend/`. The command refuses to run
+unless `DEBUG=True`, refuses the placeholder password, and names missing
+variables without printing their values. It creates or updates a Staff account
+and hashes its password through Django; existing Heads remain unchanged.
+Username/email matching different accounts is rejected. It prints only the
+username and created/updated status (or a Head-preservation message), and leaves
+pending Staff assignments untouched. It does not grant Django admin access.
+Never put Staff credentials in frontend environment files or real passwords in
+`.env.example`. Existing `.env` files must not be replaced by template copies.
 
 ### `frontend/.env`
 

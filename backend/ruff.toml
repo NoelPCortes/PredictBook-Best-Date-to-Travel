@@ -1,0 +1,3 @@
+[lint.per-file-ignores]
+# Django generates mutable migration class attributes; preserve applied files.
+"**/migrations/*.py" = ["RUF012"]

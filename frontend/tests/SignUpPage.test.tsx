@@ -2,8 +2,10 @@
 import { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { MemoryRouter } from 'react-router-dom'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import SignUpPage from '../src/pages/SignUpPage'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import SignUpPage from '../src/features/signup/SignUpPage'
+
+vi.mock('../src/features/signup/api', () => ({ signup: vi.fn().mockResolvedValue({}) }))
 
 let container: HTMLDivElement
 let root: ReturnType<typeof createRoot>
@@ -91,7 +93,7 @@ describe('Sign-up page', () => {
     expect(input('username').hasAttribute('aria-invalid')).toBe(false)
     expect(container.querySelectorAll('[role="alert"]')).toHaveLength(3)
   })
-  it('accepts matching single-character passwords without extra rules', async () => {
+  it('submits matching passwords for backend validation without extra client rules', async () => {
     fillValid()
     await submit()
     expect(container.querySelectorAll('[role="alert"]')).toHaveLength(0)

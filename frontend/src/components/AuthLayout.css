@@ -23,12 +23,17 @@
 .signin-content form { margin-top: 32px; display: grid; gap: 16px; }
 .signin-field { background: var(--white); border: 1px solid var(--border); border-radius: 14px; padding: 12px 16px; }
 .signin-field:focus-within { border-color: var(--accent); box-shadow: var(--signin-focus); }
-.signin-field label { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+.signin-field label { display: block; font-size: 14px; font-weight: 600; color: var(--muted); margin-bottom: var(--space-8); }
 .signin-field input { display: block; width: 100%; min-width: 0; border: 0; padding: 0; background: transparent; color: var(--ink); line-height: 1.5; }
 .signin-field input::placeholder { color: var(--muted); opacity: 1; }
 .signin-field input:focus-visible { outline: none; }
 .signin-field:has([aria-invalid="true"]) { border-color: var(--signin-error); }
-.signin-error { color: var(--signin-error); font-size: 14px; margin: 6px 4px 0; }
+.signin-error { color: var(--signin-error); font-size: 14px; font-weight: 600; margin: var(--space-4) var(--space-4) 0; }
+.signin-submit { transition: background var(--control-transition); }
+.signin-submit:hover { background: var(--action-hover); filter: none; }
+.signin-submit:active { background: var(--action-pressed); }
+.signin-submit:disabled { background: var(--disabled-bg); color: var(--disabled-text); cursor: not-allowed; transform: none; }
+@media (prefers-reduced-motion: reduce) { .signin-submit { transition: none; } }
 .signin-submit, .signin-create { width: 100%; min-height: 56px; border-radius: 14px; }
 .signin-submit { margin-top: 8px; }
 .signin-divider { display: flex; align-items: center; gap: 12px; margin: 24px 0; color: var(--muted); font-size: 14px; text-align: center; }

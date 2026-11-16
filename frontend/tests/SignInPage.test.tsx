@@ -2,8 +2,10 @@
 import { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { MemoryRouter } from 'react-router-dom'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import SignInPage from '../src/pages/SignInPage'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import SignInPage from '../src/features/signin/SignInPage'
+
+vi.mock('../src/features/signin/api', () => ({ signin: vi.fn().mockResolvedValue({ access: 'test-access', refresh: 'test-refresh', profile: { id: 1, username: 'traveler', email: 'traveler@example.com', first_name: '', last_name: '', role: 'traveler' } }) }))
 
 let container: HTMLDivElement
 let root: ReturnType<typeof createRoot>

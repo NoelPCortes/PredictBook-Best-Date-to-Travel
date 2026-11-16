@@ -10,5 +10,13 @@
 .user-avatar { background: var(--muted); width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; }
 .app-header :focus-visible { outline-color: var(--white); }
 .user-chip:hover { background: var(--muted); }
+.app-nav span.user-chip { cursor: default; }
+.app-nav span.user-chip:hover { background: transparent; }
+.signout-button { border-radius: var(--control-radius); padding: var(--space-8) var(--space-24); transition: background var(--control-transition); }
+.signout-button:hover { background: var(--action-hover); filter: none; }
+.signout-button:active { background: var(--action-pressed); }
+.signout-button:disabled { background: var(--disabled-bg); color: var(--disabled-text); cursor: not-allowed; transform: none; }
+.home-sample-label { margin-top: var(--space-16); }
+@media (prefers-reduced-motion: reduce) { .signout-button { transition: none; } }
 @media(max-width: 900px) { .app-nav { gap: 24px; flex-wrap: wrap; padding: 16px 24px; } .app-nav-links { order: 3; width: 100%; min-height: 48px; } .app-nav-links a[aria-current="page"]::after { bottom: 0; } }
 @media(max-width: 420px) { .app-nav .brand { font-size: 21px; gap: 8px; } .app-nav { gap: 12px; padding: 14px 16px; } .app-nav-links { gap: 24px; font-size: 14px; } }

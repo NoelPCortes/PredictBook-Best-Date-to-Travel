@@ -1,19 +1,31 @@
 ﻿import { useState } from 'react'
-import AppNavbar from '../components/AppNavbar'
-import HomeCalendar, { CrowdChip } from '../components/HomeCalendar'
-import Icon from '../components/Icon'
-import { formatHomeDate, recentSearches, sampleUser, upcomingBooking } from '../data/homeSample'
+import { useNavigate } from 'react-router-dom'
+import { useAuth, clearSession } from '../../api/authState'
+import { logout } from './api'
+import AppNavbar from '../../components/AppNavbar'
+import HomeCalendar, { CrowdChip } from '../../components/HomeCalendar'
+import Icon from '../../components/Icon'
+import { formatHomeDate, recentSearches, upcomingBooking } from '../../data/homeSample'
 import './HomePage.css'
 
 export default function HomePage() {
+  const { profile } = useAuth()
+  const navigate = useNavigate()
+  const [isSigningOut, setIsSigningOut] = useState(false)
+  async function signOut() {
+    if (isSigningOut) return
+    setIsSigningOut(true)
+    try { await logout() } catch { /* Local sign-out must complete even without a connection. */ }
+    finally { clearSession(); navigate('/signin', { replace: true }) }
+  }
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
   return <>
-    <AppNavbar userName={sampleUser.name} />
+    <AppNavbar userName={profile?.username ?? ''} onSignOut={signOut} isSigningOut={isSigningOut} />
     <main className="home-page">
       <section className="home-hero" aria-labelledby="home-title">
         <div className="home-intro">
-          <p className="eyebrow">WELCOME BACK, {sampleUser.name.toUpperCase()}</p>
+          <p className="eyebrow">WELCOME BACK, {profile?.username.toUpperCase()}</p>
           <h1 id="home-title">Search flights and check airport crowds</h1>
           <p>Find flights, see expected crowd levels, and view booking information by date.</p>
         </div>
@@ -27,6 +39,7 @@ export default function HomePage() {
         {/* TODO: Connect flight search when results are implemented. */}
         <button type="button" className="button"><Icon name="search" />Search flights</button>
       </form>
+      <p className="home-sample-label">Sample data: flight search, calendar, bookings, and recent searches.</p>
       <div className="home-summary">
         <section className="summary-card" aria-labelledby="upcoming-title">
           <h2 id="upcoming-title">Your upcoming booking</h2>

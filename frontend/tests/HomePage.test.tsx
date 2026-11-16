@@ -3,12 +3,15 @@ import { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import HomePage from '../src/pages/HomePage'
+import HomePage from '../src/features/homepage/HomePage'
+
+import { setProfile, clearSession } from '../src/api/authState'
 
 let container: HTMLDivElement
 let root: ReturnType<typeof createRoot>
 beforeEach(async () => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
+  setProfile({ id: 1, username: 'larce', email: 'larce@example.com', first_name: '', last_name: '', role: 'traveler' })
   container = document.createElement('div')
   document.body.append(container)
   root = createRoot(container)
@@ -17,6 +20,7 @@ beforeEach(async () => {
 afterEach(async () => {
   await act(async () => root.unmount())
   container.remove()
+  clearSession()
 })
 function dayButton(day: number): HTMLButtonElement {
   const button = container.querySelector<HTMLButtonElement>(`button[aria-label^="January ${day},"]`)
@@ -35,7 +39,7 @@ async function type(name: string, value: string) {
   })
 }
 describe('Home page', () => {
-  it('greets the sample user and renders the main heading', () => {
+  it('greets the authenticated user and renders the main heading', () => {
     expect(container.querySelectorAll('h1')).toHaveLength(1)
     expect(container.querySelector('h1')?.textContent).toBe('Search flights and check airport crowds')
     expect(container.querySelector('.eyebrow')?.textContent).toBe('WELCOME BACK, LARCE')

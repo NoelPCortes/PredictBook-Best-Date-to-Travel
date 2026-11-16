@@ -1,9 +1,12 @@
 import { useRef, useState } from 'react'
 import type { FormEvent } from 'react'
-import { Link } from 'react-router-dom'
-import AuthLayout from '../components/AuthLayout'
-import type { SampleDay } from '../components/AuthLayout'
-import AuthField from '../components/AuthField'
+import { Link, useNavigate } from 'react-router-dom'
+import AuthLayout from '../../components/AuthLayout'
+import type { SampleDay } from '../../components/AuthLayout'
+import AuthField from '../../components/AuthField'
+
+import { signup } from './api'
+import { ApiError, fieldMessage } from '../../api/client'
 
 const sampleDays: readonly SampleDay[] = [
   { day: 19, level: 'Medium' }, { day: 20, level: 'Low' },
@@ -24,11 +27,17 @@ type FieldName = typeof fields[number]['name']
 type Errors = Partial<Record<FieldName, string>>
 
 export default function SignUpPage() {
+  const navigate = useNavigate()
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [serverError, setServerError] = useState('')
+  const errorRef = useRef<HTMLParagraphElement>(null)
   const formRef = useRef<HTMLFormElement>(null)
   const [errors, setErrors] = useState<Errors>({})
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (isSubmitting) return
+    setServerError('')
     const form = event.currentTarget
     const values = new FormData(form)
     const username = String(values.get('username') ?? '').trim()
@@ -48,7 +57,29 @@ export default function SignUpPage() {
       formRef.current?.querySelector<HTMLInputElement>(`[name="${firstInvalid.name}"]`)?.focus()
       return
     }
-    // TODO: Connect the Django sign-up API when account creation is implemented.
+    setIsSubmitting(true)
+    try {
+      await signup({ username, email, password })
+      navigate('/signin', { replace: true })
+    } catch (error) {
+      const backendErrors: Errors = {}
+      if (error instanceof ApiError) {
+        for (const field of fields) {
+          const message = fieldMessage(error.fields[field.name])
+          if (message) backendErrors[field.name] = message
+        }
+      }
+      setErrors(backendErrors)
+      const invalid = fields.find(field => backendErrors[field.name])
+      if (invalid) {
+        formRef.current?.querySelector<HTMLInputElement>(`[name="${invalid.name}"]`)?.focus()
+      } else {
+        setServerError('Unable to create your account. Please try again.')
+        requestAnimationFrame(() => errorRef.current?.focus())
+      }
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -56,13 +87,14 @@ export default function SignUpPage() {
       intro="Set a username and password to search flights, check airport crowd levels, and get suggested dates."
       panelTitle="Plan around the crowds."
       panelIntro="Expected crowd levels and suggested dates, all in one place." days={sampleDays}>
-      <form ref={formRef} onSubmit={handleSubmit} noValidate>
+      <form ref={formRef} onSubmit={handleSubmit} noValidate aria-busy={isSubmitting}>
+        {serverError && <p ref={errorRef} tabIndex={-1} className="signin-error" role="alert">{serverError}</p>}
         {fields.map(field => (
           <AuthField key={field.name} {...field} id={'signup-' + field.name}
             error={errors[field.name]} errorId={'signup-' + field.name + '-error'}
             onChange={() => setErrors(previous => ({ ...previous, [field.name]: undefined }))} />
         ))}
-        <button type="submit" className="button signin-submit">Create account</button>
+        <button type="submit" className="button signin-submit" disabled={isSubmitting}>{isSubmitting ? 'Creating account?' : 'Create account'}</button>
       </form>
       <div className="signin-divider"><span>Already have an account?</span></div>
       <Link to="/signin" className="button signin-create">Sign in</Link>
