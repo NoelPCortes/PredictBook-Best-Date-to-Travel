@@ -26,3 +26,7 @@ export function createFlight(values: FlightInput) {
 export function updateFlight(id: string, values: FlightInput) {
   return apiRequest<Flight>(`/api/flights/${id}/`, { method: 'PATCH', body: JSON.stringify(values) })
 }
+
+export function deleteFlight(id: number) {
+  return apiRequest<void>(`/api/flights/${id}/`, { method: 'DELETE' })
+}
