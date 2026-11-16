@@ -31,7 +31,7 @@ export default function HomePage() {
         {/* TODO: Connect flight search when results are implemented. */}
         <button type="button" className="button"><Icon name="search" />Search flights</button>
       </form>
-      <p className="home-sample-label">Sample data: flight search, calendar, bookings, and recent searches.</p>
+      <p className="home-sample-label">Sample data: flight search, bookings, and recent searches.</p>
       <div className="home-summary">
         <section className="summary-card" aria-labelledby="upcoming-title">
           <h2 id="upcoming-title">Your upcoming booking</h2>
