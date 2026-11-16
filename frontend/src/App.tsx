@@ -11,6 +11,7 @@ import { readTokens } from './api/authStorage'
 import RoleRoute from './components/RoleRoute'
 import { ROLE_LANDING_PATHS } from './types/auth'
 import StaffDashboard from './features/staff-dashboard/StaffDashboard'
+import HeadPage from './features/head/HeadPage'
 
 function SessionBootstrap({ children }: { children: ReactNode }) {
   const navigate = useNavigate()
@@ -49,7 +50,7 @@ export function AppRoutes() {
     <Route path="/signup" element={<SessionRoute><SignUpPage /></SessionRoute>} />
     <Route path="/home" element={<RoleRoute allowedRoles={['traveler']}><HomePage /></RoleRoute>} />
     <Route path="/staff/dashboard" element={<RoleRoute allowedRoles={['staff', 'head']}><StaffDashboard /></RoleRoute>} />
-    <Route path="/head" element={<RoleRoute allowedRoles={['head']}><p role="status">Head management is not available yet.</p></RoleRoute>} />
+    <Route path="/head" element={<RoleRoute allowedRoles={['head']}><HeadPage /></RoleRoute>} />
   </Routes></SessionBootstrap>
 }
 

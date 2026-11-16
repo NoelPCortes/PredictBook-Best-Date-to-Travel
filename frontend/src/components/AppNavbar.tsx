@@ -3,13 +3,16 @@ import Brand from './Brand'
 import Icon from './Icon'
 import './AppNavbar.css'
 
-export default function AppNavbar({ userName, onSignOut, isSigningOut, navigation = 'traveler' }: { userName: string; onSignOut: () => void; isSigningOut: boolean; navigation?: 'traveler' | 'staff' }) {
+export default function AppNavbar({ userName, onSignOut, isSigningOut, navigation = 'traveler' }: { userName: string; onSignOut: () => void; isSigningOut: boolean; navigation?: 'traveler' | 'staff' | 'head' }) {
   return (
-    <header className={`app-header${navigation === 'staff' ? ' app-header-staff' : ''}`}>
+    <header className={`app-header${navigation !== 'traveler' ? ' app-header-staff' : ''}`}>
       <nav className="app-nav" aria-label="Main navigation">
-        <Brand to={navigation === 'staff' ? '/staff/dashboard' : '/home'} />
+        <Brand to={navigation === 'head' ? '/head' : navigation === 'staff' ? '/staff/dashboard' : '/home'} />
         <div className="app-nav-links">
-          {navigation === 'staff' ? <NavLink to="/staff/dashboard">Dashboard</NavLink> : <>
+          {navigation === 'head' ? <>
+            <NavLink to="/head">Head management</NavLink>
+            <NavLink to="/staff/dashboard">Dashboard</NavLink>
+          </> : navigation === 'staff' ? <NavLink to="/staff/dashboard">Dashboard</NavLink> : <>
             <NavLink to="/home">Home</NavLink>
             <NavLink to="/calendar"><Icon name="calendar" />Traffic Calendar</NavLink>
           </>}

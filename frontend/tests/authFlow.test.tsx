@@ -25,9 +25,11 @@ beforeEach(() => {
   clearSession()
   vi.stubEnv('VITE_API_URL', 'https://api.example.test')
   fetchMock.mockReset()
-  fetchMock.mockImplementation(url => String(url).endsWith('/api/dashboard/')
-    ? Promise.resolve(response({ detail: 'Dashboard uses sample data.', is_sample: true }))
-    : Promise.reject(new Error('Unexpected API request')))
+  fetchMock.mockImplementation(url => {
+    if (String(url).endsWith('/api/dashboard/')) return Promise.resolve(response({ detail: 'Dashboard uses sample data.', is_sample: true }))
+    if (String(url).endsWith('/api/accounts/head/')) return Promise.resolve(response({ detail: 'Head management access granted.' }))
+    return Promise.reject(new Error('Unexpected API request'))
+  })
   vi.stubGlobal('fetch', fetchMock)
   container = document.createElement('div')
   document.body.append(container)
@@ -233,6 +235,24 @@ describe('connected account flows', () => {
 })
 
 describe('role redirects and access', () => {
+  it('sends the Head assignment form email to the existing protected endpoint', async () => {
+    writeTokens(tokens)
+    fetchMock.mockImplementation(url => {
+      if (String(url).endsWith('/profile/')) return Promise.resolve(response({ ...profile, role: 'head' }))
+      if (String(url).endsWith('/head/')) return Promise.resolve(response({ detail: 'Head management access granted.' }))
+      if (String(url).endsWith('/staff/assign/')) return Promise.resolve(response({ detail: 'Pending Staff access assigned.' }))
+      return Promise.reject(new Error('Unexpected API request'))
+    })
+    await render('/head')
+    input('email', 'pending@example.com')
+    await submit()
+    const assignment = fetchMock.mock.calls.find(([url]) => String(url).endsWith('/staff/assign/'))!
+    expect(assignment[1]!.method).toBe('POST')
+    expect(JSON.parse(assignment[1]!.body as string)).toEqual({ email: 'pending@example.com' })
+    expect(new Headers(assignment[1]!.headers).get('Authorization')).toBe('Bearer test-access')
+    expect(container.querySelector('.head-success')?.textContent).toBe('Pending Staff access assigned.')
+  })
+
   it.each([
     ['traveler', '/home'],
     ['staff', '/staff/dashboard'],
@@ -245,7 +265,7 @@ describe('role redirects and access', () => {
     await submit()
     expect(currentPath()).toBe(destination)
     expect(readTokens()).toEqual(tokens)
-    expect(fetchMock).toHaveBeenCalledTimes(role === 'staff' ? 2 : 1)
+    expect(fetchMock).toHaveBeenCalledTimes(role === 'traveler' ? 1 : 2)
   })
 
   it.each([
@@ -260,7 +280,7 @@ describe('role redirects and access', () => {
     await render(requested)
     expect(currentPath()).toBe(destination)
     expect(String(fetchMock.mock.calls[0][0])).toContain('/api/accounts/profile/')
-    expect(fetchMock).toHaveBeenCalledTimes(destination === '/staff/dashboard' ? 2 : 1)
+    expect(fetchMock).toHaveBeenCalledTimes(destination === '/home' ? 1 : 2)
   })
 
   it.each([

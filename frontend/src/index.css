@@ -8,4 +8,5 @@
 :root { --success-text: #15803d; --success-background: #dcfce7; --alert-border-width: 5px; --alert-icon-size: 20px; --alert-font-size: 16px; }
 :root { --space-12: 12px; --space-32: 32px; --space-40: 40px; --staff-content-width: 1280px; --staff-title-size: 40px; --staff-value-size: 40px; --staff-section-size: 20px; --staff-label-size: 14px; --staff-panel-height: 400px; --staff-nav-height: 44px; --nav-text: #dbeafe; }
 :root { --no-data-background: #f1f5f9; }
+:root { --error-text: #b91c1c; --error-background: #fee2e2; --input-hover-border: #3b82f6; }
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
