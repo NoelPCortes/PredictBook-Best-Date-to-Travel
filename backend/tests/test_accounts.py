@@ -350,6 +350,197 @@ def test_profile_requires_authentication(client):
     assert client.patch("/api/accounts/profile/", {}, format="json").status_code == 401
 
 
+@pytest.mark.parametrize("role", ["traveler", "staff", "head"])
+def test_each_role_can_save_and_reload_only_its_own_profile(client, make_user, role):
+    user = make_user("actor", role)
+    other = make_user("other")
+    authorize(client, user)
+    fields = {
+        "username": "updated_actor",
+        "email": "updated_actor@example.com",
+        "first_name": "Ada",
+        "last_name": "Lee",
+    }
+    response = client.patch("/api/accounts/profile/", fields, format="json")
+    assert response.status_code == 200
+    reloaded = client.get("/api/accounts/profile/")
+    assert reloaded.status_code == 200
+    assert reloaded.data == {"id": user.pk, "role": role, **fields}
+    assert set(reloaded.data) == PROFILE_FIELDS
+    other.refresh_from_db()
+    assert other.username == "other"
+    assert other.email == "other@example.com"
+    assert other.first_name == ""
+    assert other.last_name == ""
+
+
+@pytest.mark.parametrize("field", ["role", "promoted_by"])
+@pytest.mark.parametrize("value", [None, "", "head", 1])
+def test_profile_rejects_privilege_fields_without_partial_updates(
+    client,
+    make_user,
+    field,
+    value,
+):
+    user = make_user("actor")
+    authorize(client, user)
+    response = client.patch(
+        "/api/accounts/profile/",
+        {"first_name": "Changed", field: value},
+        format="json",
+    )
+    assert response.status_code == 400
+    assert field in response.data
+    user.refresh_from_db()
+    assert user.first_name == ""
+    assert user.role == "traveler"
+    assert user.promoted_by is None
+
+
+@pytest.mark.parametrize("field", ["username", "email"])
+def test_duplicate_profile_identity_does_not_change_either_account(
+    client,
+    make_user,
+    field,
+):
+    user = make_user("actor")
+    other = make_user("other")
+    authorize(client, user)
+    response = client.patch(
+        "/api/accounts/profile/",
+        {field: getattr(other, field), "first_name": "Changed"},
+        format="json",
+    )
+    assert response.status_code == 400
+    assert field in response.data
+    user.refresh_from_db()
+    other.refresh_from_db()
+    assert user.username == "actor"
+    assert user.email == "actor@example.com"
+    assert user.first_name == ""
+    assert other.username == "other"
+    assert other.email == "other@example.com"
+
+
+@pytest.mark.parametrize("identifier", ["id", "user_id"])
+def test_profile_cannot_be_read_or_changed_by_targeting_another_user(
+    client,
+    make_user,
+    identifier,
+):
+    user = make_user("actor")
+    other = make_user("other", first_name="Private")
+    authorize(client, user)
+    response = client.get("/api/accounts/profile/", {identifier: other.pk})
+    assert response.status_code == 200
+    assert response.data["id"] == user.pk
+    assert response.data["first_name"] == ""
+    response = client.patch(
+        "/api/accounts/profile/",
+        {identifier: other.pk, "first_name": "Changed"},
+        format="json",
+    )
+    assert response.status_code == 400
+    user.refresh_from_db()
+    other.refresh_from_db()
+    assert user.first_name == ""
+    assert other.first_name == "Private"
+
+
+def test_profile_does_not_expose_user_id_routes(client, make_user):
+    authorize(client, make_user("actor"))
+    other = make_user("other")
+    path = f"/api/accounts/profile/{other.pk}/"
+    assert client.get(path).status_code == 404
+    assert (
+        client.patch(path, {"first_name": "Changed"}, format="json").status_code == 404
+    )
+    other.refresh_from_db()
+    assert other.first_name == ""
+
+
+@pytest.mark.parametrize("role", ["traveler", "staff", "head"])
+def test_password_change_updates_only_the_signed_in_user(client, make_user, role):
+    user = make_user("actor", role)
+    other = make_user("other")
+    authorize(client, user)
+    new_password = "Updated-River-427!"
+    response = post(
+        client,
+        "password/change",
+        current_password=PASSWORD,
+        new_password=new_password,
+    )
+    assert response.status_code == 200
+    assert set(response.data) == {"detail"}
+    user.refresh_from_db()
+    other.refresh_from_db()
+    assert user.check_password(new_password)
+    assert not user.check_password(PASSWORD)
+    assert other.check_password(PASSWORD)
+    assert user.role == role
+
+
+@pytest.mark.parametrize("identifier", ["id", "user_id"])
+def test_password_change_rejects_another_user_identifier(client, make_user, identifier):
+    user = make_user("actor")
+    other = make_user("other")
+    authorize(client, user)
+    response = post(
+        client,
+        "password/change",
+        current_password=PASSWORD,
+        new_password="Updated-River-427!",
+        **{identifier: other.pk},
+    )
+    assert response.status_code == 400
+    assert identifier in response.data
+    user.refresh_from_db()
+    other.refresh_from_db()
+    assert user.check_password(PASSWORD)
+    assert other.check_password(PASSWORD)
+
+
+@pytest.mark.parametrize("new_password", ["123", "password", "123456789012", "actor"])
+def test_failed_password_validators_leave_the_password_unchanged(
+    client,
+    make_user,
+    new_password,
+):
+    user = make_user("actor")
+    authorize(client, user)
+    response = post(
+        client,
+        "password/change",
+        current_password=PASSWORD,
+        new_password=new_password,
+    )
+    assert response.status_code == 400
+    assert response.data["new_password"]
+    user.refresh_from_db()
+    assert user.check_password(PASSWORD)
+
+
+def test_another_users_password_cannot_authorize_a_password_change(client, make_user):
+    user = make_user("actor")
+    other = make_user("other")
+    other.set_password("Other-Account-Password-738!")
+    other.save(update_fields=["password"])
+    authorize(client, user)
+    response = post(
+        client,
+        "password/change",
+        current_password="Other-Account-Password-738!",
+        new_password="Updated-River-427!",
+    )
+    assert response.status_code == 400
+    assert response.data["current_password"]
+    user.refresh_from_db()
+    other.refresh_from_db()
+    assert user.check_password(PASSWORD)
+    assert other.check_password("Other-Account-Password-738!")
+
+
 @pytest.mark.parametrize("role", ["traveler", "staff"])
 @pytest.mark.parametrize(
     "endpoint", ["staff/assign", "heads/promote", "heads/remove", "staff/revoke"]
