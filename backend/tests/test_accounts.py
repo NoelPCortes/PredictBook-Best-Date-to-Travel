@@ -763,7 +763,7 @@ def test_flight_creator_is_required_and_protected(flight_fields):
 def test_traffic_airport_date_is_unique(flight_fields, model):
     fields = {"airport": flight_fields["origin"], "date": timezone.localdate()}
     if model is CrowdForecast:
-        fields.update(crowd_level="low", calculated_at=timezone.now())
+        fields.update(crowd_level="low", calculated_at=timezone.now(), created_by=flight_fields["created_by"])
     else:
         fields.update(total_flights=1, seats_total=100, seats_booked=50)
     model.objects.create(**fields)
@@ -778,6 +778,7 @@ def test_flight_and_traffic_relationship_deletion_is_protected(flight_fields):
             parent.delete()
     flight.delete()
     CrowdForecast.objects.create(
+        created_by=flight_fields["created_by"],
         airport=flight.origin,
         date=timezone.localdate(),
         crowd_level="low",
@@ -793,6 +794,18 @@ def test_flight_and_traffic_relationship_deletion_is_protected(flight_fields):
     for airport in (flight.origin, flight.destination):
         with pytest.raises(ProtectedError):
             airport.delete()
+
+
+def test_forecast_creator_is_required_and_protected(flight_fields):
+    fields = {
+        "airport": flight_fields["origin"], "date": timezone.localdate(),
+        "crowd_level": "low", "calculated_at": timezone.now(),
+    }
+    CrowdForecast.objects.create(**fields, created_by=flight_fields["created_by"])
+    with pytest.raises(ProtectedError):
+        flight_fields["created_by"].delete()
+    with pytest.raises(IntegrityError), transaction.atomic():
+        CrowdForecast.objects.create(**{**fields, "date": timezone.localdate() + timedelta(days=1)})
 
 
 def test_head_cannot_remove_own_promoter_after_repromotion_cycle(
