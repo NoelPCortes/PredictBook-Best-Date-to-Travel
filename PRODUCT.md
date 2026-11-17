@@ -2,16 +2,17 @@
 
 This document describes what PredictBook is meant to do and what it will not do. For setup and run instructions, see [README.md](README.md). For the database tables, see [docs/database.md](docs/database.md).
 
-PredictBook is a web application that helps travelers find the best dates to fly. Crowd levels and date suggestions are calculated by the backend from historical flight and booking records. They are not produced by an AI model.
+PredictBook is a web application that helps travelers find the best dates to fly. Crowd levels are calculated by the backend from departing and arriving flights, with manual forecasts still possible. Smart date suggestions remain future work. They are not produced by an AI model.
 
 ## Accounts implementation status
 
 The backend provides sign-up, username/email sign-in, token refresh, logout,
 self-only profile updates, password changes, and Head role management. JWT access
 tokens last 15 minutes; refresh tokens last 7 days and rotate with blacklisting.
-Head management returns result messages without profile details. The existing
-frontend sign-in/sign-up forms are not connected to these endpoints yet; profile,
-route guards, and Head management UI remain pending. See
+Head management actions return result messages. The Head-only list exposes Staff
+username/email and limited pending-assignment fields. Existing account forms,
+profile, guards, and role dashboards are connected; Head lists, Assign, and Remove
+are implemented. See
 [accounts API documentation](docs/features/accounts.md) for the contract.
 
 ## Problem
@@ -26,20 +27,19 @@ Travelers often have a hard time choosing flight dates because of crowded airpor
 
 ## Features
 
-- **Flight and crowd forecast management:** Staff and Heads create and manage flights and airport/date forecasts. Staff can change their own records; Heads can change any record. Travelers view the stored crowd levels and daily flights through the read-only Traffic Calendar and Home preview.
+- **Flight and crowd forecast management:** Staff and Heads create and manage flights and airport/date forecasts. Staff can change their own flights and manual forecasts; Heads can change any flight or manual forecast. Calculated forecasts are read-only and preserve their first calculator. Travelers view the stored crowd levels and daily flights through the read-only Traffic Calendar and Home preview.
 - **User accounts and authentication:** sign-up, sign-in, profile updates, and logout, with separate access for Travelers, Staff, and Heads.
   - Sign-up and sign-in connect to the users table in the PostgreSQL database.
   - Passwords are hashed and never stored in plain text.
   - Sign-in is token-based. The frontend uses the token for later requests.
   - Users can sign in with their username or their email address.
   - Public sign-up does not allow users to select Staff or Head access. Staff access is assigned by a Head using an email address, whether an account already exists or not.
-- **Home page:** after signing in, users see a Home page with flight search and a traffic calendar preview.
-  - "Your bookings", "Your upcoming booking", and "Recent searches" on the Home page are sample data for now. The system does not store bookings (see Privacy), so they must be labeled as sample data until a decision is made.
+- **Home page:** Travelers see the real airport calendar and flights. Because no bookings or search history are stored, the cards show only "No upcoming bookings yet." and "No recent searches yet." The sample rows, View all action, inactive sample search form, and booking-count row are removed.
 - **Flight search and details:** search by starting location, destination, and date. View the airline, departure and arrival times, destination, and open seats. Ticket prices are not shown.
 - **Traffic calendar:** a color-coded calendar of expected airport crowd levels (Low, Medium, High) for different airports and dates. The color of each date changes with the crowd level stored for that airport and date: Low is light green, Medium is amber, and High is dark orange. Each level is also available as text (in the legend, in the selected date's details, and in each date's accessible label), so color is never the only signal.
-- **Prediction tool:** estimates crowd levels from historical flight and booking records, using backend logic.
+- **Forecast calculation:** aggregate departures and arrivals for each airport and project-local date. Booked seats divided by total seats gives a one-decimal percentage: below 50 is Low, 50 to below 75 is Medium, and 75 or above is High. Flight changes recalculate affected pairs transactionally. Dates with no flights or no seats have no calculated forecast. Manual forecasts take precedence and remain possible.
 - **Smart date suggestions:** checks crowd levels and open seats to recommend the best dates to fly, and explains why.
-- **Staff dashboard and charts:** two separate pages. The Dashboard shows summary numbers and upcoming high-crowd days. The Charts page shows crowd trends and busy travel days.
+- **Staff dashboard and charts:** two separate pages. The Dashboard shows one airport over the next 30 local days, counts and every date by level, busiest weekday, the next seven days, and own-record counts. The Charts page shows crowd trends and busy travel days.
 - **Role management:**
   - Django administrators create the initial Heads.
   - A Head can assign Staff access by entering an email address, whether the account already exists or not.
@@ -52,7 +52,7 @@ Travelers often have a hard time choosing flight dates because of crowded airpor
   - Fully revoking Staff access returns the user to Traveler.
   - Removing a Head does not affect the Heads they previously promoted.
   - Role removal does not delete the user's account.
-  - Heads have a management interface to assign Staff by email, promote Staff to Head, and remove access according to these permissions.
+  - Heads have a management page listing Staff username/email and pending assignments. Assign and Remove use the existing email-based rules and confirmation. Head navigation includes Dashboard, Flights, Crowd forecasts, and Head management on every Staff page. Promote/remove-Head interfaces remain future work under the existing backend permissions.
 
 ## Privacy
 

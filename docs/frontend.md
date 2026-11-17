@@ -18,13 +18,12 @@ Paths below are relative to frontend/.
 | src/features/signin/ | Reused SignInPage and its API calls |
 | src/features/signup/ | Reused SignUpPage and its API calls |
 | src/features/homepage/ | Reused HomePage, its CSS, profile restoration and shared logout export |
-| src/features/staff-dashboard/ | StaffDashboard, protected access API, sample summary calculations and CSS |
+| src/features/staff-dashboard/ | StaffDashboard, protected access/summary API, live date lists and CSS |
 | src/features/head/ | HeadPage, protected access and email assignment API, CSS |
 | src/features/flights/ | Staff flight list, create/edit forms, and management API |
 | src/features/calendar/ | Staff forecast list/forms and Traveler TrafficCalendarPage |
 | src/features/profile/ | ProfilePage, ProfileInformation, PasswordSecurity, own-profile API and CSS |
 | src/components/ | Shared layouts, fields, navigation, calendars and icons |
-| src/data/homeSample.ts | Typed Home fixtures and date formatter |
 | src/index.css | Global fonts, CSS variables, shared buttons, search fields and calendar styles |
 | src/components/AuthLayout.css | Styles shared by sign-in and sign-up; class names still use the signin- prefix |
 | src/components/AppNavbar.css | Signed-in navbar and existing shared icon sizing |
@@ -53,11 +52,11 @@ The three account-related UIs were moved from existing `src/pages` files into th
 | AuthLayout | SignInPage, SignUpPage | Accepts pageId, title, intro, panelTitle, panelIntro, typed sample days and children; owns the split layout and static calendar |
 | AuthField | SignInPage, SignUpPage, HeadPage, profile forms | Label, input and optional error; accepts input attributes/ref; links errors with aria-describedby and sets aria-invalid |
 | AppNavbar | HomePage, StaffDashboard, HeadPage | Role-specific existing links, real username linked to /profile, and shared Sign out action |
-| Icon | Existing HomePage sample controls | Typed name selects an inline SVG; decorative SVGs are hidden from assistive technology |
+| Icon | Unused legacy helper | Retained legacy inline-SVG helper; changed Home and role pages do not render it |
 | TrafficCalendar | LandingPage | Static 30-day marketing preview; not the /calendar page |
-| HomeCalendar | HomePage | Wraps the shared AirportCalendar; retains its sample CrowdChip export for the upcoming-booking fixture |
+| HomeCalendar | HomePage | Wraps the shared real-data AirportCalendar; no booking fixture or named sample chip export |
 
-Landing currently writes its logo markup inline, using the same global logo styles; it does not import Brand. CrowdChip styling currently lives in HomePage.css, so using it elsewhere requires those styles or an explicit shared-style extraction.
+Landing currently writes its logo markup inline, using the same global logo styles; it does not import Brand. CrowdChip is a shared dot/text component with its own stylesheet.
 
 ## Styles and accessibility
 
@@ -86,8 +85,8 @@ The actual scripts run Vite, Oxlint, Vitest, and TypeScript followed by Vite res
 | authFlow.test.tsx | Sign-up success/validation, role redirects/guards, Head payloads, profile persistence/payloads, password payloads, logout and one-attempt refresh |
 | SignInPage.test.tsx | Fields, links, required errors, first-invalid focus and valid resubmission |
 | SignUpPage.test.tsx | Fields, links, required/email/matching errors, error clearing and no extra password rule |
-| HomePage.test.tsx | Greeting, API calendar, real weekdays, date selection, remaining sample labels, field swap and navbar |
-| StaffDashboard.test.tsx | Sample counts, real weekdays, live-date filtering, authorization, month boundaries and midnight |
+| HomePage.test.tsx | Greeting, real calendar, empty booking/search states, no sample controls and navbar |
+| StaffDashboard.test.tsx | API counts/date lists, selected airport, period, empty data, loading/errors and own-record counts |
 | HeadPage.test.tsx | Email assignment, backend success/errors, pending requests and authorization |
 | ProfilePage.test.tsx | Editable fields, read-only role, linked errors, password confirmation, successes and sidebar focus |
 
@@ -106,8 +105,8 @@ and role access. Django CORS origins come from the backend environment.
 
 Home, Email, and Lock icons are omitted: they would belong beside Home navigation,
 the email/identifier input, and password inputs. Existing inline SVGs elsewhere in
-the Home components predate this task and still need a separate asset/style
-cleanup; Landing has not been changed.
+unused legacy helpers predate this task; changed Home/role pages render no
+inline SVG. Landing has not been changed.
 
 ## Role pages and account forms
 
@@ -118,14 +117,13 @@ grant API access. StaffDashboard calls `GET /api/dashboard/` and HeadPage calls
 denial without exposing their forms or summaries. Head assignments call
 `POST /api/accounts/staff/assign/`; permission is checked again on submission.
 
-The dashboard follows the supplied reference layout while computing its values
-from shared typed January 2026 sample dates. Sunday, rather than the reference's
-shifted Saturday, has the most High days. Upcoming/next-seven-day panels use the
-live local date (including today), refresh each minute, and show no data for
-dates outside the sample month. Charts and airport aggregation remain unbuilt.
+The dashboard uses the real summary endpoint for the next 30 project-local days
+and one airport. Its layout contains four metrics, three date-list cards, a
+seven-day strip and Your records last. All sample constants and fixed-height
+placeholder panels are removed. Charts and All Airports remain unbuilt.
 The Staff top bar contains Dashboard, Flights, and Crowd forecasts. The Head
-top bar retains Head management and Dashboard and access to Staff pages through
-Dashboard. Traveler navigation remains Home and Traffic Calendar. New dark
+top bar contains Dashboard, Flights, Crowd forecasts and Head management, in that
+order, on every Staff page. Traveler navigation remains Home and Traffic Calendar. New dark
 navigation links use text while white icon variants are unavailable.
 
 Profile uses the Account reference's sidebar and two cards. The shared top bar's
@@ -166,7 +164,8 @@ nonmodal confirmation with ghost Cancel and danger Delete, block duplicate
 submissions, update the table, and announce success. Focus is restored afterward.
 
 HomeCalendar and TrafficCalendarPage use the same shared AirportCalendar. It
-starts with the first airport returned by the lookup and today's Philippine date.
+starts with the first airport returned by the lookup and today's project date
+(currently UTC).
 Airport changes preserve the selected date; month changes select day one. Real
 dates determine weekdays and month lengths. Stored levels determine colors,
 accessible date labels, the text legend, and the selected-date CrowdChip. Missing
@@ -176,18 +175,19 @@ times, and open seats, or No flights listed for this date.
 
 Calendar month arrows, flight times, and seats use the existing PNG assets. No
 new inline SVG or dependency was added. Shared calendar styles use global tokens,
-44px control heights, and responsive layouts. Home's other fixtures retain Sample
-data labels. Selected forecast details also identify source Sample data.
+44px control heights, and responsive layouts. Home's booking and search cards show only empty states; the sample form, rows,
+View all, labels, constants and booking-count row are gone.
 
-Flight entry, display, date filters, and initial calendar selection use Philippine
-time (Asia/Manila, UTC+08:00); Django keeps TIME_ZONE=UTC. Date-only calendar values
+Flight entry/display and existing origin/date filtering use Philippine time
+(Asia/Manila, UTC+08:00). The shared calendar and new airport/date flight filter
+use project-local forecast dates, currently UTC; Django keeps TIME_ZONE=UTC. Date-only calendar values
 are formatted without browser-timezone shifts. useRemoteResource keys reads by
 airport/month/date and discards obsolete responses after selection changes.
 
 StaffDashboard adds OwnRecordsCard after server authorization. It reads flight
 and forecast lists with mine=true and counts their returned arrays. Loading,
-errors, and retry affect only that card. Its existing January sample panels stay
-unchanged. Shared auth/profile behavior is unchanged.
+errors, and retry affect only that card. All other displayed dashboard data comes
+from GET /api/dashboard/summary/. Shared auth/profile behavior is unchanged.
 
 New tests in FlightListPage.test.tsx, FlightFormPage.test.tsx,
 ForecastPages.test.tsx, TrafficCalendarPage.test.tsx, and trafficApi.test.ts cover
@@ -196,5 +196,38 @@ No data, selected flights, month/airport changes, stale responses, and role guar
 StaffDashboard tests also cover own-record counts. Tests use jsdom and mocked APIs;
 a live browser walkthrough and pixel-level verification remain unverified.
 
-Dedicated search results, booking persistence, All Airports aggregation, forecast
-thresholds/score meaning, and smart date suggestions remain TBD.
+Dedicated search results, booking persistence, All Airports aggregation, and
+smart date suggestions remain TBD. Forecast thresholds and score meaning are
+now defined in the backend calculation service.
+
+
+## Current live feature behavior
+
+The forecast table uses live seat numbers, their percentage, the flight count,
+and a View flights link to /staff/flights?airport=<id>&date=<date>. The Flights
+page reads those query parameters, requests the same backend filter and shows a
+Clear filter action. Source is Calculated automatically or Staff entry.
+Calculated rows have no Edit/Delete buttons, and direct edit routes with
+can_edit=false withhold the form. The backend also rejects those writes.
+
+StaffDashboard keeps its existing authorization probe and loads the real summary
+and airport choices through its API/shared lookup modules. The backend chooses
+the initial airport. The header shows Next 30 days and its returned date range.
+Dates grouped under High/Medium/Low use the guide's colors and text, with no
+empty fixed-height cards. Next 7 days shows explicit No data where absent.
+Summary and own-record requests have independent loading/error/retry handling.
+
+AppNavbar derives links from the signed-in profile role, preserving the Head
+management link when a Head opens any Staff page. Staff see three work links;
+Travelers see Home and Traffic Calendar. Existing current-page/focus styles apply.
+Head management preserves its Assign Staff form and adds Staff and Pending
+assignments tables. GET /api/accounts/staff/ supplies only approved fields.
+Assign and Remove refresh both tables; Remove uses the unchanged revoke endpoint
+with email only, after ghost Cancel/danger Remove confirmation. Staff becomes
+Traveler without account deletion; a pending removal deletes only its assignment.
+Backend messages, empty lists, loading, errors and retry are visible.
+
+AppNavbar, HeadPage, StaffDashboard, Home, flight and forecast tests cover these
+changes alongside Standard Feature regressions. Browser layout and the complete
+live browser-to-database walkthrough remain unverified; jsdom/API tests do not
+prove viewport-perfect rendering.

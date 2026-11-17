@@ -1,82 +1,109 @@
-﻿# Traffic calendar
+# Traffic calendar and forecast calculation
 
-[Documentation index](../README.md) · [Landing](../pages/landing.md) · [Home](../pages/home.md)
+[Documentation index](../README.md) ? [Database](../database.md)
 
-## Purpose
+## Live calendars
 
-Show estimated airport crowd levels by date so travelers can compare travel days. The product targets a 30–60 day forecast window. Forecasts will be calculated by backend logic in traffic from historical records; no AI model is involved.
+HomeCalendar and the Traveler-only `/calendar` route reuse AirportCalendar. One
+airport is chosen from the authenticated airport lookup; All Airports aggregation
+remains TBD. Month navigation uses the existing PNG chevrons, real month lengths,
+and real weekdays. Every day exposes its date and level in its accessible name.
+Selection uses aria-pressed, today uses aria-current=date, and the legend and
+selected-date chip keep levels available as text. Missing forecasts show No data.
+Loading and request failures are distinct from missing data, with retry controls
+and stale-response protection.
 
-## Existing calendar displays
+Forecast dates and the calendar's initial today use the project timezone,
+currently UTC. Flight entry and time display remain Philippine time; the panel
+labels that distinction. It reads arrivals and departures through
+`GET /api/flights/?airport=<id>&date=YYYY-MM-DD`, so the displayed flight set
+matches the forecast's live references. The earlier origin/date filter retains
+its Philippine departure-date behavior. Flight details include airline, flight
+number, route, departure/arrival times with ClockIcon, and open seats with SeatIcon.
+No flights listed for this date is shown only for a successful empty response.
+There is no Your bookings row. Home's other two cards show only their empty states.
 
-| Display | Source | Data and interaction |
-|---|---|---|
-| Landing preview | components/TrafficCalendar.tsx | Static 30 days; day 1 under Wednesday; outlined sample suggestions on 14, 16 and 21 |
-| Auth page previews | components/AuthLayout.tsx; constants in each auth page | Two static rows per page; no real-month navigation or selection |
-| Home calendar | components/HomeCalendar.tsx; components/AirportCalendar.tsx | API forecasts and selected-day flights for one chosen airport; real month navigation |
-| Dedicated /calendar page | features/calendar/TrafficCalendarPage.tsx | Traveler-only route using the same AirportCalendar as Home |
+Landing and sign-in/sign-up marketing previews retain their separate samples.
+They were not changed. Smart date suggestions, production datasets, historical
+prediction logic, and accuracy evaluation remain TBD. The product's 75% accuracy
+target has not been measured by this seat-utilization calculation.
 
-The name TrafficCalendar currently identifies the Landing preview component, not a routed Traffic Calendar page. Home and the dedicated page fetch airport-specific forecasts and daily departing flights.
+## Calculation rule
 
-## Levels, selection and accessibility
+For airport A and project-local date D, count flights with origin A and departure
+local date D, plus flights with destination A and arrival local date D. A route's
+origin and destination differ, so one flight contributes once to a given pair.
+An overnight flight may contribute on different origin and destination dates.
 
-All displays use shared global Low/Medium/High color classes and calendar-grid/calendar-day styles. Text legends or accessible level descriptions convey meaning beyond color.
+- seats_total: sum of total_seats for the counted flights.
+- seats_booked: sum of total_seats minus available_seats.
+- crowd_score: seats_booked / seats_total * 100, rounded to one decimal.
+- Low: score below 50. Medium: 50 to below 75. High: 75 or above.
 
-The shared live calendar starts at today's Philippine date and the first available
-airport. Day buttons include the full date and crowd level in aria-label;
-aria-pressed marks selection and aria-current=date marks today. Selecting a day
-updates a polite live panel with a dot-and-text crowd chip and departing flights.
-Missing forecasts show No data. The legend includes Low, Medium, High, and No
-data. Enabled PNG chevron buttons navigate real months, including year changes.
-Airport changes preserve the selected date. Request errors remain distinct from
-missing data, and obsolete responses do not overwrite a changed selection.
+Rounding uses decimal half-up before classifying the score. MEDIUM_THRESHOLD and
+HIGH_THRESHOLD are defined once in backend/traffic/calculation.py. No flights or
+zero total seats gives no calculated forecast. Colors remain frontend styles;
+no color or aggregate-count column is stored in PostgreSQL.
 
-Landing and auth sample color and level values remain display fixtures. Landing's outlined suggestions are fixed values, not prediction results.
+Calculated rows have exact source Calculated from flights and the current
+calculation timestamp. Their required creator is the user triggering the first
+calculation; management commands use the configured seed Staff user. Later
+recalculations preserve that original calculated creator.
 
-## Backend work still needed
+Any source other than exact Calculated from flights and Sample data is manual.
+Manual forecasts, including old blank/null sources, always take precedence and
+are never overwritten or deleted by recalculation. Blank API source input is
+normalized to Staff entry. Manual score/level inputs remain possible under their
+existing validation; the automatic thresholds do not override them.
 
-The [database specification](../database.md) describes crowd_forecasts and historical_records, with one record per airport/date. The database stores the level, not its display color.
+## Transactions, permissions and references
 
-Production datasets, Low/Medium/High thresholds, the meaning of crowd_score, live forecast generation and accuracy evaluation remain TBD. The management/read API contracts are implemented below. The product's 75% accuracy target has not been measured by these sample screens.
+Existing flight create, PATCH and DELETE services explicitly recalculate the
+affected pairs in the same database transaction. Updates include both old and new
+origin/departure and destination/arrival pairs. Failure rolls back the flight
+change. If no seats remain, only a calculated row is removed. No signals are used.
+Airport locks serialize flight calculations and manual writes.
 
-Landing tests retain its 30-day preview coverage. Home and TrafficCalendarPage tests cover API levels, real weekdays, No data, selected flights, airport/month changes, Philippine date boundaries, errors, obsolete responses, and role guards. They use mocked APIs and do not prove live browser integration.
+All signed-in roles can read forecasts. Staff/Heads can create manual forecasts;
+Staff can edit/delete their own manual records and Heads any manual record.
+Calculated PATCH and DELETE return 403 even for Heads. Client attempts to use the
+reserved calculated source return a field-level 400. Every request still rejects
+client-supplied created_by and calculated_at.
 
+Forecast responses add is_calculated, flight_count, seats_total and seats_booked.
+The numbers are live aggregates even for manual forecasts. Staff/Head responses
+use created_by_username=null and can_edit=false for calculated rows; the UI shows
+Calculated automatically. Traveler responses omit creator information. Two
+aggregate flight queries serve the entire forecast list, rather than querying
+per row; a regression test fixes the nonempty list at three forecast-data queries with authentication already resolved.
 
-## Forecast management and API
+`GET /api/traffic/forecasts/` supports airport, month=YYYY-MM, and mine=true.
+POST creates manual entries. Detail GET/PATCH/DELETE remains at
+`/api/traffic/forecasts/<id>/`. One airport/date row is still enforced, and expected
+constraint failures return field-level 400 messages.
 
-Staff/Heads use `/staff/forecasts`, `/staff/forecasts/new`, and
-`/staff/forecasts/:id/edit` in features/calendar/. Lists show airport, date,
-crowd-level chip, optional score, and author. Forms collect airport, date, level,
-optional score, and optional source. Backend errors are associated with fields
-and focus the first invalid control. Creates, updates, and deletes show success
-alerts. Delete requires ghost Cancel and danger Delete confirmation.
+The Staff forecast table shows Airport, Date, Crowd level, Seats booked, Flights,
+Source and Actions. Seats booked uses live numbers and their percentage; with
+zero total seats it says no seat data. View flights links to
+`/staff/flights?airport=<id>&date=<date>`, where the filter can be cleared.
+Calculated rows have no Edit/Delete actions, including direct edit navigation.
 
-`GET /api/traffic/forecasts/` accepts airport=<airport id>, month=YYYY-MM, and
-mine=true filters. POST creates. Detail GET, PATCH, and DELETE use
-`/api/traffic/forecasts/<id>/`. Signed-in users can read; signed-out callers get
-401. Travelers cannot write (403). Staff can create and change only their own
-records; Heads can change any record. The server supplies created_by and protects
-that user relationship. Staff/Head responses include created_by_username and
-can_edit; Traveler responses omit both. No other user's email is returned.
+## Commands and cleanup
 
-Clients cannot send created_by or calculated_at: either produces a field-level
-400. The server sets calculated_at on create and update, stores Staff entry for
-blank data sources, validates low/medium/high, and enforces one forecast per
-airport/date with a date-level 400, including uniqueness races. No score range,
-forecast-window restriction, or production thresholds were added.
+`python manage.py recalculate_forecasts` recalculates all flight-backed pairs and
+removes stale calculated rows. `--remove-sample-data` additionally deletes only
+forecasts whose source is exactly Sample data. Manual rows, accounts, airports,
+airlines, and flights are not cleanup targets. The command requires the existing
+Staff user named by SEED_STAFF_USERNAME and prints only counts.
 
-The shared selected-date panel reads `/api/flights/?origin=<id>&date=YYYY-MM-DD`
-and shows airline, flight number, route, departure/arrival with ClockIcon, and
-open seats with SeatIcon. No flights listed for this date is distinct from a
-failed flight request. Flight times and departure-date boundaries use Philippine
-time (Asia/Manila, UTC+08:00); Django remains UTC. The calendar uses one airport
-at a time. All Airports aggregation remains TBD.
+`python manage.py seed_sample_data` remains a DEBUG-only invented ten-flight seed
+using the configured flight numbers. It now calls the same recalculation service
+inside its transaction and removes the old exact Sample data forecast fixtures.
+It no longer invents weekday-based forecast levels. Invented flight schedules do
+not become real timetables because they feed this calculation.
 
-## Sample forecast data
-
-After seed_staff, run python manage.py seed_sample_data with an existing Staff
-user named by SEED_STAFF_USERNAME. It updates unique keys idempotently and creates
-one forecast for each of five airports over 60 days, including today in Philippine
-time. The weekday pattern is Low Monday/Tuesday, Medium Wednesday/Thursday/Sunday,
-and High Friday/Saturday. Scores stay null. Source is Sample data, also shown in
-selected-date details. This fixture pattern is not a production prediction rule
-or evidence of the product's accuracy target.
+Backend tests cover threshold boundaries, combined arrivals/departures, timezone
+dates, zero seats, manual protection, original creator retention, idempotence,
+old/new pairs, deletion, rollback, exact-source cleanup, read-only permissions,
+and query count. Frontend tests use mocked API data; live browser layout and the
+complete browser-to-database walkthrough remain unverified.
