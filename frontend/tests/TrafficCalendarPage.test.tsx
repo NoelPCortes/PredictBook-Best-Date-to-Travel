@@ -4,29 +4,46 @@ import { createRoot } from 'react-dom/client'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { clearSession, setProfile } from '../src/api/authState'
-import { loadAirports } from '../src/api/lookups'
+import { loadAirports, loadAirlines } from '../src/api/lookups'
 import { loadFlights, loadForecasts } from '../src/api/traffic'
 import RoleRoute from '../src/components/RoleRoute'
 import TrafficCalendarPage from '../src/features/calendar/TrafficCalendarPage'
 import type { Forecast } from '../src/types/traffic'
+import { loadDateExplanation, loadDateRecommendations } from '../src/features/calendar/api'
+import type { DateExplanation, DateRecommendations } from '../src/features/calendar/types'
 
-vi.mock('../src/api/lookups', () => ({ loadAirports: vi.fn() }))
+vi.mock('../src/api/lookups', () => ({ loadAirports: vi.fn(), loadAirlines: vi.fn() }))
 vi.mock('../src/api/traffic', () => ({ loadFlights: vi.fn(), loadForecasts: vi.fn() }))
+vi.mock('../src/features/calendar/api', () => ({ loadDateExplanation: vi.fn(), loadDateRecommendations: vi.fn() }))
+const recommendations: DateRecommendations = {
+  selected: { date: '2026-01-14', has_data: true, crowd_score: 80, crowd_level: 'high' },
+  recommendations: [15, 16, 17].map(day => ({ date: `2026-01-${day}`, weekday: ['Thursday', 'Friday', 'Saturday'][day - 15]!, crowd_level: 'low', crowd_score: 40, score_difference: 40, open_seats: 60, flight_count: 2, history_average_occupancy_percent: 50, reasons: ['60 seats are open on 1 departing flights.'] })), message: '',
+}
+const explanation: DateExplanation = {
+  airport: { id: 1, code: 'CEB', name: 'Cebu' }, date: '2026-01-14', weekday: 'Wednesday', has_data: true,
+  flights: { count: 2, departing_count: 1, arriving_count: 1, seats_total: 200, seats_booked: 80, occupancy_percent: 40 },
+  history: { used_dates: ['2025-01-15'], records: [], average_occupancy_percent: 60 }, weights: { flights: 50, history: 50 }, thresholds: { medium_from: 50, high_from: 75 },
+  crowd_score: 50, crowd_level: 'medium', history_available: true, open_seats: 60, sentences: ['The combined score is 50.0, which is Medium.'],
+}
 const airports = [
   { id: 1, code: 'CEB', name: 'Cebu', city: 'Cebu', country: 'Philippines' },
   { id: 2, code: 'MNL', name: 'Manila', city: 'Manila', country: 'Philippines' },
 ]
-const forecast = (day: number, level: Forecast['crowd_level']): Forecast => ({ id: day, airport: 1, date: `2026-01-${String(day).padStart(2, '0')}`, crowd_level: level, crowd_score: null, calculated_at: '2026-01-01T00:00:00Z', data_source: 'Staff entry' })
+const forecast = (day: number, level: Forecast['crowd_level']): Forecast => ({ id: day, airport: 1, date: `2026-01-${String(day).padStart(2, '0')}`, crowd_level: level, crowd_score: null, is_calculated: false, flight_count: 2, seats_total: 180, seats_booked: 124, calculated_at: '2026-01-01T00:00:00Z', data_source: 'Staff entry' })
 let container: HTMLDivElement
 let root: ReturnType<typeof createRoot>
 beforeEach(() => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
   vi.useFakeTimers(); vi.setSystemTime(new Date('2026-01-14T04:00:00Z'))
+  vi.mocked(loadAirlines).mockReset().mockResolvedValue([{id:1,name:'Airline',code:'PR'}])
   vi.mocked(loadAirports).mockReset().mockResolvedValue(airports)
   vi.mocked(loadForecasts).mockReset().mockResolvedValue([forecast(14, 'low'), forecast(15, 'medium'), forecast(16, 'high')])
   vi.mocked(loadFlights).mockReset().mockResolvedValue([{
+    direction: 'departing',
     id: 7, airline: 1, airline_name: 'Philippine Airlines', airline_code: 'PR', flight_number: '100', origin: 1, origin_code: 'CEB', origin_name: 'Cebu', destination: 2, destination_code: 'MNL', destination_name: 'Manila', departure_time: '2026-01-14T00:00:00Z', arrival_time: '2026-01-14T01:30:00Z', total_seats: 180, available_seats: 25,
   }])
+  vi.mocked(loadDateExplanation).mockReset().mockResolvedValue(explanation)
+  vi.mocked(loadDateRecommendations).mockReset().mockResolvedValue({ ...recommendations, recommendations: [], message: 'No qualifying dates are available within 7 days before or after your selected date.' })
   setProfile({ id: 1, username: 'traveler', email: 'traveler@example.com', role: 'traveler', first_name: '', last_name: '' })
   container = document.createElement('div'); document.body.append(container); root = createRoot(container)
 })
@@ -40,17 +57,14 @@ async function render() {
 function day(day: number) { return container.querySelector<HTMLButtonElement>(`button[aria-label^="January ${day},"]`)! }
 async function click(selector: string) { await act(async () => container.querySelector<HTMLButtonElement>(selector)!.click()) }
 async function changeAirport(value: string) {
-  await act(async () => {
-    const select = container.querySelector<HTMLSelectElement>('select')!
-    Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value')!.set!.call(select, value)
-    select.dispatchEvent(new Event('change', { bubbles: true }))
-  })
+  await click('#record-calendar-airport')
+  await click(`[role="option"][data-value="${value}"]`)
 }
 
 it('loads one airport, API crowd levels, no-data dates and actual weekdays', async () => {
   await render()
   expect(loadForecasts).toHaveBeenCalledWith({ airport: '1', month: '2026-01' })
-  expect(loadFlights).toHaveBeenCalledWith({ origin: '1', date: '2026-01-14' })
+  expect(loadFlights).toHaveBeenCalledWith({ airport: '1', date: '2026-01-14' })
   expect(container.querySelectorAll('.airport-day-grid button')).toHaveLength(31)
   expect([...container.querySelector('.airport-day-grid')!.children].indexOf(day(1))).toBe(11)
   expect(day(14).classList.contains('low')).toBe(true)
@@ -60,7 +74,7 @@ it('loads one airport, API crowd levels, no-data dates and actual weekdays', asy
   expect(day(14).getAttribute('aria-current')).toBe('date')
   expect(day(14).getAttribute('aria-pressed')).toBe('true')
   expect(container.querySelector('.legend')?.textContent).toBe('LowMediumHighNo data')
-  expect(container.querySelector('select')?.textContent).not.toContain('All Airports')
+  expect(container.querySelector('[role=combobox]')?.textContent).not.toContain('All Airports')
 })
 it('shows selected crowd level and flights with PNG time and seat icons', async () => {
   await render()
@@ -77,15 +91,94 @@ it('shows selected crowd level and flights with PNG time and seat icons', async 
 it('selects a no-data day and shows the empty flight message', async () => {
   await render(); vi.mocked(loadFlights).mockResolvedValue([])
   await act(async () => day(17).click())
-  expect(loadFlights).toHaveBeenLastCalledWith({ origin: '1', date: '2026-01-17' })
+  expect(loadFlights).toHaveBeenLastCalledWith({ airport: '1', date: '2026-01-17' })
   expect(container.querySelector('.airport-date-details .record-crowd-chip')?.textContent).toBe('No data')
   expect(container.textContent).toContain('No flights listed for this date.')
+})
+it('renders the real breakdown, history dates, and strict flight directions', async () => {
+  const departing = (await loadFlights())[0]!
+  vi.mocked(loadFlights).mockResolvedValue([departing, { ...departing, id: 8, direction: 'arriving' }])
+  await render()
+  expect(loadDateExplanation).toHaveBeenCalledWith('1', '2026-01-14')
+  expect(container.querySelector('.calendar-flight-list')?.textContent).toContain('Departing')
+  expect(container.querySelector('.calendar-flight-list')?.textContent).toContain('Arriving')
+  const details = container.querySelector('.calendar-breakdown')!
+  expect(details.textContent).toContain('Why this level')
+  expect(details.textContent).toContain('80 of 200 seats; 40.0%')
+  expect(details.textContent).toContain('January 15, 2025')
+  expect(details.textContent).toContain('60.0%')
+  expect(details.querySelector('img[src*="info-circleIcon"]')).not.toBeNull()
+  await act(async () => day(15).click())
+  expect(loadDateExplanation).toHaveBeenLastCalledWith('1', '2026-01-15')
+  await changeAirport('2')
+  expect(loadDateExplanation).toHaveBeenLastCalledWith('2', '2026-01-15')
+  await click('[aria-label="Next month"]')
+  expect(loadDateExplanation).toHaveBeenLastCalledWith('2', '2026-02-01')
+})
+it('shows no-history and no-data breakdown states from the API', async () => {
+  vi.mocked(loadDateExplanation).mockResolvedValue({ ...explanation, history_available: false, history: { used_dates: [], records: [], average_occupancy_percent: null }, sentences: ['No 2025 history is available for this date, so the score uses 2026 flights only.'] })
+  await render()
+  expect(container.textContent).toContain('No 2025 history is available for this date')
+  vi.mocked(loadDateExplanation).mockResolvedValue({ ...explanation, has_data: false, crowd_score: null, crowd_level: null, sentences: [] })
+  await act(async () => day(17).click())
+  expect(container.textContent).toContain('No calculated forecast: no flights with seat data for this date.')
+})
+it('handles breakdown loading, request errors, and retry', async () => {
+  vi.mocked(loadDateExplanation).mockReturnValueOnce(new Promise(() => {}))
+  await render()
+  expect(container.textContent).toContain('Loading level breakdown')
+  vi.mocked(loadDateExplanation).mockRejectedValueOnce(new Error('Offline'))
+  await act(async () => day(15).click())
+  expect(container.querySelector('.calendar-breakdown [role="alert"]')).not.toBeNull()
+  await click('.calendar-breakdown button')
+  expect(container.querySelector('.calendar-breakdown table')).not.toBeNull()
+})
+it('renders up to three recommendations and selects a card date with fresh requests', async () => {
+  vi.mocked(loadDateRecommendations).mockResolvedValue(recommendations)
+  await render()
+  expect(loadDateRecommendations).toHaveBeenCalledWith('1', '2026-01-14')
+  expect(container.querySelectorAll('.calendar-recommendation-card')).toHaveLength(3)
+  expect(container.querySelector('.calendar-recommendations')?.textContent).toContain('40.0 points lower than your selected date')
+  expect(container.querySelector('.calendar-recommendations')?.textContent).toContain('60 open seats')
+  expect(container.querySelector('.calendar-recommendations img[src*="bulbIcon"]')).not.toBeNull()
+  vi.mocked(loadDateRecommendations).mockResolvedValue({ ...recommendations, recommendations: [], message: 'No qualifying dates are available.' })
+  await click('.calendar-recommendation-card')
+  expect(day(15).getAttribute('aria-pressed')).toBe('true')
+  expect(loadDateRecommendations).toHaveBeenLastCalledWith('1', '2026-01-15')
+  expect(loadDateExplanation).toHaveBeenLastCalledWith('1', '2026-01-15')
+  expect(loadFlights).toHaveBeenLastCalledWith({ airport: '1', date: '2026-01-15' })
+  expect(container.querySelectorAll('.calendar-recommendation-card')).toHaveLength(0)
+})
+it('shows fewer dates and missing-selected-data messages without a score comparison', async () => {
+  vi.mocked(loadDateRecommendations).mockResolvedValue({ ...recommendations, selected: { date: '2026-01-14', has_data: false, crowd_score: null, crowd_level: null }, recommendations: [{ ...recommendations.recommendations[0]!, score_difference: null }], message: 'Only 1 qualifying dates are available within 7 days before or after your selected date.' })
+  await render()
+  const section = container.querySelector('.calendar-recommendations')!
+  expect(section.textContent).toContain('Your selected date has no forecast.')
+  expect(section.textContent).toContain('Only 1 qualifying dates')
+  expect(section.textContent).not.toContain('points lower than your selected date')
+  expect(section.querySelectorAll('.calendar-recommendation-card')).toHaveLength(1)
+})
+it('handles recommendation loading, errors and retry', async () => {
+  vi.mocked(loadDateRecommendations).mockReturnValueOnce(new Promise(() => {}))
+  await render()
+  expect(container.textContent).toContain('Loading recommended dates')
+  vi.mocked(loadDateRecommendations).mockRejectedValueOnce(new Error('Offline'))
+  await act(async () => day(15).click())
+  expect(container.querySelector('.calendar-recommendations [role="alert"]')).not.toBeNull()
+  await click('.calendar-recommendations .calendar-text-button')
+  expect(container.querySelector('.calendar-recommendations [role="alert"]')).toBeNull()
+})
+it('recommendations update across airport and month changes', async () => {
+  await render(); await changeAirport('2')
+  expect(loadDateRecommendations).toHaveBeenLastCalledWith('2', '2026-01-14')
+  await click('[aria-label="Next month"]')
+  expect(loadDateRecommendations).toHaveBeenLastCalledWith('2', '2026-02-01')
 })
 it('changes airports without losing the selected date or exposing old flights', async () => {
   await render(); vi.mocked(loadFlights).mockResolvedValue([]); vi.mocked(loadForecasts).mockResolvedValue([])
   await changeAirport('2')
   expect(loadForecasts).toHaveBeenLastCalledWith({ airport: '2', month: '2026-01' })
-  expect(loadFlights).toHaveBeenLastCalledWith({ origin: '2', date: '2026-01-14' })
+  expect(loadFlights).toHaveBeenLastCalledWith({ airport: '2', date: '2026-01-14' })
   expect(container.querySelector('.calendar-flight-list')).toBeNull()
 })
 it('enables month navigation and handles year boundaries and leap years', async () => {
@@ -97,9 +190,9 @@ it('enables month navigation and handles year boundaries and leap years', async 
   await click('[aria-label="Previous month"]'); await click('[aria-label="Previous month"]')
   expect(loadForecasts).toHaveBeenLastCalledWith({ airport: '1', month: '2025-12' })
 })
-it('uses Philippine today across the UTC day boundary', async () => {
+it('uses project UTC today across the Philippine day boundary', async () => {
   vi.setSystemTime(new Date('2026-01-13T17:00:00Z')); await render()
-  expect(loadFlights).toHaveBeenCalledWith({ origin: '1', date: '2026-01-14' })
+  expect(loadFlights).toHaveBeenCalledWith({ airport: '1', date: '2026-01-13' })
 })
 it('renders February 29 in a leap year with Tuesday alignment for February 1', async () => {
   vi.setSystemTime(new Date('2028-02-15T04:00:00Z')); await render()
@@ -134,7 +227,7 @@ it('handles missing airports and lookup failures', async () => {
 it('allows airport lookup retry', async () => {
   vi.mocked(loadAirports).mockRejectedValueOnce(new TypeError('Offline')); await render()
   expect(container.querySelector('[role="alert"]')?.textContent).toContain('Unable to load airports')
-  await click('.calendar-text-button'); expect(container.querySelector('select')).not.toBeNull()
+  await click('.calendar-text-button'); expect(container.querySelector('[role=combobox]')).not.toBeNull()
 })
 it.each(['staff', 'head', null] as const)('guards calendar access for %s', async role => {
   if (role) setProfile({ id: 1, username: role, email: `${role}@example.com`, role, first_name: '', last_name: '' })
@@ -142,4 +235,24 @@ it.each(['staff', 'head', null] as const)('guards calendar access for %s', async
   await render()
   expect(loadAirports).not.toHaveBeenCalled()
   expect(container.textContent).toBe(role === 'staff' ? 'Staff dashboard' : role === 'head' ? 'Head management' : 'Sign in')
+})
+
+it('puts recommendations above the month and filters flights only by airline', async () => {
+  await render()
+  const recommendation = container.querySelector('.calendar-recommendations')!
+  const month = container.querySelector('.airport-calendar-month')!
+  expect(recommendation.compareDocumentPosition(month) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  expect(container.textContent).toContain('Crowd levels are per airport. The airline filter only changes the flight list.')
+  const explanations = vi.mocked(loadDateExplanation).mock.calls.length
+  const suggestions = vi.mocked(loadDateRecommendations).mock.calls.length
+  await click('#record-calendar-airline'); await click('[role=option][data-value="1"]')
+  expect(loadFlights).toHaveBeenLastCalledWith({airport:'1',date:'2026-01-14',airline:'1'})
+  expect(loadDateExplanation).toHaveBeenCalledTimes(explanations)
+  expect(loadDateRecommendations).toHaveBeenCalledTimes(suggestions)
+  const panel=container.querySelector('.airport-date-details')!
+  expect(panel.querySelector('.calendar-flight-list')!.compareDocumentPosition(panel.querySelector('.calendar-breakdown')!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+})
+it('selects today when navigating back into the current month', async () => {
+  await render(); await click('[aria-label="Next month"]'); await click('[aria-label="Previous month"]')
+  expect(day(14).getAttribute('aria-pressed')).toBe('true')
 })

@@ -65,7 +65,7 @@ def test_reads_preserve_creator_privacy(users, forecast, role):
     detail = client.get(f"{BASE}{forecast.pk}/")
     assert detail.status_code == 200
     record = detail.json()
-    assert record == response.json()[0]
+    assert record == response.json()["results"][0]
     assert "created_by" not in record
     assert "email" not in str(record)
     if role == "traveler":
@@ -91,7 +91,7 @@ def test_staff_and_head_create_with_server_fields(users, payload, role):
 def test_staff_cannot_change_another_staff_forecast(users, forecast, method):
     other = User.objects.create(username="other", email="other@example.com", role="staff")
     client = client_for(other)
-    assert client.get(BASE).json()[0]["can_edit"] is False
+    assert client.get(BASE).json()["results"][0]["can_edit"] is False
     response = getattr(client, method)(f"{BASE}{forecast.pk}/", {"crowd_level": "high"}, format="json")
     assert response.status_code == 403
     forecast.refresh_from_db()
@@ -173,10 +173,10 @@ def test_filters_combine_airport_month_and_owner(users, forecast, payload):
     client.post(BASE, {**payload, "airport": airport.pk}, format="json")
     client.post(BASE, {**payload, "date": "2027-01-01"}, format="json")
     response = client.get(BASE, {"airport": payload["airport"], "month": "2026-12", "mine": "true"})
-    assert [record["id"] for record in response.json()] == [forecast.pk]
-    assert client.get(BASE, {"month": "2026-11"}).json() == []
-    assert client_for(users["head"]).get(BASE, {"mine": "true"}).json() == []
-    assert len(client_for(users["head"]).get(BASE, {"mine": "false"}).json()) == 3
+    assert [record["id"] for record in response.json()["results"]] == [forecast.pk]
+    assert client.get(BASE, {"month": "2026-11"}).json()["results"] == []
+    assert client_for(users["head"]).get(BASE, {"mine": "true"}).json()["results"] == []
+    assert len(client_for(users["head"]).get(BASE, {"mine": "false"}).json()["results"]) == 3
 
 
 @pytest.mark.parametrize("filters,field", [
@@ -194,4 +194,4 @@ def test_role_changes_take_effect_with_existing_token(users, forecast):
     users["staff"].role = "traveler"
     users["staff"].save()
     assert client.patch(f"{BASE}{forecast.pk}/", {"crowd_level": "high"}, format="json").status_code == 403
-    assert "created_by_username" not in client.get(BASE).json()[0]
+    assert "created_by_username" not in client.get(BASE).json()["results"][0]

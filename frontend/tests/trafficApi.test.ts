@@ -13,8 +13,8 @@ it('counts only the results from mine=true requests for both record types', asyn
   vi.stubGlobal('fetch', fetchMock)
   expect(await getOwnRecordCounts()).toEqual({ flights: 2, forecasts: 1 })
   expect(fetchMock.mock.calls.map(([url]) => String(url)).sort()).toEqual([
-    'https://api.example.test/api/flights/?mine=true',
-    'https://api.example.test/api/traffic/forecasts/?mine=true',
+    'https://api.example.test/api/flights/?page_size=1&mine=true',
+    'https://api.example.test/api/traffic/forecasts/?page_size=1&mine=true',
   ])
 })
 

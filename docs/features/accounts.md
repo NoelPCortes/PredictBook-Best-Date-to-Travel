@@ -21,13 +21,16 @@ stores the returned tokens and keeps only safe profile fields in memory, then
 opens the landing page for the role returned by the backend.
 
 `features/homepage` reuses the existing Home UI. It displays the signed-in username;
-all other flight/calendar/booking/search values remain labeled sample data.
+the calendar and flight data come from the API. Home now searches routes and
+keeps five browser-only route pairs per user; upcoming booking is a route summary,
+not a stored booking.
 `profile/` restores the current user's profile after reload. Home is
 Traveler-only; Staff and Heads have separate areas as described below. `/` stays
 public. Sign out calls `logout/` with the refresh token, then clears the local
 session even if the request fails. The Staff dashboard, Head assignment form,
-and own-profile/password page are implemented. Charts and promote/remove/revoke
-management screens are outside this task.
+and own-profile/password page are implemented. Head management now lists Staff
+and pending assignments and supports assignment/revocation. Charts and
+promote/remove-Head management screens remain future work.
 
 ## Endpoint contract
 
@@ -47,6 +50,8 @@ Passwords and password hashes are never returned. Protected endpoints require
 | `profile/` | PATCH | Any of first_name, last_name, username, email | profile | Signed-in user |
 | `password/change/` | POST | current_password, new_password | detail | Signed-in user |
 | `head/` | GET | none | detail | Head |
+| `staff/` | GET | optional staff_page, pending_page, page_size, search | paginated staff: id/username/email; paginated pending: email/assigned_by_username/assigned_at | Head |
+| `staff/<id>/` | GET | none | id, username, email, first_name, last_name, date_joined, flights_created, forecasts_created | Head; target must be Staff |
 | `staff/assign/` | POST | email | detail | Head |
 | `heads/promote/` | POST | email | detail | Head; target must be Staff |
 | `heads/remove/` | POST | email, role (`staff` or `traveler`) | detail | Head; self or Head they promoted |
@@ -54,15 +59,15 @@ Passwords and password hashes are never returned. Protected endpoints require
 
 The separate approved endpoint `GET /api/dashboard/` accepts no request fields
 and returns `detail` plus `is_sample: true`. It admits Staff and Heads and
-provides a server-side access gate; dashboard figures are still frontend sample
-constants, not calculated database forecasts. `GET /api/accounts/head/` likewise
+provides a legacy server-side access gate. Displayed dashboard figures come
+from the real `/api/dashboard/summary/` endpoint. `GET /api/accounts/head/` likewise
 provides a Head-only gate and returns only `detail`.
 
 Success responses use 200 except sign-up (201). Invalid fields and invalid role
 transitions return 400. Missing/invalid authentication returns 401. Authenticated
 callers without required permissions return 403. Revoking an unknown pending
-email returns 404. Management responses include only `detail`, without profile
-fields. Requests containing unsupported or read-only account fields return 400.
+email returns 404. Management action responses include only `detail`. The new Head-only Staff
+list is the explicit privacy exception described below. Requests containing unsupported or read-only account fields return 400.
 
 ## Role redirects and frontend routes
 
@@ -70,9 +75,9 @@ fields. Requests containing unsupported or read-only account fields return 400.
 |---|---|---|
 | `/` | Public, including signed-in visitors | Existing Landing page |
 | `/signin`, `/signup` | Signed-out visitors | Signed-in visitors go to their role landing page |
-| `/home` | Traveler | Traveler landing page; existing sample information |
-| `/staff/dashboard` | Staff and Head | Staff landing page; sample dashboard |
-| `/head` | Head | Head landing page; Assign Staff by email |
+| `/home` | Traveler | Route search, browser recent routes, upcoming-route summary and route calendar |
+| `/staff/dashboard` | Staff and Head | Real single-airport 30-day dashboard |
+| `/head` | Head | Head landing page; Staff/pending lists, Assign and Remove |
 | `/profile` | All authenticated roles | Own profile, password change, Sign Out |
 
 `ROLE_LANDING_PATHS` defines Traveler -> `/home`, Staff -> `/staff/dashboard`,
@@ -90,8 +95,7 @@ wrong role gives 403. `is_staff` and `is_superuser` do not bypass app roles;
 revoking a role blocks an existing JWT on the next protected backend request.
 The Staff and Head pages request their backend access gates before showing
 summary content or the assignment form. The backend rechecks Head permission
-again when an assignment is submitted. These gates do not protect a live Home
-data API: Home still renders frontend sample data.
+again when an assignment is submitted. Home calendar/flight APIs independently enforce authenticated read access.
 
 ## Profile and password UI
 
@@ -122,22 +126,45 @@ in profile state or browser storage.
 
 ## Staff and Head pages
 
-The Staff page follows `Staff dashboard@1x.png` with Dashboard-only navigation
-and a visible Sample data label. It reuses the typed January 2026 daily levels
-in `src/data/homeSample.ts`. Counts are computed as 8 High, 11 Medium, and 12 Low;
-Sunday has the most high-crowd days when real January dates are used. Busiest
-weekday means the weekday(s) with the most High days; ties are retained.
+The Staff dashboard uses the real single-airport 30-day summary, dates grouped
+by level, the next seven days, and own-record counts. See
+[Staff dashboard](staff-dashboard.md). No Charts or All Airports feature is added.
 
-Next 7 days and upcoming High days use the live local date, include today, and
-update once per minute. Dates outside January have no sample crowd level. After
-January 2026, the upcoming sample list is empty rather than shifting the fixture
-into a future month. The page adds no dataset, forecast logic, Charts page,
-or All Airports aggregation rule.
+Head navigation always contains Dashboard, Flights, Crowd forecasts and Head
+management in that order, including on Staff pages. Staff have no Head link and
+Travelers retain Home and Traffic Calendar. The active page is highlighted.
 
-The Head page shows Head management and one Email/Assign Staff form, using the
-existing `POST /api/accounts/staff/assign/`. It displays backend success/no-op
-messages or field/general errors. Head and Dashboard navigation uses only
-existing routes. No promote/remove/revoke UI was added.
+`GET /api/accounts/staff/` returns {staff: page, pending: page}; each page is
+{count,next,previous,results}, with 50 rows by default (page_size capped at 50).
+staff_page and pending_page select independent pages. Optional search matches
+Staff username/email case-insensitively. Staff rows contain id, username and email;
+pending rows retain email, assigned_by_username and assigned_at. Heads are not
+included as Staff. The list uses related-object loading, not queries per row.
+
+`GET /api/accounts/staff/<id>/` returns exactly id, username, email, first_name,
+last_name, date_joined, flights_created and forecasts_created. It is Head-only:
+401 signed out, 403 for Staff/Travelers, and 404 for unknown or non-Staff targets.
+Separate aggregate subqueries calculate the two counts in one data query and
+avoid multiplying flight rows by forecast rows. No password, token, last_login,
+role or other user fields are returned.
+
+The responsive two-column page has Staff search/list and pending assignments on
+the left, Assign Staff above a selected Staff details card on the right. Selected
+Staff is highlighted; no selection shows a hint. Empty names show Not set. Pending
+rows have Remove; selected Staff details has Remove Staff access. Confirmation
+explains that Staff becomes Traveler and the account is retained. The unchanged
+assignment message is an info alert, rather than a success alert. Lists and
+details handle loading, errors and retry; assignment/removal refresh the lists.
+
+The existing Assign form posts only email to `/api/accounts/staff/assign/`.
+Successful assignment shows the backend result and refreshes both lists. Remove
+uses the existing `/api/accounts/staff/revoke/` endpoint after confirmation.
+Removing Staff changes the role to Traveler without deleting the account;
+removing a pending assignment deletes only that row. Cancel is ghost, Remove is
+danger, repeated requests are disabled, and successes refresh both lists.
+Backend field and general errors remain visible as text. Empty lists, loading,
+errors and retry are handled. The underlying assignment/revocation rules and
+existing Head promotion/removal endpoints are unchanged.
 
 ## Authentication and passwords
 
@@ -189,7 +216,9 @@ password. Password fields are write-only and hashed using Django's password API.
   Travelers are denied. Only authenticated Heads can use management endpoints.
 - Profile endpoints always operate on the signed-in user. Role, promoter, password,
   and another user's ID cannot be set through profile updates. Management accepts
-  the target email and returns only a result message.
+  the target email and returns only a result message for actions. The approved
+  Head reads are limited to the approved Staff list/detail fields and the three
+  pending fields above, never details about Travelers or other Heads.
 
 ## Development-only Staff seed
 
@@ -222,8 +251,8 @@ Sign-Up payloads, Sign-In storage/navigation, protected routes, restored session
 logout success/failure, and one-attempt refresh behavior. Backend seed tests cover
 creation, updates, DEBUG/placeholder/missing-variable refusal, Head preservation,
 identity conflicts, password hashing, output privacy, and pending assignment
-preservation. Dashboard tests cover real weekday alignment, counts, live-date
-filtering, month boundaries, and midnight rollover. Head and profile UI tests
+preservation. Dashboard tests cover real API counts/date lists, project-local period bounds,
+airport defaults, permissions, empty data and retries. Head and profile UI tests
 cover form payloads, backend errors, authorization gates, and saved-profile
 restoration after remounting with a fresh backend response. Automated UI checks
 use jsdom and API mocks; the new screens have not been visually verified in a

@@ -10,7 +10,8 @@ Django's `TIME_ZONE` remains `UTC` and `USE_TZ=True`.
 Accounts retain their existing sign-up, username/email sign-in, rotating JWT
 refresh, logout, self-profile, password, and Head management behavior. See
 [accounts](features/accounts.md) for the existing contract. `/api/dashboard/`
-continues to enforce Staff/Head access and identify its existing sample panels.
+continues as a legacy Staff/Head access probe. Displayed dashboard data comes
+from the new authenticated summary endpoint.
 
 ## Flight and crowd forecast API
 
@@ -18,7 +19,8 @@ continues to enforce Staff/Head access and identify its existing sample panels.
 `/api/traffic/`. Requests use the existing JWT bearer authentication. Signed-out
 requests return 401. Every signed-in role can read. Travelers receive 403 on
 writes. Staff and Heads can create records. Staff can update/delete only their
-own records; Heads can update/delete any record. Current database roles apply on
+own flights/manual forecasts; Heads can update/delete any flight or manual
+forecast. Calculated forecasts are read-only for every role. Current database roles apply on
 every request, including when the caller's token predates a role change.
 
 | Method | Endpoint | Behavior |
@@ -30,12 +32,21 @@ every request, including when the caller's token predates a role change.
 | GET, POST | `/api/traffic/forecasts/` | List or create crowd forecasts |
 | GET, PATCH, DELETE | `/api/traffic/forecasts/<id>/` | Retrieve, update or delete a forecast |
 
-Lists return arrays ordered by departure time for flights and by date/airport for
-forecasts. Flight filters are `origin=<airport id>`, `date=YYYY-MM-DD`, and
-`mine=true`. Departure-date filtering uses the Philippine day from midnight to
-midnight in `Asia/Manila`. Forecast filters are `airport=<airport id>`,
-`month=YYYY-MM`, and `mine=true`. Filters combine. Omitting filters returns all
-readable records; `mine=true` restricts results to the signed-in creator.
+List endpoints use {count,next,previous,results}, default/capped page size 50,
+with page and optional page_size. Flights order by departure_time then pk;
+forecasts by date/airport/pk. Airport/airline lookups are also paginated; airport
+rows include an aggregate forecast_count. No lookup write permission is added.
+
+Flight filters combine origin, destination, airline, airport, date, search,
+upcoming and mine. Lookup ids select origin/destination/airline; upcoming=true
+means departure_time >= now. Search partially matches flight number, airline
+name/code and origin/destination code/name/city case-insensitively. With airport,
+date counts origin/departure and destination/arrival in project-local UTC dates,
+matching forecasts; without airport, existing date filtering stays Philippine
+departure-date filtering. Forecast filters combine airport, month=YYYY-MM,
+mine=true, search, level and source. Search includes airport code/name/city and
+ISO date text; level is low/medium/high, source is calculated/manual. Both
+calculated labels count as calculated; manual excludes them and Sample data.
 
 Flight input uses `airline`, `flight_number`, `origin`, `destination`,
 `departure_time`, `arrival_time`, `total_seats`, and `available_seats`. Responses
@@ -53,7 +64,7 @@ source unless a replacement is supplied, normalizing blank sources the same way.
 Both models have required `created_by` foreign keys to the custom user model with
 `on_delete=PROTECT`. The server sets ownership; clients cannot reassign it.
 Requests containing `created_by`, or forecast `calculated_at`, return field-level
-400 messages. Staff/Head responses include `created_by_username` and a
+400 messages. The calculated source is reserved for the calculation service. Staff/Head responses include `created_by_username` and a
 server-computed `can_edit`. Traveler responses omit both. Creator IDs and other
 users' email addresses are not returned.
 
@@ -65,8 +76,8 @@ constraint races for the documented constraints into field-level 400 responses.
 Create returns 201, successful PATCH returns 200, and DELETE returns 204.
 
 Views use DRF generics, the existing ownership permission class, and related
-object loading. Business saves live in services. No raw SQL or new dependency is
-used. Airports and airlines have no write endpoints.
+object loading. Business saves live in services. The runtime API uses the ORM; the approved local dataset uses a plain SQL
+script. No new dependency is used. Airports and airlines have no write endpoints.
 
 ## Migrations, samples, and checks
 
@@ -75,15 +86,19 @@ and forecast tables were empty before each migration was written and applied.
 An existing-row installation requires an owner-approved backfill decision first.
 Applied migrations must not be rewritten.
 
-`accounts/management/commands/seed_sample_data.py` requires the existing Staff
-user named by `SEED_STAFF_USERNAME`; its error directs the owner to run
-`python manage.py seed_staff` first. It uses `update_or_create` on unique keys
-inside one transaction for five Philippine airports, three airlines, 70 flights
-across 14 days, and 300 forecasts across 60 days, including the current Philippine
-day. Flights and forecasts belong to that Staff user. Forecast levels follow a
-fixed weekday pattern with `data_source="Sample data"` and null scores. Output
-contains counts and a sample-data notice only. This is sample data, not verified
-schedules or a measured forecasting model.
+`accounts/management/commands/seed_sample_data.py` remains DEBUG-only and requires
+the Staff user named by SEED_STAFF_USERNAME. SEED_FLIGHT_NUMBERS must supply ten
+distinct comma-separated identifiers, each at most ten characters. Lookups use
+get_or_create for seven approved airports and Cebu Pacific/Singapore Airlines.
+It creates or updates ten invented seed-owned flights without modifying another
+user's flights or existing lookups. Its transaction now invokes recalculation
+and removes exact Sample data forecast fixtures. It prints counts only. These
+are invented local schedules, not real timetables.
+
+`python manage.py recalculate_forecasts` uses that same existing seed Staff user.
+Its optional --remove-sample-data flag deletes only exact Sample data forecast
+rows. It reports created, updated, deleted, manual skipped, and sample deleted
+counts. Manual records are preserved. No new migration or dependency is required.
 
 Run `python -m pytest` and `ruff check .` from `backend/`. Tests use Django's
 separate PostgreSQL test database and cover Standard Features, ownership,
@@ -92,8 +107,168 @@ constraint races, and seed idempotence. They do not prove browser integration.
 
 ## Remaining work
 
-Production datasets, crowd-level thresholds, score meaning, historical prediction
-logic, accuracy evaluation, dedicated flight search contracts/results, date
-suggestions, and chart APIs remain TBD. `suggestions` and the remaining dashboard
-work are scaffolded. `backend/database/` remains reserved for datasets and SQL
-scripts; management-command fixtures are generated by the command above.
+Production datasets, accuracy evaluation, dedicated flight search contracts/results,
+and chart APIs remain TBD. The suggestions app remains a scaffold; the implemented recommendation logic
+lives in traffic alongside the common calculation. `backend/database/` contains
+the approved large sample SQL script; command fixtures remain available separately.
+
+
+## Blended calculation service
+
+traffic/calculation.py defines MEDIUM_THRESHOLD=50, HIGH_THRESHOLD=75, and the
+calculated/source markers in one place. It groups origin/departure dates and
+destination/arrival dates in settings.TIME_ZONE. Total seats and booked seats
+(total minus available) give the flight occupancy. calculate_pairs fetches matching
+positive-seat history in one query, averaging daily percentages at D minus 371,
+364 and 357 days. Equal flight/history weights give the score; absent history
+uses flights only. Decimal half-up rounds the final blend to one decimal before
+classifying Low (<50), Medium (<75), or High. Weights, offsets, recommendation
+window (7) and limit (3) live beside the thresholds in traffic/calculation.py.
+No flights/zero seats gives no calculated row. See
+[traffic calendar](features/traffic-calendar.md) for the full rule.
+
+The first triggering user owns a new calculated row. Later recalculations keep
+that owner. Manual rows (sources other than exact Calculated from 2026 flights and 2025 history,
+legacy Calculated from flights, or Sample data) always win. Both calculated labels
+are read-only; recalculation upgrades legacy labels and preserves the creator. Explicit flight save/delete services recalculate old/new
+pairs atomically with the flight mutation, without signals. Airport locks
+coordinate flight changes, recalculations and manual saves. Empty pairs delete
+only calculated rows. A failed calculation rolls back the flight change.
+
+Forecast reads add is_calculated and live flight_count, seats_total, seats_booked.
+Two grouped aggregate queries cover a list of any size; the query-count guard
+expects four forecast-data queries with authentication already resolved, including the page count. Calculated
+rows return can_edit=false and created_by_username=null to Staff/Heads. Travelers
+continue to omit creator information. Calculated detail writes return 403 for
+Staff and Heads; attempts to create the reserved source return field-level 400.
+
+## Real dashboard and limited Head list
+
+GET /api/dashboard/summary/?airport=<id> admits Staff/Heads only. Its optional
+airport parameter selects one airport; default selection prefers the first code
+with a forecast in today..today+29, otherwise the first code. It returns airport,
+period_start, period_end, counts (low/medium/high), dates (date/weekday arrays by
+level), busiest_weekday or null, and next_7_days (date/weekday/crowd_level or null).
+Tied busiest weekdays use the earliest first high date. No user details appear.
+The approved [dashboard contract](features/staff-dashboard.md) covers empty data.
+
+GET /api/accounts/staff/ admits Heads only and returns independently paginated
+staff and pending objects. staff_page/pending_page control them, page_size is
+capped at 50, and optional search matches Staff username/email. Staff list rows
+contain id/username/email only; pending retains email/assigned_by_username/assigned_at.
+
+GET /api/accounts/staff/<id>/ is Head-only and returns exactly id, username,
+email, first_name, last_name, date_joined, flights_created and forecasts_created.
+It returns 404 for unknown/non-Staff targets, 403 for Staff/Travelers and 401
+signed out. Separate aggregate subqueries avoid a flight-by-forecast join and
+serve the detail in one data query, with auth resolved. No password, token,
+last_login, role, Traveler or other Head details are exposed.
+
+Existing POST /api/accounts/staff/assign/ and staff/revoke/ retain message-only
+responses and their rules. Revoking Staff sets Traveler without deleting the
+account; revoking a pending assignment deletes only that assignment. Authentication,
+profile and Head promotion/removal behavior remains unchanged.
+
+## Sample SQL and efficient recalculation
+
+backend/database/sample_flights.sql runs in one transaction with setseed(0.42).
+It requires predictbook.seed_staff_username as a session setting (Staff or Head),
+and uses the session TimeZone, set to Django's actual UTC zone by the runner.
+It inserts ten airports/five airlines without changing conflicts, replaces only
+the configured seed user's flights with 7,300 invented 2026 departures (20/day),
+and replaces historical records with 3,650 invented 2025 airport/dates. It never
+changes another user's flights or any manual forecast. See README for the psql
+runner using runtime settings without printing credentials. SQL does not invoke
+Python services: run recalculate_forecasts afterward. The older ten-flight
+seed_sample_data command is unchanged.
+
+Recalculation reads flight aggregates and history in bulk, locks airports and
+forecast rows, bulk-creates/updates calculated rows and deletes stale calculated
+IDs in the same transaction. Query counts scale with bulk batches, not one read
+and write per airport/date. No signals or schema changes were added.
+
+## Date insight endpoints
+
+Both GET /api/traffic/explanation/?airport=<id>&date=YYYY-MM-DD and
+GET /api/traffic/recommendations/?airport=<id>&date=YYYY-MM-DD allow every signed-in
+role, return 401 signed out, field-level 400 for missing/invalid parameters and
+404 for unknown airports. Neither returns user details.
+
+Explanation response fields: airport {id,code,name}, date, weekday, has_data,
+flights {count,departing_count,arriving_count,seats_total,seats_booked,occupancy_percent},
+history {used_dates,records:[{date,weekday,seats_booked,seats_total,occupancy_percent}],
+average_occupancy_percent}, weights {flights,history}, thresholds {medium_from,high_from},
+crowd_score, crowd_level, history_available, open_seats and sentences.
+It calls calculate_pairs, the same function as stored forecasts. Percentages are
+rounded for display only; the blend uses unrounded values. No flights/zero seats
+returns 200 with has_data=false and null score/level. Manual records are preserved;
+this endpoint explains the computed blend independently of their stored levels.
+
+Recommendations return selected {date,has_data,crowd_score,crowd_level},
+recommendations [{date,weekday,crowd_level,crowd_score,score_difference,open_seats,
+flight_count,history_average_occupancy_percent,reasons}], and message. Ranking,
+window, missing/manual-score behavior and exact numerical reason conditions are
+specified in [date suggestions](features/date-suggestions.md). Backend templates
+build all sentences/reasons from measured values; no results are padded.
+Query guards hold explanations at four data queries and recommendations at five,
+with authentication already resolved.
+
+The airport-filtered flight list includes direction=departing or arriving relative
+to that airport, counting origin/departure dates and destination/arrival dates in
+settings.TIME_ZONE. Existing filters remain; list responses now use the paginated envelope above.
+The summary adds comparison with average_occupancy_2026_percent,
+average_occupancy_2025_percent, difference_points, days_busier_than_2025,
+days_quieter_than_2025 and days_compared; see the
+[dashboard contract](features/staff-dashboard.md) for missing-data semantics.
+
+
+## Route dates, daily series, and indexes
+
+GET /api/flights/route-dates/?origin=<id>&destination=<id>&month=YYYY-MM permits
+all signed-in roles and returns {dates:[{date,flight_count,open_seats}]} for only
+that route's monthly departures. Date grouping is project-local UTC. Missing,
+invalid or equal route parameters return 400; an unknown airport returns 404;
+signed-out requests return 401. Airport existence and grouped flight counts use
+two data queries regardless of the number of days, with auth resolved.
+
+The dashboard summary keeps all previous fields and adds days, each with date,
+weekday, crowd_level, crowd_score, seats_booked, seats_total and flight_count.
+Only dates with a forecast appear; the UI supplies the missing-day slots. Flight
+aggregates are shared with comparison, avoiding queries per day. Null manual
+scores fall back to matching 2025 history for this read only; stored manual
+forecasts and their levels remain untouched. No history leaves score null.
+
+Migration flights.0003_flight_filter_indexes adds only flight_departure_idx,
+flight_origin_departure_idx and flight_dest_arrival_idx. They support ordered
+upcoming reads, route/departure date filters and airport/arrival date filters.
+Existing FK and forecast/history unique airport/date indexes are retained.
+This redesign did not modify or recalculate application data.
+
+## Measured performance
+
+Django test-client measurements used the existing PostgreSQL dataset (7,300
+flights, 3,614 forecasts, 3,650 historical rows), authenticated requests, rendered
+JSON, and medians of three runs. Values exclude browser/network transfer and DOM
+rendering. The original ten-second browser delay was not reproduced locally.
+
+| Call | Before | After Step 1 | Before size | After size |
+|---|---:|---:|---:|---:|
+| Flights list | 1,121.8 ms | 18.8 ms | 3,226,043 B | 21,967 B |
+| Forecast list | 370.6 ms | 22.0 ms | 1,128,756 B | 15,736 B |
+| Seed user's flights mine=true | 1,084.2 ms | 10.6 ms | 3,218,743 B | 536 B |
+| Seed user's forecasts mine=true | 489.0 ms | 18.5 ms | 1,128,473 B | 432 B |
+| Default dashboard summary | 19.2 ms | 19.4 ms | 2,095 B | 2,095 B |
+
+The main confirmed cost was serializing/transferring whole lists and rendering
+thousands of rows, including fetching whole lists merely to count own records.
+There was no per-row query explosion: before pagination the flight/forecast
+lists used 2/4 queries with JWT authentication; pagination adds one COUNT query
+to each but sharply reduces serialization and payload size. Access gates add
+serial requests, but locally took only a few milliseconds. Head/calendar data
+calls were already small/fast in the baseline; browser causes remain unverified.
+Development StrictMode repeats effects; the API client now shares identical
+pending GETs, removing the entry after completion. This is not response caching.
+There was no short client timeout; a regression test permits a 16-second response
+and a retry after failure. The measured local data calls meet the two-second
+target, not a claim about full browser rendering. Browser access was unavailable
+for the attempted visual check.

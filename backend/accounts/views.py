@@ -1,18 +1,28 @@
+from django.db.models import Count, OuterRef, Q, Subquery
+from django.db.models.functions import Coalesce
 from rest_framework import generics, status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from config.pagination import ListPagination
+from flights.models import Flight
+from traffic.models import CrowdForecast
+
 from . import services
+from .models import StaffAssignment, User
 from .permissions import IsHead
 from .serializers import (
     EmailSerializer,
     LogoutSerializer,
     PasswordChangeSerializer,
+    PendingStaffSerializer,
     ProfileSerializer,
     RemoveHeadSerializer,
     SigninSerializer,
     SignupSerializer,
+    StaffDetailSerializer,
+    StaffListSerializer,
 )
 
 
@@ -116,3 +126,53 @@ class RemoveHeadView(HeadManagementView):
 
 class RevokeStaffView(HeadManagementView):
     perform_action = staticmethod(services.revoke_staff)
+
+
+class StaffListView(APIView):
+    permission_classes = (IsAuthenticated, IsHead)
+
+    def get(self, request):
+        staff = User.objects.filter(role=User.Role.STAFF).order_by("username")
+        if request.query_params.get("search"):
+            term = request.query_params["search"]
+            staff = staff.filter(Q(username__icontains=term) | Q(email__icontains=term))
+        pending = StaffAssignment.objects.select_related("assigned_by").order_by(
+            "email"
+        )
+        collections = {}
+        for name, queryset, serializer in (
+            ("staff", staff, StaffListSerializer),
+            ("pending", pending, PendingStaffSerializer),
+        ):
+            paginator = ListPagination()
+            paginator.page_query_param = f"{name}_page"
+            page = paginator.paginate_queryset(queryset, request, view=self)
+            collections[name] = paginator.get_paginated_response(
+                serializer(page, many=True).data
+            ).data
+        return Response(collections)
+
+
+class StaffDetailView(generics.RetrieveAPIView):
+    permission_classes = (IsAuthenticated, IsHead)
+    serializer_class = StaffDetailSerializer
+
+    def get_queryset(self):
+        flights = (
+            Flight.objects.filter(created_by=OuterRef("pk"))
+            .order_by()
+            .values("created_by")
+            .annotate(total=Count("pk"))
+            .values("total")
+        )
+        forecasts = (
+            CrowdForecast.objects.filter(created_by=OuterRef("pk"))
+            .order_by()
+            .values("created_by")
+            .annotate(total=Count("pk"))
+            .values("total")
+        )
+        return User.objects.filter(role=User.Role.STAFF).annotate(
+            flights_created=Coalesce(Subquery(flights), 0),
+            forecasts_created=Coalesce(Subquery(forecasts), 0),
+        )

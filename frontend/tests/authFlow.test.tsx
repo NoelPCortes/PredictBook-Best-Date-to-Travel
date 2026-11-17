@@ -11,9 +11,11 @@ import { signup } from '../src/features/signup/api'
 import { logout } from '../src/features/homepage/api'
 
 vi.mock('../src/api/lookups', () => ({ loadAirports: async () => [] }))
+vi.mock('../src/features/head/api', async importOriginal => ({ ...await importOriginal<typeof import('../src/features/head/api')>(), getStaffList: async () => ({ staff: [], pending: [] }) }))
 vi.mock('../src/features/staff-dashboard/api', async importOriginal => ({
   ...await importOriginal<typeof import('../src/features/staff-dashboard/api')>(),
   getOwnRecordCounts: async () => ({ flights: 0, forecasts: 0 }),
+  getDashboardSummary: async () => ({ airport: null, period_start: '2026-11-16', period_end: '2026-12-15', counts: { low: 0, medium: 0, high: 0 }, dates: { low: [], medium: [], high: [] }, busiest_weekday: null, next_7_days: [], days: [], comparison: { average_occupancy_2026_percent: null, average_occupancy_2025_percent: null, difference_points: null, days_busier_than_2025: 0, days_quieter_than_2025: 0, days_compared: 0 } }),
 }))
 
 const profile = { id: 1, username: 'traveler', email: 'traveler@example.com', first_name: '', last_name: '', role: 'traveler' }
@@ -191,7 +193,7 @@ describe('connected account flows', () => {
     await submit()
     expect(readTokens()).toEqual(tokens)
     expect(container.querySelector('.eyebrow')?.textContent).toBe('WELCOME BACK, TRAVELER')
-    expect(container.textContent).toContain('Sample data')
+    expect(container.textContent).toContain('No upcoming booking yet. Search flights to get started.')
     const signout = [...container.querySelectorAll('button')].find(button => button.textContent === 'Sign out')!
     await act(async () => signout.click())
     const logoutCall = fetchMock.mock.calls.find(([url]) => String(url).endsWith('/logout/'))!
@@ -210,7 +212,7 @@ describe('connected account flows', () => {
     writeTokens(tokens)
     fetchMock.mockResolvedValue(response(profile))
     await render(path)
-    expect(container.querySelector('h1')?.textContent).toBe('Search flights and check airport crowds')
+    expect(container.querySelector('h1')?.textContent).toBe('Check airport crowds and flights')
   })
 
   it('clears tokens locally even when logout fails', async () => {
@@ -417,7 +419,7 @@ describe('API token refresh', () => {
     fetchMock.mockResolvedValueOnce(response({}, 401)).mockResolvedValueOnce(response({}, 401))
       .mockReturnValueOnce(pending).mockImplementation(() => Promise.resolve(response(profile)))
     const first = apiRequest('/api/accounts/profile/')
-    const second = apiRequest('/api/accounts/profile/')
+    const second = apiRequest('/api/dashboard/')
     await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3))
     completeRefresh(response({ access: 'rotated-access', refresh: 'rotated-refresh' }))
     await Promise.all([first, second])

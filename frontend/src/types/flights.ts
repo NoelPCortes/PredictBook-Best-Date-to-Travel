@@ -1,4 +1,4 @@
-export type Airport = { id: number; code: string; name: string; city: string; country: string }
+export type Airport = { id: number; code: string; name: string; city: string; country: string; forecast_count?: number }
 export type Airline = { id: number; code: string; name: string }
 export type Flight = {
   id: number
@@ -18,4 +18,5 @@ export type Flight = {
   available_seats: number
   created_by_username?: string
   can_edit?: boolean
+  direction?: 'departing' | 'arriving'
 }

@@ -159,21 +159,28 @@ Expected airport crowd level for each airport and date. This table feeds the tra
 | airport | link to `airports` | yes | |
 | date | date | yes | |
 | crowd_level | CharField (6), choice: `low`, `medium`, `high` | yes | Must always be set |
-| crowd_score | FloatField (null=True, blank=True) | no | The value behind the level, such as expected seats booked. Exact meaning: TBD |
+| crowd_score | FloatField (null=True, blank=True) | no | Calculated rows: flight/history blend rounded to one decimal; optional supplied score for manual entries |
 | calculated_at | date and time | yes | Server sets the current time on create and update; clients cannot send it |
-| data_source | CharField (100; null=True, blank=True) | no | Which dataset it came from. TBD |
+| data_source | CharField (100; null=True, blank=True) | no | `Calculated from 2026 flights and 2025 history` for automatic rows; legacy `Calculated from flights` is also calculated; `Staff entry` for blank API sources; `Sample data` identifies legacy removable fixtures. Other sources are manual |
 
 Rules:
 
 - One forecast per airport per date.
-- Any signed-in user can read forecasts. Staff and Heads can create them. Staff can update or delete only their own records; Heads can update or delete any record. Travelers cannot write.
+- Any signed-in user can read forecasts. Staff and Heads can create manual entries. Staff can update or delete their own manual records; Heads can update or delete any manual record. Calculated rows are read-only, and Travelers cannot write.
 - Requests containing `created_by` or `calculated_at` are rejected with field-level 400 messages.
 - Traveler responses omit creator information. Staff and Head responses include `created_by_username` and the server-computed `can_edit`. Other users' email addresses are never included.
 - A blank data source is stored as `Staff entry`.
 - **The color is not stored.** The frontend picks it from `crowd_level` (see `../frontend/UI_STYLE_GUIDE.md`, traffic calendar).
 - Keep forecasts after their date passes. Comparing them with `historical_records` shows whether the 75% accuracy goal is met.
-- The rules that turn data into Low, Medium, or High (thresholds) are **TBD**. They will be written in `docs/features/traffic-calendar.md`.
-- Staff entry stores the chosen level directly. Sample seeding uses a deterministic weekday pattern and `data_source="Sample data"`; this does not define production prediction thresholds or score meaning.
+- Automatic calculations count origin/departure-local-date and destination/arrival-local-date flights using `settings.TIME_ZONE` (currently UTC). Sum total seats and booked seats (total minus available) for flight occupancy. History uses dates D minus 371, 364, and 357 days, ignoring missing/zero-total records; average their daily booked percentages equally. `crowd_score = 0.5 * flight occupancy + 0.5 * history average`, falling back to flight occupancy alone when history is absent. Round only the final score to one decimal; Low is below 50, Medium is 50 to below 75, and High is 75 or above. Named constants are defined once in `traffic/calculation.py`.
+- No flights or zero total seats produces no calculated row. If a flight change leaves no seats for a pair, remove only its calculated row. Manual entries are preserved even with no flights.
+- Every source except exact `Calculated from 2026 flights and 2025 history`, legacy `Calculated from flights`, and `Sample data` is manual. Recalculation upgrades the legacy calculated label while preserving its creator. A manual airport/date entry always takes precedence and is never overwritten or deleted by automatic calculation.
+- A calculated row's required creator is the user who first triggers calculation, or the configured seed Staff user for management commands. Preserve that creator on later recalculations. Converting an old Sample data row establishes the current calculator as its calculated creator.
+- Calculated rows are read-only for every API role: PATCH and DELETE return 403. Clients cannot create the reserved calculated source. Staff/Head responses use `created_by_username=null`, `is_calculated=true`, and `can_edit=false`; the UI displays Calculated automatically. Traveler responses continue to omit creator fields.
+- Every forecast response includes live `flight_count`, `seats_total`, and `seats_booked`. These are response aggregates, not stored columns or new relationships. Two grouped flight queries serve the whole forecast list, guarded by a constant-query-count test. Pagination adds one COUNT query and limits the rows aggregated per response.
+- Constants in `traffic/calculation.py` are MEDIUM_THRESHOLD=50, HIGH_THRESHOLD=75, FLIGHT_WEIGHT=0.5, HISTORY_WEIGHT=0.5, HISTORY_DAY_OFFSETS=(371,364,357), RECOMMENDATION_WINDOW=7, and MAX_RECOMMENDATIONS=3. Flight/history reads are grouped or fetched in bulk; recalculation uses bulk writes.
+- Raw SQL flight/history changes do not trigger recalculation; run `python manage.py recalculate_forecasts` afterward. Flight create/update/delete and old/new pair recalculation share a transaction and explicit services, without signals. Lookups are locked to serialize calculations and manual writes.
+- The approved cleanup deletes only rows whose source is exactly `Sample data`; manual rows are not cleaned up. Sample flight seeding now calls calculation instead of inventing weekday levels.
 
 ### 3.7 `historical_records`
 
@@ -192,7 +199,7 @@ Rules:
 
 - One record per airport per date.
 - Totals only. No individual passenger or booking data.
-- The dataset these come from is **TBD** (see `PRODUCT.md`, Data Source). Sample data and SQL scripts go in `backend/database/`.
+- Local invented 2025 history comes from `backend/database/sample_flights.sql` (3,650 rows, ten airports). Production source datasets remain **TBD**. The script replaces all historical rows and only seed-owned flights, preserving manual forecasts and other users' flights.
 
 ---
 
@@ -201,7 +208,7 @@ Rules:
 - Passwords are hashed by Django's built-in password hashing. They are never stored or logged in plain text.
 - API responses never include the `password` field.
 - Sign-in uses tokens. The password is only sent at sign-in, and the token is used for later requests.
-- A user's profile details are visible only to that user and admins. Head management accepts a target email and returns only a result message, without profile details.
+- Profile details remain self-only except the approved Head Staff views. Heads may read exactly `id`, `username`, `email`, `first_name`, `last_name`, `date_joined`, `flights_created`, and `forecasts_created` about a Staff member. The list returns the subset id/username/email; the detail endpoint returns all eight fields. Never expose passwords, hashes, tokens, last_login, other fields, or details of Travelers/Heads through these endpoints. Pending assignments still expose only `email`, `assigned_by_username`, and `assigned_at`. Assignment/revocation actions still return only result messages. Record counts are aggregate response values, not new user columns.
 - The Staff dashboard shows summary charts only, never individual traveler details.
 - No table stores passenger names, booking references, payment details, or ticket prices.
 - Secrets and database credentials stay in `backend/.env` and are never committed.
@@ -216,6 +223,25 @@ Rules:
 
 ## 6. Open items (TBD)
 
-- How `crowd_level` is calculated (thresholds), and what `crowd_score` measures.
 - How crowd levels for "All Airports" are combined, since forecasts are stored per airport.
 - The dataset for flights, airports, airlines, and historical records.
+
+
+### Filter indexes
+
+Flight has flight_departure_idx (departure_time) for ordered upcoming/page reads,
+flight_origin_departure_idx (origin_id, departure_time) for route/date departures,
+and flight_dest_arrival_idx (destination_id, arrival_time) for airport/date arrivals.
+Migration flights.0003 adds indexes only. Existing foreign-key indexes and the
+forecast/history unique (airport_id, date) indexes are retained without duplication.
+
+
+### Read-only display and browser route history
+
+The dashboard days series returns stored forecast scores, or the matching 2025
+history average when a manual score is null. This display fallback does not
+update crowd_score, crowd_level, source, ownership, or calculation timestamps.
+Without that history the score remains null. No data was recalculated for the
+redesign. Home recent routes are browser-only origin/destination pairs, stored
+per signed-in user by the homepage module; there is no bookings/search table,
+date, passenger count or seat class.

@@ -30,3 +30,7 @@
 @media(max-width: 900px) { .airport-calendar-layout { grid-template-columns: 1fr; } .airport-date-details { border-left: 0; border-top: 1px solid var(--border); padding-left: 0; padding-top: var(--space-24); } }
 @media(max-width: 600px) { .airport-calendar { padding: var(--space-16); } .airport-day-grid { gap: var(--space-4); } }
 @media(prefers-reduced-motion: reduce) { .calendar-month-button, .airport-day-grid .calendar-day { transition: none; } }
+
+.airport-day-grid .route-highlight { outline: 2px solid var(--ink); outline-offset: -3px; }
+
+.route-mode .calendar-day.no-data:not(.route-highlight)[aria-pressed=true] { background: var(--no-data-background); color: var(--disabled-text); }

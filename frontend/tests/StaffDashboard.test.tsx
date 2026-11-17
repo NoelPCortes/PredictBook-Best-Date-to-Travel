@@ -2,142 +2,123 @@
 import { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { MemoryRouter } from 'react-router-dom'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { clearSession, setProfile } from '../src/api/authState'
 import { ApiError } from '../src/api/client'
-import { januaryDays } from '../src/data/homeSample'
+import { loadAirports } from '../src/api/lookups'
 import StaffDashboard from '../src/features/staff-dashboard/StaffDashboard'
-import { getDashboardAccess, getOwnRecordCounts } from '../src/features/staff-dashboard/api'
-import { summarizeCrowdDays } from '../src/features/staff-dashboard/summary'
+import { getDashboardAccess, getDashboardSummary, getOwnRecordCounts } from '../src/features/staff-dashboard/api'
+import type { DashboardSummary } from '../src/features/staff-dashboard/types'
 
-vi.mock('../src/features/staff-dashboard/api', () => ({ getDashboardAccess: vi.fn(), getOwnRecordCounts: vi.fn() }))
-
+vi.mock('../src/features/staff-dashboard/api', () => ({ getDashboardAccess: vi.fn(), getDashboardSummary: vi.fn(), getOwnRecordCounts: vi.fn() }))
+vi.mock('../src/api/lookups', () => ({ loadAirports: vi.fn() }))
+const summary: DashboardSummary = {
+  days: [
+    {date:'2026-11-16',weekday:'Monday',crowd_level:'high',crowd_score:80.4,seats_booked:124,seats_total:180,flight_count:3},
+    {date:'2026-11-17',weekday:'Tuesday',crowd_level:'medium',crowd_score:60,seats_booked:60,seats_total:100,flight_count:1},
+    {date:'2026-11-18',weekday:'Wednesday',crowd_level:'low',crowd_score:40,seats_booked:40,seats_total:100,flight_count:1},
+  ],
+  comparison: { average_occupancy_2026_percent: 65, average_occupancy_2025_percent: 60, difference_points: 5, days_busier_than_2025: 1, days_quieter_than_2025: 1, days_compared: 3 },
+  airport: { id: 2, code: 'MNL', name: 'Manila' }, period_start: '2026-11-16', period_end: '2026-12-15',
+  counts: { high: 2, medium: 1, low: 1 }, busiest_weekday: 'Monday',
+  dates: { high: [{ date: '2026-11-16', weekday: 'Monday' }, { date: '2026-11-23', weekday: 'Monday' }], medium: [{ date: '2026-11-17', weekday: 'Tuesday' }], low: [{ date: '2026-11-18', weekday: 'Wednesday' }] },
+  next_7_days: [
+    { date: '2026-11-16', weekday: 'Monday', crowd_level: 'high' }, { date: '2026-11-17', weekday: 'Tuesday', crowd_level: 'medium' },
+    { date: '2026-11-18', weekday: 'Wednesday', crowd_level: 'low' }, { date: '2026-11-19', weekday: 'Thursday', crowd_level: null },
+    { date: '2026-11-20', weekday: 'Friday', crowd_level: null }, { date: '2026-11-21', weekday: 'Saturday', crowd_level: null }, { date: '2026-11-22', weekday: 'Sunday', crowd_level: null },
+  ],
+}
 let container: HTMLDivElement
 let root: ReturnType<typeof createRoot>
-
 beforeEach(() => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
-  vi.useFakeTimers()
-  vi.setSystemTime(new Date(2026, 0, 2, 12))
-  vi.mocked(getDashboardAccess).mockReset().mockResolvedValue({ detail: 'Sample data', is_sample: true })
+  vi.mocked(getDashboardAccess).mockReset().mockResolvedValue({ detail: 'Access granted', is_sample: true })
+  vi.mocked(getDashboardSummary).mockReset().mockResolvedValue(summary)
   vi.mocked(getOwnRecordCounts).mockReset().mockResolvedValue({ flights: 3, forecasts: 5 })
+  vi.mocked(loadAirports).mockReset().mockResolvedValue([{ id: 1, code: 'CEB', name: 'Cebu', city: 'Cebu', country: 'Philippines' }, { id: 2, code: 'MNL', name: 'Manila', city: 'Manila', country: 'Philippines' }])
   setProfile({ id: 1, username: 'staff_user', email: 'staff@example.com', first_name: '', last_name: '', role: 'staff' })
-  container = document.createElement('div')
-  document.body.append(container)
-  root = createRoot(container)
+  container = document.createElement('div'); document.body.append(container); root = createRoot(container)
+})
+afterEach(async () => { await act(async () => root.unmount()); container.remove(); clearSession() })
+async function render() { await act(async () => root.render(<MemoryRouter initialEntries={['/staff/dashboard']}><StaffDashboard /></MemoryRouter>)) }
+
+it('renders live counts, period, default airport, every date and the seven-day strip in order', async () => {
+  await render()
+  expect(container.querySelector('.eyebrow')?.textContent).toBe('STAFF DASHBOARD')
+  expect([...container.querySelectorAll('.staff-metric-value')].map(item => item.textContent)).toEqual(['2', '1', '1', 'Monday'])
+  expect(container.querySelector<HTMLButtonElement>('[role=combobox]')?.value).toBe('2')
+  expect(container.querySelector('.staff-context')?.textContent).toContain('Next 30 daysNovember 16, 2026')
+  expect([...container.querySelectorAll('.staff-level-cards time')].map(item => item.textContent)).toEqual(['Mon, Nov 16', 'Mon, Nov 23', 'Tue, Nov 17', 'Wed, Nov 18'])
+  expect(container.querySelectorAll('.staff-seven-days li')).toHaveLength(7)
+  expect(container.querySelector('.staff-seven-days')?.textContent).toContain('High crowd')
+  expect(container.querySelector('.staff-seven-days')?.textContent).toContain('No data')
+  expect(container.querySelector('.staff-dashboard')?.lastElementChild?.classList.contains('own-records')).toBe(true)
+  expect([...container.querySelectorAll('.own-records dd')].map(item => item.textContent)).toEqual(['3', '5'])
+  expect(container.textContent).not.toContain('Sample data')
+  expect(container.textContent).not.toContain('January')
+  expect(container.textContent).not.toContain('Charts')
+  expect(container.querySelector('svg')).toBeNull()
+})
+it('changes the airport using the summary endpoint', async () => {
+  await render()
+  await act(async () => container.querySelector<HTMLButtonElement>('[role=combobox]')!.click())
+  await act(async () => container.querySelector<HTMLElement>('[role=option][data-value="1"]')!.click())
+  expect(getDashboardSummary).toHaveBeenLastCalledWith('1')
+})
+it('shows the real flight and history comparison', async () => {
+  await render()
+  expect(container.textContent).toContain('2026 flights vs 2025 history')
+  expect([...container.querySelectorAll('.staff-comparison-values dd')].map(item => item.textContent)).toEqual(['65.0%', '60.0%', '5.0', '1', '1', '3'])
+})
+it('shows missing history without inventing a comparison', async () => {
+  vi.mocked(getDashboardSummary).mockResolvedValue({ ...summary, comparison: { ...summary.comparison, average_occupancy_2025_percent: null, difference_points: null, days_compared: 0 } })
+  await render()
+  expect(container.textContent).toContain('No 2025 history for this period.')
+  expect(container.querySelectorAll('.staff-comparison-values dd')[1]?.textContent).toBe('No data')
+})
+it('shows zero counts and useful empty messages without inventing dates', async () => {
+  vi.mocked(getDashboardSummary).mockResolvedValue({ ...summary, counts: { high: 0, medium: 0, low: 0 }, dates: { high: [], medium: [], low: [] }, busiest_weekday: null })
+  await render()
+  expect(container.textContent).toContain('No data for this airport in this period.')
+  for (const level of ['high', 'medium', 'low']) expect(container.textContent).toContain(`No ${level} crowd days in this period.`)
+  expect(container.querySelector('.staff-level-cards time')).toBeNull()
+})
+it('shows loading while summary is pending', async () => {
+  vi.mocked(getDashboardSummary).mockReturnValue(new Promise(() => {})); await render()
+  expect(container.textContent).toContain('Loading airport summary')
+  expect(container.querySelector('.staff-metrics')).toBeNull()
+})
+it('shows summary errors and allows retry', async () => {
+  vi.mocked(getDashboardSummary).mockRejectedValueOnce(new TypeError('Offline')); await render()
+  expect(container.querySelector('[role="alert"]')?.textContent).toContain('Unable to load the airport summary')
+  await act(async () => [...container.querySelectorAll('button')].find(button => button.textContent === 'Retry summary')!.click())
+  expect(container.querySelector('.staff-metrics')).not.toBeNull()
+})
+it.each([403, 500])('withholds protected data after access error %s', async status => {
+  vi.mocked(getDashboardAccess).mockRejectedValueOnce(new ApiError(status, {})); await render()
+  expect(container.querySelector('[role="alert"]')).not.toBeNull()
+  expect(getDashboardSummary).not.toHaveBeenCalled(); expect(getOwnRecordCounts).not.toHaveBeenCalled()
+})
+it('handles own-record count errors independently', async () => {
+  vi.mocked(getOwnRecordCounts).mockRejectedValueOnce(new TypeError('Offline')); await render()
+  expect(container.querySelector('.own-records [role="alert"]')).not.toBeNull()
+  expect(container.querySelector('.staff-metrics')).not.toBeNull()
 })
 
-afterEach(async () => {
-  await act(async () => root.unmount())
-  container.remove()
-  clearSession()
-  vi.useRealTimers()
-})
-
-async function render() {
-  await act(async () => root.render(<MemoryRouter initialEntries={['/staff/dashboard']}><StaffDashboard /></MemoryRouter>))
-}
-
-describe('Staff dashboard calculations', () => {
-  it('computes January counts and the busiest weekday from correctly aligned dates', () => {
-    const summary = summarizeCrowdDays(januaryDays, new Date(2026, 0, 2))
-    expect(summary.counts).toEqual({ High: 8, Medium: 11, Low: 12 })
-    expect(summary.busiestWeekdays).toEqual(['Sunday'])
-    expect(summary.upcomingHighDays[0]!.date.getDay()).toBe(6)
-    expect(summary.upcomingHighDays[0]!.date.getDate()).toBe(3)
-    expect(summary.upcomingHighDays[1]!.date.getDay()).toBe(0)
-  })
-
-  it('includes today and excludes earlier dates using the live local day', () => {
-    const summary = summarizeCrowdDays(januaryDays, new Date(2026, 0, 18, 23, 59))
-    expect(summary.upcomingHighDays.map(day => day.date.getDate())).toEqual([18, 24, 25, 26])
-    expect(summary.nextSevenDays.map(day => day.date.getDate())).toEqual([18, 19, 20, 21, 22, 23, 24])
-  })
-
-  it('handles a week crossing the end of the sample month without inventing levels', () => {
-    const summary = summarizeCrowdDays(januaryDays, new Date(2026, 0, 28))
-    expect(summary.nextSevenDays.map(day => day.date.getDate())).toEqual([28, 29, 30, 31, 1, 2, 3])
-    expect(summary.nextSevenDays.slice(4).every(day => day.level === undefined)).toBe(true)
-    expect(summary.nextSevenDays[4]!.date.getMonth()).toBe(1)
-  })
-
-  it('returns empty upcoming sample days after January while retaining monthly totals', () => {
-    const summary = summarizeCrowdDays(januaryDays, new Date(2026, 10, 16))
-    expect(summary.upcomingHighDays).toEqual([])
-    expect(summary.nextSevenDays.every(day => day.level === undefined)).toBe(true)
-    expect(summary.counts.High + summary.counts.Medium + summary.counts.Low).toBe(31)
-  })
-
-  it('reports tied busiest weekdays and no high days accurately', () => {
-    const days = [{ date: new Date(2026, 0, 3), level: 'High' as const }, { date: new Date(2026, 0, 4), level: 'High' as const }]
-    expect(summarizeCrowdDays(days, new Date(2026, 0, 1)).busiestWeekdays).toEqual(['Sunday', 'Saturday'])
-    expect(summarizeCrowdDays([], new Date()).busiestWeekdays).toEqual([])
-  })
-})
-
-describe('Staff dashboard page', () => {
-  it('shows counts owned by the signed-in user separately from sample metrics', async () => {
-    await render()
-    expect(getOwnRecordCounts).toHaveBeenCalledOnce()
-    expect(container.querySelector('.own-records h2')?.textContent).toBe('Your records')
-    expect([...container.querySelectorAll('.own-records dd')].map(item => item.textContent)).toEqual(['3', '5'])
-  })
-
-  it('handles count loading and failures without hiding the existing dashboard', async () => {
-    vi.mocked(getOwnRecordCounts).mockRejectedValueOnce(new TypeError('Offline'))
-    await render()
-    expect(container.querySelector('.own-records [role="alert"]')?.textContent).toContain('Unable to load your record counts')
-    expect(container.querySelector('.staff-metrics')).not.toBeNull()
-    await act(async () => container.querySelector<HTMLButtonElement>('.own-records button')!.click())
-    expect(container.querySelectorAll('.own-records dd')).toHaveLength(2)
-  })
-
-  it('shows a loading state for pending counts', async () => {
-    vi.mocked(getOwnRecordCounts).mockReturnValue(new Promise(() => {}))
-    await render()
-    expect(container.querySelector('.own-records [role="status"]')?.textContent).toContain('Loading your records')
-  })
-  it('renders real sample metrics, weekdays, and only the available Dashboard navigation', async () => {
-    await render()
-    expect(getDashboardAccess).toHaveBeenCalledOnce()
-    expect(container.querySelector('h1')?.textContent).toBe('Crowd overview')
-    expect([...container.querySelectorAll('.staff-metric-value')].map(item => item.textContent)).toEqual(['8', '11', '12', 'Sunday'])
-    expect(container.textContent).toContain('Sample data')
-    expect(container.textContent).toContain('staff_user')
-    expect(container.querySelector('.staff-seven-days time')?.textContent).toBe('Fri2Jan')
-    expect(container.querySelector('.staff-upcoming strong')?.textContent).toBe('Sat, Jan 3, 2026')
-    expect([...container.querySelectorAll('.app-nav-links a')].map(link => link.textContent)).toEqual(['Dashboard', 'Flights', 'Crowd forecasts'])
-    expect(container.querySelector('a[aria-current="page"]')?.getAttribute('href')).toBe('/staff/dashboard')
-    expect(container.textContent).not.toContain('Charts')
-    expect(container.querySelector('svg')).toBeNull()
-  })
-
-  it('shows no upcoming January days at the live November date', async () => {
-    vi.setSystemTime(new Date(2026, 10, 16))
-    await render()
-    expect(container.textContent).toContain('No upcoming high-crowd days in the January 2026 sample data.')
-    expect(container.querySelectorAll('.staff-level-none')).toHaveLength(7)
-  })
-
-  it('updates the next-seven-day panel after local midnight', async () => {
-    vi.setSystemTime(new Date(2026, 0, 2, 23, 59, 30))
-    await render()
-    await act(async () => { vi.advanceTimersByTime(60_000) })
-    expect(container.querySelector('.staff-seven-days time')?.textContent).toBe('Sat3Jan')
-  })
-
-  it('does not reveal the summary while server authorization is pending', async () => {
-    vi.mocked(getDashboardAccess).mockReturnValue(new Promise(() => {}))
-    await render()
-    expect(container.querySelector('[role="status"]')?.textContent).toContain('Checking dashboard access')
-    expect(container.querySelector('.staff-metrics')).toBeNull()
-    expect(getOwnRecordCounts).not.toHaveBeenCalled()
-  })
-
-  it.each([403, 500])('withholds dashboard content after a server %s response', async status => {
-    vi.mocked(getDashboardAccess).mockRejectedValue(new ApiError(status, {}))
-    await render()
-    expect(container.querySelector('[role="alert"]')).not.toBeNull()
-    expect(container.querySelector('.staff-metrics')).toBeNull()
-  })
+it('renders 30 accessible bars, levels, heights, references and selected details', async () => {
+  await render()
+  expect(container.querySelectorAll('.crowd-chart-day')).toHaveLength(30)
+  expect([...container.querySelectorAll<HTMLElement>('.crowd-chart-fill')].map(bar=>bar.style.height)).toEqual(['80.4%','60%','40%'])
+  expect(container.querySelector('.crowd-chart-fill.high')).not.toBeNull()
+  expect(container.querySelector('.crowd-chart-fill.medium')).not.toBeNull()
+  expect(container.querySelector('.crowd-chart-fill.low')).not.toBeNull()
+  expect(container.querySelector('.crowd-chart-legend')?.textContent).toBe('LowMediumHighNo data')
+  expect(container.querySelector('.crowd-chart-references')?.textContent).toContain('Medium from 50')
+  expect(container.querySelector('.crowd-chart-references')?.textContent).toContain('High from 75')
+  expect(container.querySelector('.crowd-chart-score')?.textContent).toBe('80')
+  const first=container.querySelector<HTMLButtonElement>('.crowd-chart-day')!
+  expect(first.getAttribute('aria-label')).toBe('Monday, Nov 16: High crowd, score 80.4%, 124 of 180 seats booked on 3 flights.')
+  await act(async () => container.querySelectorAll<HTMLButtonElement>('.crowd-chart-day')[3]!.click())
+  expect(container.querySelector('.crowd-chart-details')?.textContent).toContain('No data')
+  expect(container.querySelectorAll('.crowd-chart-date')[15]?.textContent).toContain('Dec')
 })

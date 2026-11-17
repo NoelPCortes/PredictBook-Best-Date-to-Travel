@@ -1,7 +1,5 @@
-import { FLIGHT_TIME_ZONE } from './flightTime'
-
-export function philippineToday(): string {
-  const parts = new Intl.DateTimeFormat('en-CA', { timeZone: FLIGHT_TIME_ZONE, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date())
+export function projectToday(): string {
+  const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'UTC', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date())
   const part = (name: Intl.DateTimeFormatPartTypes) => parts.find(item => item.type === name)!.value
   return `${part('year')}-${part('month')}-${part('day')}`
 }

@@ -10,7 +10,7 @@ import { deleteFlight, listFlights } from '../src/features/flights/api'
 import { ApiError } from '../src/api/client'
 import type { Flight } from '../src/types/flights'
 
-vi.mock('../src/features/flights/api', () => ({ listFlights: vi.fn(), deleteFlight: vi.fn() }))
+vi.mock('../src/features/flights/api', () => ({ listFlights: vi.fn(), deleteFlight: vi.fn(), loadFlightOptions: vi.fn().mockResolvedValue([[{id:1,code:"CEB",name:"Cebu",city:"Cebu",country:"Philippines"}], [{id:1,name:"Philippine Airlines",code:"PR"}]]) }))
 export const flight: Flight = {
   id: 7, airline: 1, airline_name: 'Philippine Airlines', airline_code: 'PR', flight_number: '100',
   origin: 1, origin_code: 'CEB', origin_name: 'Cebu', destination: 2, destination_code: 'MNL', destination_name: 'Manila',
@@ -31,8 +31,8 @@ beforeEach(() => {
 })
 afterEach(async () => { await act(async () => root.unmount()); container.remove(); clearSession() })
 
-async function render() {
-  await act(async () => root.render(<MemoryRouter initialEntries={['/staff/flights']}><Routes>
+async function render(path = '/staff/flights') {
+  await act(async () => root.render(<MemoryRouter initialEntries={[path]}><Routes>
     <Route path="/staff/flights" element={<RoleRoute allowedRoles={['staff', 'head']}><FlightListPage /></RoleRoute>} />
     <Route path="/home" element={<p>Traveler home</p>} /><Route path="/signin" element={<p>Sign in</p>} />
   </Routes></MemoryRouter>))
@@ -131,4 +131,32 @@ it.each(['head', 'traveler', null] as const)('guards the flight list for %s', as
   await render()
   expect(listFlights).toHaveBeenCalledTimes(role === 'head' ? 1 : 0)
   expect(container.textContent).toContain(role === 'head' ? 'Flights' : role === 'traveler' ? 'Traveler home' : 'Sign in')
+})
+
+
+it('reads airport/date filters and allows clearing them', async () => {
+  await render('/staff/flights?airport=2&date=2026-12-01')
+  expect(listFlights).toHaveBeenLastCalledWith({ airport: '2', date: '2026-12-01' })
+  expect(container.querySelector('.record-filter')?.textContent).toContain('2026-12-01')
+  await act(async () => container.querySelector<HTMLAnchorElement>('.record-filter a')!.click())
+  expect(listFlights).toHaveBeenLastCalledWith({ airport: '', date: '' })
+  expect(container.querySelector('.record-filter')).toBeNull()
+})
+
+it('searches server-side with all controls and clears filters', async () => {
+  await render()
+  expect(container.querySelector('[placeholder="Search flight number, airline, or airport"]')).not.toBeNull()
+  await act(async () => {
+    const input=container.querySelector<HTMLInputElement>('[name=flight-search]')!
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value')!.set!.call(input,'PR')
+    input.dispatchEvent(new Event('input',{bubbles:true}))
+  })
+  for (const field of ['flight-origin','flight-destination','flight-airline']) {
+    await act(async () => container.querySelector<HTMLButtonElement>(`[name="${field}"]`)!.click())
+    await act(async () => container.querySelector<HTMLElement>('[role=option][data-value="1"]')!.click())
+  }
+  await act(async () => container.querySelector('form')!.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true})))
+  expect(listFlights).toHaveBeenLastCalledWith(expect.objectContaining({origin:'1',destination:'1',airline:'1',search:'PR'}))
+  await act(async () => [...container.querySelectorAll('form .record-actions button')].find(button=>button.textContent==='Clear')!.dispatchEvent(new MouseEvent('click',{bubbles:true})))
+  expect(listFlights).toHaveBeenLastCalledWith({airport:'',date:''})
 })
