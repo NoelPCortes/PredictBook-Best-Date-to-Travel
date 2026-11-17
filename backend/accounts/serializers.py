@@ -7,7 +7,7 @@ from rest_framework_simplejwt.settings import api_settings
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from . import services
-from .models import User
+from .models import StaffAssignment, User
 
 
 class StrictFieldsMixin:
@@ -106,3 +106,19 @@ class EmailSerializer(StrictFieldsMixin, serializers.Serializer):
 
 class RemoveHeadSerializer(EmailSerializer):
     role = serializers.ChoiceField(choices=(User.Role.STAFF, User.Role.TRAVELER))
+
+
+class StaffListSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ("username", "email")
+
+
+class PendingStaffSerializer(serializers.ModelSerializer):
+    assigned_by_username = serializers.CharField(
+        source="assigned_by.username", read_only=True
+    )
+
+    class Meta:
+        model = StaffAssignment
+        fields = ("email", "assigned_by_username", "assigned_at")

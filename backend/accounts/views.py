@@ -4,15 +4,18 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from . import services
+from .models import StaffAssignment, User
 from .permissions import IsHead
 from .serializers import (
     EmailSerializer,
     LogoutSerializer,
     PasswordChangeSerializer,
+    PendingStaffSerializer,
     ProfileSerializer,
     RemoveHeadSerializer,
     SigninSerializer,
     SignupSerializer,
+    StaffListSerializer,
 )
 
 
@@ -116,3 +119,19 @@ class RemoveHeadView(HeadManagementView):
 
 class RevokeStaffView(HeadManagementView):
     perform_action = staticmethod(services.revoke_staff)
+
+
+class StaffListView(APIView):
+    permission_classes = (IsAuthenticated, IsHead)
+
+    def get(self, request):
+        staff = User.objects.filter(role=User.Role.STAFF).order_by("username")
+        pending = StaffAssignment.objects.select_related("assigned_by").order_by(
+            "email"
+        )
+        return Response(
+            {
+                "staff": StaffListSerializer(staff, many=True).data,
+                "pending": PendingStaffSerializer(pending, many=True).data,
+            }
+        )
