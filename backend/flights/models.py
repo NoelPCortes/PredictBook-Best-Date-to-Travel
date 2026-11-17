@@ -34,6 +34,11 @@ class Flight(models.Model):
     available_seats = models.PositiveIntegerField()
 
     class Meta:
+        indexes = (
+            models.Index(fields=["departure_time"], name="flight_departure_idx"),
+            models.Index(fields=["origin", "departure_time"], name="flight_origin_departure_idx"),
+            models.Index(fields=["destination", "arrival_time"], name="flight_dest_arrival_idx"),
+        )
         constraints = (
             models.CheckConstraint(
                 condition=~models.Q(origin=models.F("destination")),

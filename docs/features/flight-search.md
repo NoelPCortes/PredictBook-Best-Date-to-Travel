@@ -1,60 +1,85 @@
-﻿# Flight search
+# Flight search and management
 
-[Documentation index](../README.md) · [Landing](../pages/landing.md) · [Home](../pages/home.md)
+[Documentation index](../README.md) | [Home](../pages/home.md)
 
-## Purpose
+## Traveler Home route search
 
-Allow a traveler to search by origin, destination and date, then inspect airline, flight times and available-seat counts. Ticket prices are outside the product scope. The backend owner is flights.
+/home is Traveler-only. It starts with From and To searchable airport pickers and
+Search flights. Airports must differ; no date, passengers or seat class is part
+of a search. Results stay on Home and use origin, destination and upcoming=true:
+only From-to-To departures at or after now, ordered by departure_time then id.
+Pagination controls fetch one page at a time. Results show airline, flight number,
+route, Philippine departure date/time with ClockIcon, and open seats with SeatIcon.
+Empty results name the searched route. Loading, errors and Retry are separate.
 
-## What exists today
+recentRoutes.ts in features/homepage is the one route-storage module. It stores
+only {origin,destination} pairs under predictbook:recent-routes:<user id>, retains
+five distinct routes newest first, and exposes Clear. It stores no timestamps,
+passenger data or booking details and never logs the list. Your upcoming booking
+means the most recent saved route with at least one upcoming flight, its total
+count and next three departure times. It is not a booking record. Empty state:
+No upcoming booking yet. Search flights to get started.
 
-| Location | Inputs and behavior |
-|---|---|
-| Landing / | From, To and Date text fields; Search flights is inactive |
-| Home /home | From, To and Date text fields; a swap button exchanges From/To values; Search flights is inactive |
+Clicking a recent search or upcoming booking reruns that route and updates the
+Home calendar to the From airport. GET /api/flights/route-dates/ supplies monthly
+departure counts. Only route days receive crowd colors and a visible ring; other
+days are neutral and say No flights on this route. Accessible route-day names
+include date, route, flight count and crowd level. Show all crowd levels clears
+the active route. Home shows neither recommendations nor Why this level.
+Landing's separate inactive marketing search remains unchanged.
 
-Both forms prevent a page reload and make no API request. Date inputs are plain text, not date pickers. Search buttons do not navigate or validate a route. Home's calendar selection does not populate the search Date field.
+## Flight reads and route dates
 
-Home's recent searches are fixed constants, not actual history. Clicking them or View all does nothing. There are no passenger or seat-class search controls.
+Every signed-in role can GET /api/flights/. Responses use
+{count,next,previous,results}, default/capped page size 50, page initially 1.
+Filters combine: origin, destination, airline (lookup ids), airport, date,
+search, upcoming=true, and mine=true. Search partially matches flight number,
+airline name/code and origin/destination code, name or city, case-insensitively.
+Default ordering remains departure_time then id.
 
-## Files and unfinished work
+Without airport, date keeps its existing Philippine departure-date behavior.
+With airport, it counts that airport's UTC-local departures and arrivals, matching
+forecast dates. Filtered rows include direction=departing or arriving relative
+to the airport. Flight timestamp entry/display remains Asia/Manila; TIME_ZONE is
+unchanged at UTC. These two date-filter modes are labeled in the UI.
 
-- Page markup/state: frontend/src/pages/LandingPage.tsx and HomePage.tsx.
-- Search styling: global src/index.css, with Home-specific layout in HomePage.css.
-- Home fixtures: src/data/homeSample.ts.
-- Implemented data models: [airports, airlines and flights](../database.md).
+GET /api/flights/route-dates/?origin=<id>&destination=<id>&month=YYYY-MM returns
+{dates:[{date,flight_count,open_seats}]}. It groups From-to-To departures only by
+project-local UTC departure date, with exclusive next-month bounds. It does not
+filter to upcoming flights. Missing/invalid/equal route parameters return 400,
+unknown airports 404, signed-out requests 401. A query-count test guards the
+single airport existence query plus one aggregate query, with auth resolved.
 
-Dedicated search results/details pages, search contracts, production datasets, and their loading/error handling remain TBD. Flight-management validation and calendar reads are implemented below. No results route has been defined. Home tests currently cover field presence and route swapping; they do not test a real flight search.
+Airport and airline lookups at /api/flights/airports/ and /api/flights/airlines/
+are read-only and paginated. Airport rows add forecast_count from a grouped count.
+No lookup write endpoint, price or passenger data is introduced.
 
+## Staff Flights
 
-## Flight management and calendar reads
+/staff/flights has a search section above the table: text search, From, To,
+Airline, Date, Search and Clear. Lookups use the shared searchable picker; the
+text placeholder is Search flight number, airline, or airport. Search/filter
+values are reflected in the URL and server query; page controls preserve them.
+Existing airport/date View flights links retain a clearable filter notice.
+The table still shows airline, number, route, departure/arrival, open/total seats,
+creator and permitted actions.
 
-Staff and Heads use `/staff/flights`, `/staff/flights/new`, and
-`/staff/flights/:id/edit` from `features/flights/`. The list shows airline,
-number, route, departure/arrival, open/total seats, and creator. Add is available
-to Staff/Heads; Edit/Delete follow the server's can_edit flag. Forms use lookup
-selects and date/time inputs, backend field errors, first-invalid focus, and
-success alerts. Delete requires confirmation with Cancel and danger Delete.
+/staff/flights/new and /staff/flights/:id/edit reuse existing forms, now with
+searchable airport/airline controls. They submit the same ids and timestamps,
+show linked backend field errors, focus the first invalid field, and show success
+alerts. Delete retains confirmation with ghost Cancel and danger Delete.
+Staff can change only their flights; Heads any flight; Travelers cannot write.
+Signed-out reads/writes return 401. Traveler reads omit creator information.
+The existing route/time/seat/unique validation and transactional recalculation
+behavior remain unchanged. Client-created ownership is rejected with 400.
 
-Authenticated reads use `GET /api/flights/`, optionally filtered by
-`origin=<airport id>`, `date=YYYY-MM-DD`, and `mine=true`. Creation uses POST on
-the same path. Detail GET, PATCH, and DELETE use `/api/flights/<id>/`. Airports
-and airlines are read-only at `/api/flights/airports/` and
-`/api/flights/airlines/`. Responses include airline and airport names/codes.
+## Verification and remaining work
 
-The server links records to their creator. Staff can update/delete only their
-own flights; Heads can change any flight. Travelers receive 403 on writes and
-signed-out callers receive 401. Traveler reads omit creator information. No
-other user's email is returned. Clients supplying created_by receive a field
-error. The documented route/time/seat/uniqueness constraints produce field-level
-400 errors, including partial updates and documented constraint races.
-
-Home and `/calendar` show flights departing the chosen airport on the selected
-date through the same shared AirportCalendar. Dates and flight times use
-Philippine time, explicitly labeled; Django remains UTC. These calendar reads do
-not activate the existing sample flight-search forms or introduce a new search
-results route.
-
-The idempotent seed_sample_data command generates sample airports, airlines, and
-five flights per day for 14 Philippine days. These are not verified schedules.
-See [setup](../../README.md) and [backend](../backend.md) for details.
+Backend tests cover filters, search, upcoming, ordering, pagination, route month
+boundaries/timezones/direction, permissions and query counts. Frontend tests
+cover Home searches/storage/highlights and Staff controls alongside form/CRUD
+regressions. Tests use mocks/jsdom; browser/network rendering remains unverified.
+Dedicated search results/details routes and production datasets remain TBD.
+There is no booking persistence or new search table. See [setup](../../README.md)
+for the existing invented small seed and large SQL dataset; neither is a real
+schedule, and neither was rerun for this redesign.

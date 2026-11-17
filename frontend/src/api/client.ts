@@ -41,7 +41,7 @@ async function refreshTokens() {
   writeTokens({ access: tokens.access, refresh: tokens.refresh })
 }
 
-export async function apiRequest<T>(path: string, requestOptions: RequestInit | (() => RequestInit) = {}, isPublic = false): Promise<T> {
+async function requestOnce<T>(path: string, requestOptions: RequestInit | (() => RequestInit) = {}, isPublic = false): Promise<T> {
   async function send() {
     const options = typeof requestOptions === 'function' ? requestOptions() : requestOptions
     const headers = new Headers(options.headers)
@@ -76,4 +76,16 @@ export function fieldMessage(value: unknown): string | undefined {
   if (typeof value === 'string') return value
   if (Array.isArray(value)) return value.filter(item => typeof item === 'string').join(' ') || undefined
   return undefined
+}
+
+
+const pendingReads = new Map<string, Promise<unknown>>()
+export function apiRequest<T>(path: string, options: RequestInit | (() => RequestInit) = {}, isPublic = false): Promise<T> {
+  if (typeof options === 'function' || (options.method && options.method !== 'GET') || options.signal || options.headers) return requestOnce<T>(path, options, isPublic)
+  const key = `${isPublic}/${readTokens()?.access ?? ''}/${path}`
+  const existing = pendingReads.get(key)
+  if (existing) return existing as Promise<T>
+  const request = requestOnce<T>(path, options, isPublic).finally(() => { pendingReads.delete(key) })
+  pendingReads.set(key, request)
+  return request
 }

@@ -73,7 +73,7 @@ def test_reads_include_lookups_and_privacy_by_role(users, flight, role):
     detail = client.get(f"{BASE}{flight.pk}/")
     assert detail.status_code == 200
     record = detail.json()
-    assert record == response.json()[0]
+    assert record == response.json()["results"][0]
     assert record["airline_name"] == "Philippine Airlines"
     assert record["airline_code"] == "PR"
     assert record["origin_code"] == "CEB"
@@ -103,7 +103,7 @@ def test_staff_and_head_create_owned_flights(users, payload, role):
 def test_staff_cannot_modify_another_staff_record(users, flight, method):
     other = User.objects.create(username="other", email="other@example.com", role="staff")
     client = client_for(other)
-    assert client.get(BASE).json()[0]["can_edit"] is False
+    assert client.get(BASE).json()["results"][0]["can_edit"] is False
     response = getattr(client, method)(f"{BASE}{flight.pk}/", {"available_seats": 20}, format="json")
     assert response.status_code == 403
     flight.refresh_from_db()
@@ -183,11 +183,11 @@ def test_filters_combine_and_use_philippine_departure_day(users, flight):
     flight.departure_time = parse_datetime("2026-11-30T16:30:00Z")
     flight.arrival_time = flight.departure_time + timedelta(hours=1)
     flight.save()
-    assert len(client.get(BASE, {"origin": flight.origin_id, "date": "2026-12-01", "mine": "true"}).json()) == 1
-    assert client.get(BASE, {"date": "2026-11-30"}).json() == []
-    assert client.get(BASE, {"origin": flight.destination_id}).json() == []
-    assert client_for(users["head"]).get(BASE, {"mine": "true"}).json() == []
-    assert len(client_for(users["head"]).get(BASE, {"mine": "false"}).json()) == 1
+    assert len(client.get(BASE, {"origin": flight.origin_id, "date": "2026-12-01", "mine": "true"}).json()["results"]) == 1
+    assert client.get(BASE, {"date": "2026-11-30"}).json()["results"] == []
+    assert client.get(BASE, {"origin": flight.destination_id}).json()["results"] == []
+    assert client_for(users["head"]).get(BASE, {"mine": "true"}).json()["results"] == []
+    assert len(client_for(users["head"]).get(BASE, {"mine": "false"}).json()["results"]) == 1
 
 
 @pytest.mark.parametrize("filters,field", [({"date": "bad"}, "date"), ({"origin": "bad"}, "origin"), ({"mine": "bad"}, "mine")])
@@ -214,7 +214,7 @@ def test_role_changes_take_effect_for_existing_token(users, flight):
     users["staff"].role = "traveler"
     users["staff"].save()
     assert client.patch(f"{BASE}{flight.pk}/", {"available_seats": 1}, format="json").status_code == 403
-    assert "created_by_username" not in client.get(BASE).json()[0]
+    assert "created_by_username" not in client.get(BASE).json()["results"][0]
 
 
 @pytest.mark.parametrize("path", ["airports/", "airlines/"])

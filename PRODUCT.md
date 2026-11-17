@@ -2,16 +2,17 @@
 
 This document describes what PredictBook is meant to do and what it will not do. For setup and run instructions, see [README.md](README.md). For the database tables, see [docs/database.md](docs/database.md).
 
-PredictBook is a web application that helps travelers find the best dates to fly. Crowd levels and date suggestions are calculated by the backend from historical flight and booking records. They are not produced by an AI model.
+PredictBook is a web application that helps travelers find the best dates to fly. Crowd levels blend 2026 flights with 2025 history, with manual forecasts still possible. The Traffic Calendar explains the calculated levels and recommends qualifying alternative dates. They are not produced by an AI model.
 
 ## Accounts implementation status
 
 The backend provides sign-up, username/email sign-in, token refresh, logout,
 self-only profile updates, password changes, and Head role management. JWT access
 tokens last 15 minutes; refresh tokens last 7 days and rotate with blacklisting.
-Head management returns result messages without profile details. The existing
-frontend sign-in/sign-up forms are not connected to these endpoints yet; profile,
-route guards, and Head management UI remain pending. See
+Head management actions return result messages. The Head-only list exposes Staff
+id/username/email in the list and the approved Staff detail fields, plus limited pending-assignment fields. Existing account forms,
+profile, guards, and role dashboards are connected; Head lists, Assign, and Remove
+are implemented. See
 [accounts API documentation](docs/features/accounts.md) for the contract.
 
 ## Problem
@@ -26,20 +27,20 @@ Travelers often have a hard time choosing flight dates because of crowded airpor
 
 ## Features
 
-- **Flight and crowd forecast management:** Staff and Heads create and manage flights and airport/date forecasts. Staff can change their own records; Heads can change any record. Travelers view the stored crowd levels and daily flights through the read-only Traffic Calendar and Home preview.
+- **Flight and crowd forecast management:** Staff and Heads create and manage flights and airport/date forecasts. Staff can change their own flights and manual forecasts; Heads can change any flight or manual forecast. Calculated forecasts are read-only and preserve their first calculator. Travelers view the stored crowd levels and daily flights through the read-only Traffic Calendar and Home preview.
 - **User accounts and authentication:** sign-up, sign-in, profile updates, and logout, with separate access for Travelers, Staff, and Heads.
   - Sign-up and sign-in connect to the users table in the PostgreSQL database.
   - Passwords are hashed and never stored in plain text.
   - Sign-in is token-based. The frontend uses the token for later requests.
   - Users can sign in with their username or their email address.
   - Public sign-up does not allow users to select Staff or Head access. Staff access is assigned by a Head using an email address, whether an account already exists or not.
-- **Home page:** after signing in, users see a Home page with flight search and a traffic calendar preview.
-  - "Your bookings", "Your upcoming booking", and "Recent searches" on the Home page are sample data for now. The system does not store bookings (see Privacy), so they must be labeled as sample data until a decision is made.
+- **Home route search:** Travelers search From and To airports only, with different airports required. Upcoming From-to-To flights are ordered by departure and paginated. The last five distinct routes are stored in this browser per signed-in user, newest first, with Clear. Your upcoming booking means the most recent saved route with upcoming flights, showing its count and next three departure times; it is not a booking record. Route dates highlight the From airport calendar; Show all crowd levels restores normal colors. No dates, passenger data, bookings table, recommendations, or breakdown are added to Home.
+- **Searchable pickers:** every airport/airline picker uses the shared searchable combobox/listbox with code/name matching, city/country airport matching, keyboard and touch support, visible labels, error states, and existing icons.
 - **Flight search and details:** search by starting location, destination, and date. View the airline, departure and arrival times, destination, and open seats. Ticket prices are not shown.
 - **Traffic calendar:** a color-coded calendar of expected airport crowd levels (Low, Medium, High) for different airports and dates. The color of each date changes with the crowd level stored for that airport and date: Low is light green, Medium is amber, and High is dark orange. Each level is also available as text (in the legend, in the selected date's details, and in each date's accessible label), so color is never the only signal.
-- **Prediction tool:** estimates crowd levels from historical flight and booking records, using backend logic.
-- **Smart date suggestions:** checks crowd levels and open seats to recommend the best dates to fly, and explains why.
-- **Staff dashboard and charts:** two separate pages. The Dashboard shows summary numbers and upcoming high-crowd days. The Charts page shows crowd trends and busy travel days.
+- **Forecast calculation:** blend the booked-seat percentage of counted 2026 departures/arrivals equally with the average daily percentage from available 2025 records at 371, 364, and 357 days earlier. Without history, use flights only. Round once to one decimal: below 50 is Low, 50 to below 75 is Medium, and 75 or above is High. Flight changes recalculate affected pairs transactionally; raw SQL requires explicit recalculation. No flights or zero seats gives no calculated row. Manual forecasts remain possible and take precedence.
+- **Smart date suggestions:** on Traffic Calendar only, explain the calculated level using actual flight/history numbers and recommend up to three other dates within seven days before or after the selection. Dates need a forecast and open departing seats, and a lower stored score when the selection has a numeric score. Rank by score, open seats, then date; never pad missing results. Home shows neither explanations nor recommendations.
+- **Staff pages:** Crowd overview adds a selectable 30-day column chart with score heights, level colors, 50/75 reference lines, and live flight/seat details, retaining all existing summary cards, date lists, seven-day strip, comparison and own-record counts. Missing manual scores use matching 2025 history for the chart without changing stored forecasts. Flights has server-side search and pagination. Crowd forecasts starts with airport counts, with per-airport filters or global search. A separate Charts page remains TBD.
 - **Role management:**
   - Django administrators create the initial Heads.
   - A Head can assign Staff access by entering an email address, whether the account already exists or not.
@@ -52,7 +53,7 @@ Travelers often have a hard time choosing flight dates because of crowded airpor
   - Fully revoking Staff access returns the user to Traveler.
   - Removing a Head does not affect the Heads they previously promoted.
   - Role removal does not delete the user's account.
-  - Heads have a management interface to assign Staff by email, promote Staff to Head, and remove access according to these permissions.
+- **Head management:** a searchable Staff side list and pending assignments sit beside Assign Staff and the selected Staff details. Heads may read only id, username, email, first_name, last_name, date_joined, flights_created, and forecasts_created for Staff; no Traveler or Head details are exposed. Remove retains confirmation and changes Staff to Traveler without deleting the account. An unchanged assignment is an info alert. Existing Head navigation and promote/remove-Head backend rules remain; those additional management screens remain future work.
 
 ## Privacy
 
@@ -78,4 +79,4 @@ Travelers often have a hard time choosing flight dates because of crowded airpor
 
 ## Data Source
 
-The system cannot connect to live, private airline systems, so it relies on public or sample flight data. The exact datasets are still to be decided.
+The system cannot connect to live, private airline systems, so it relies on public or sample flight data. Local development has invented 2026 flights and 2025 history from backend/database/sample_flights.sql. These are not real schedules. Production datasets remain TBD.

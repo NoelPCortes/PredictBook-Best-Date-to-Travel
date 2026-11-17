@@ -1,13 +1,9 @@
-import type { CrowdLevel } from '../data/homeSample'
 import AirportCalendar from './AirportCalendar'
+import type { CalendarRoute } from './AirportCalendar'
 
-export function CrowdChip({ level }: { level: CrowdLevel }) {
-  return <span className={`crowd-chip ${level.toLowerCase()}`}><i aria-hidden="true" />{level} crowd</span>
-}
-
-export default function HomeCalendar() {
+export default function HomeCalendar({ route, onClearRoute }: { route?: CalendarRoute; onClearRoute?: () => void }) {
   return <section className="home-calendar-preview" aria-labelledby="home-calendar-title">
     <h2 id="home-calendar-title">Traffic calendar</h2>
-    <AirportCalendar />
+    <AirportCalendar route={route} onClearRoute={onClearRoute} />
   </section>
 }

@@ -1,0 +1,18 @@
+.searchable-select { position: relative; min-width: 0; }
+.searchable-select-control { display: flex; align-items: center; }
+.searchable-select button { color: var(--ink); background: var(--white); min-height: var(--staff-nav-height); font: inherit; border: 0; cursor: pointer; }
+.searchable-select [role=combobox] { display: flex; align-items: center; justify-content: space-between; gap: var(--space-8); text-align: left; width: 100%; min-width: 0; }
+.searchable-select [role=combobox] span { overflow-wrap: anywhere; }
+.searchable-select button:hover { background: var(--record-hover); }
+.searchable-select button:active { background: var(--nav-text); }
+.searchable-select :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.searchable-select button:disabled { background: var(--disabled-bg); color: var(--disabled-text); cursor: not-allowed; }
+.searchable-select img { width: var(--alert-icon-size); height: var(--alert-icon-size); flex-shrink: 0; }
+.searchable-popover { position: absolute; top: 100%; left: 0; right: 0; z-index: 20; background: var(--white); border: 1px solid var(--border); border-radius: var(--control-radius); padding: var(--space-8); box-shadow: var(--shadow); }
+.searchable-search { display: flex; align-items: center; gap: var(--space-8); padding: var(--space-8); }
+.searchable-search input { min-width: 0; width: 100%; min-height: var(--staff-nav-height); color: var(--ink); background: var(--white); font: inherit; border: 1px solid var(--border); border-radius: var(--calendar-cell-radius); }
+.searchable-select [role=listbox] { max-height: calc(var(--staff-nav-height) * 8); overflow-y: auto; overscroll-behavior: contain; list-style: none; padding: 0; margin: 0; }
+.searchable-select [role=option], .searchable-select [role=presentation] { min-height: var(--staff-nav-height); padding: var(--space-12); cursor: pointer; }
+.searchable-select [role=option]:hover, .searchable-select .is-active { background: var(--record-hover); outline: 1px solid var(--accent); outline-offset: -1px; }
+.searchable-select [aria-selected=true] { font-weight: 700; }
+.searchable-select [role=option]:active { background: var(--nav-text); }

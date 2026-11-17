@@ -7,9 +7,11 @@ type DeleteConfirmationProps = {
   error: string
   onCancel: () => void
   onDelete: () => void
+  actionLabel?: string
+  pendingLabel?: string
 }
 
-export default function DeleteConfirmation({ message, isDeleting, error, onCancel, onDelete }: DeleteConfirmationProps) {
+export default function DeleteConfirmation({ message, isDeleting, error, onCancel, onDelete, actionLabel = 'Delete', pendingLabel = 'Deleting…' }: DeleteConfirmationProps) {
   const titleId = useId()
   const cancelRef = useRef<HTMLButtonElement>(null)
   useEffect(() => {
@@ -25,7 +27,7 @@ export default function DeleteConfirmation({ message, isDeleting, error, onCance
     {error && <RecordAlert kind="error">{error}</RecordAlert>}
     <div className="record-actions">
       <button ref={cancelRef} type="button" className="record-button record-ghost" onClick={onCancel} disabled={isDeleting}>Cancel</button>
-      <button type="button" className="record-button record-danger" onClick={onDelete} disabled={isDeleting}>{isDeleting ? 'Deleting…' : 'Delete'}</button>
+      <button type="button" className="record-button record-danger" onClick={onDelete} disabled={isDeleting}>{isDeleting ? pendingLabel : actionLabel}</button>
     </div>
   </section>
 }
