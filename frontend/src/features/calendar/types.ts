@@ -10,3 +10,12 @@ export type DateExplanation = {
   crowd_score: number | null; crowd_level: CrowdLevel | null; history_available: boolean
   open_seats: number; sentences: string[]
 }
+
+export type DateRecommendations = {
+  selected: { date: string; has_data: boolean; crowd_score: number | null; crowd_level: CrowdLevel | null }
+  recommendations: {
+    date: string; weekday: string; crowd_level: CrowdLevel; crowd_score: number; score_difference: number | null
+    open_seats: number; flight_count: number; history_average_occupancy_percent: number | null; reasons: string[]
+  }[]
+  message: string
+}

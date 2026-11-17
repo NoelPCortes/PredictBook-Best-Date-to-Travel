@@ -9,12 +9,16 @@ import { loadFlights, loadForecasts } from '../src/api/traffic'
 import RoleRoute from '../src/components/RoleRoute'
 import TrafficCalendarPage from '../src/features/calendar/TrafficCalendarPage'
 import type { Forecast } from '../src/types/traffic'
-import { loadDateExplanation } from '../src/features/calendar/api'
-import type { DateExplanation } from '../src/features/calendar/types'
+import { loadDateExplanation, loadDateRecommendations } from '../src/features/calendar/api'
+import type { DateExplanation, DateRecommendations } from '../src/features/calendar/types'
 
 vi.mock('../src/api/lookups', () => ({ loadAirports: vi.fn() }))
 vi.mock('../src/api/traffic', () => ({ loadFlights: vi.fn(), loadForecasts: vi.fn() }))
-vi.mock('../src/features/calendar/api', () => ({ loadDateExplanation: vi.fn() }))
+vi.mock('../src/features/calendar/api', () => ({ loadDateExplanation: vi.fn(), loadDateRecommendations: vi.fn() }))
+const recommendations: DateRecommendations = {
+  selected: { date: '2026-01-14', has_data: true, crowd_score: 80, crowd_level: 'high' },
+  recommendations: [15, 16, 17].map(day => ({ date: `2026-01-${day}`, weekday: ['Thursday', 'Friday', 'Saturday'][day - 15]!, crowd_level: 'low', crowd_score: 40, score_difference: 40, open_seats: 60, flight_count: 2, history_average_occupancy_percent: 50, reasons: ['60 seats are open on 1 departing flights.'] })), message: '',
+}
 const explanation: DateExplanation = {
   airport: { id: 1, code: 'CEB', name: 'Cebu' }, date: '2026-01-14', weekday: 'Wednesday', has_data: true,
   flights: { count: 2, departing_count: 1, arriving_count: 1, seats_total: 200, seats_booked: 80, occupancy_percent: 40 },
@@ -38,6 +42,7 @@ beforeEach(() => {
     id: 7, airline: 1, airline_name: 'Philippine Airlines', airline_code: 'PR', flight_number: '100', origin: 1, origin_code: 'CEB', origin_name: 'Cebu', destination: 2, destination_code: 'MNL', destination_name: 'Manila', departure_time: '2026-01-14T00:00:00Z', arrival_time: '2026-01-14T01:30:00Z', total_seats: 180, available_seats: 25,
   }])
   vi.mocked(loadDateExplanation).mockReset().mockResolvedValue(explanation)
+  vi.mocked(loadDateRecommendations).mockReset().mockResolvedValue({ ...recommendations, recommendations: [], message: 'No qualifying dates are available within 7 days before or after your selected date.' })
   setProfile({ id: 1, username: 'traveler', email: 'traveler@example.com', role: 'traveler', first_name: '', last_name: '' })
   container = document.createElement('div'); document.body.append(container); root = createRoot(container)
 })
@@ -129,6 +134,47 @@ it('handles breakdown loading, request errors, and retry', async () => {
   expect(container.querySelector('.calendar-breakdown [role="alert"]')).not.toBeNull()
   await click('.calendar-breakdown button')
   expect(container.querySelector('.calendar-breakdown table')).not.toBeNull()
+})
+it('renders up to three recommendations and selects a card date with fresh requests', async () => {
+  vi.mocked(loadDateRecommendations).mockResolvedValue(recommendations)
+  await render()
+  expect(loadDateRecommendations).toHaveBeenCalledWith('1', '2026-01-14')
+  expect(container.querySelectorAll('.calendar-recommendation-card')).toHaveLength(3)
+  expect(container.querySelector('.calendar-recommendations')?.textContent).toContain('40.0 points lower than your selected date')
+  expect(container.querySelector('.calendar-recommendations')?.textContent).toContain('60 open seats')
+  expect(container.querySelector('.calendar-recommendations img[src*="bulbIcon"]')).not.toBeNull()
+  vi.mocked(loadDateRecommendations).mockResolvedValue({ ...recommendations, recommendations: [], message: 'No qualifying dates are available.' })
+  await click('.calendar-recommendation-card')
+  expect(day(15).getAttribute('aria-pressed')).toBe('true')
+  expect(loadDateRecommendations).toHaveBeenLastCalledWith('1', '2026-01-15')
+  expect(loadDateExplanation).toHaveBeenLastCalledWith('1', '2026-01-15')
+  expect(loadFlights).toHaveBeenLastCalledWith({ airport: '1', date: '2026-01-15' })
+  expect(container.querySelectorAll('.calendar-recommendation-card')).toHaveLength(0)
+})
+it('shows fewer dates and missing-selected-data messages without a score comparison', async () => {
+  vi.mocked(loadDateRecommendations).mockResolvedValue({ ...recommendations, selected: { date: '2026-01-14', has_data: false, crowd_score: null, crowd_level: null }, recommendations: [{ ...recommendations.recommendations[0]!, score_difference: null }], message: 'Only 1 qualifying dates are available within 7 days before or after your selected date.' })
+  await render()
+  const section = container.querySelector('.calendar-recommendations')!
+  expect(section.textContent).toContain('Your selected date has no forecast.')
+  expect(section.textContent).toContain('Only 1 qualifying dates')
+  expect(section.textContent).not.toContain('points lower than your selected date')
+  expect(section.querySelectorAll('.calendar-recommendation-card')).toHaveLength(1)
+})
+it('handles recommendation loading, errors and retry', async () => {
+  vi.mocked(loadDateRecommendations).mockReturnValueOnce(new Promise(() => {}))
+  await render()
+  expect(container.textContent).toContain('Loading recommended dates')
+  vi.mocked(loadDateRecommendations).mockRejectedValueOnce(new Error('Offline'))
+  await act(async () => day(15).click())
+  expect(container.querySelector('.calendar-recommendations [role="alert"]')).not.toBeNull()
+  await click('.calendar-recommendations .calendar-text-button')
+  expect(container.querySelector('.calendar-recommendations [role="alert"]')).toBeNull()
+})
+it('recommendations update across airport and month changes', async () => {
+  await render(); await changeAirport('2')
+  expect(loadDateRecommendations).toHaveBeenLastCalledWith('2', '2026-01-14')
+  await click('[aria-label="Next month"]')
+  expect(loadDateRecommendations).toHaveBeenLastCalledWith('2', '2026-02-01')
 })
 it('changes airports without losing the selected date or exposing old flights', async () => {
   await render(); vi.mocked(loadFlights).mockResolvedValue([]); vi.mocked(loadForecasts).mockResolvedValue([])

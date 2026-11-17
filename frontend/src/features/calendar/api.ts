@@ -2,7 +2,7 @@ import { apiRequest } from '../../api/client'
 import { loadAirports } from '../../api/lookups'
 import { loadForecasts } from '../../api/traffic'
 import type { Forecast, CrowdLevel } from '../../types/traffic'
-import type { DateExplanation } from './types'
+import type { DateExplanation, DateRecommendations } from './types'
 
 export type ForecastInput = { airport: string; date: string; crowd_level: CrowdLevel | ''; crowd_score: string | null; data_source: string }
 
@@ -14,4 +14,7 @@ export function updateForecast(id: string, values: ForecastInput) { return apiRe
 export function deleteForecast(id: number) { return apiRequest<void>(`/api/traffic/forecasts/${id}/`, { method: 'DELETE' }) }
 export function loadDateExplanation(airport: string, date: string) {
   return apiRequest<DateExplanation>(`/api/traffic/explanation/?${new URLSearchParams({ airport, date })}`)
+}
+export function loadDateRecommendations(airport: string, date: string) {
+  return apiRequest<DateRecommendations>(`/api/traffic/recommendations/?${new URLSearchParams({ airport, date })}`)
 }

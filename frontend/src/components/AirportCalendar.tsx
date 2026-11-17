@@ -16,9 +16,9 @@ import seatIcon from '../assets/icons/SeatIcon.png'
 import './AirportCalendar.css'
 
 export type CalendarSelection = { airport: string; date: string; forecast?: Forecast; onSelectDate: (date: string) => void }
-type CalendarOptions = { renderDetails?: (selection: CalendarSelection) => ReactNode; showFlightDirections?: boolean }
+type CalendarOptions = { renderDetails?: (selection: CalendarSelection) => ReactNode; renderAfter?: (selection: CalendarSelection) => ReactNode; showFlightDirections?: boolean }
 
-function AirportMonth({ airport, renderDetails, showFlightDirections }: { airport: string } & CalendarOptions) {
+function AirportMonth({ airport, renderDetails, renderAfter, showFlightDirections }: { airport: string } & CalendarOptions) {
   const today = projectToday()
   const [selectedDate, setSelectedDate] = useState(today)
   const month = selectedDate.slice(0, 7)
@@ -32,7 +32,7 @@ function AirportMonth({ airport, renderDetails, showFlightDirections }: { airpor
   const selectedForecast = forecasts.value?.find(record => record.date === selectedDate)
   const days = monthDates(month)
   const firstWeekday = calendarDate(days[0]!).getUTCDay()
-  return <div className="airport-calendar-layout">
+  return <><div className="airport-calendar-layout">
     <section className="airport-calendar-month" aria-labelledby={headingId}>
       <div className="airport-calendar-heading">
         <h2 id={headingId}>{monthLabel(month)}</h2>
@@ -70,7 +70,7 @@ function AirportMonth({ airport, renderDetails, showFlightDirections }: { airpor
         <p><img src={seatIcon} alt="" />{flight.available_seats} open seats / {flight.total_seats} total seats</p>
       </li>)}</ul>}
     </section>
-  </div>
+  </div>{renderAfter?.({ airport, date: selectedDate, forecast: selectedForecast, onSelectDate: setSelectedDate })}</>
 }
 
 export default function AirportCalendar(options: CalendarOptions) {

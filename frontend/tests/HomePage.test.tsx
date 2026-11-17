@@ -41,6 +41,11 @@ function dayButton(day: number): HTMLButtonElement {
   return button
 }
 describe('Home page', () => {
+  it('does not include the calendar-only breakdown or recommendations', () => {
+    expect(container.textContent).not.toContain('Why this level')
+    expect(container.textContent).not.toContain('Recommended best date to travel')
+    expect(container.querySelector('.calendar-breakdown, .calendar-recommendations')).toBeNull()
+  })
   it('greets the authenticated user and renders the main heading', () => {
     expect(container.querySelectorAll('h1')).toHaveLength(1)
     expect(container.querySelector('h1')?.textContent).toBe('Check airport crowds and flights')

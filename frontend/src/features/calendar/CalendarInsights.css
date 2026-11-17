@@ -3,3 +3,15 @@
 .calendar-breakdown ul { padding-left: var(--space-24); margin: 0; display: grid; gap: var(--space-8); }
 .calendar-breakdown caption { text-align: left; padding: var(--space-8); font-weight: 600; }
 .calendar-breakdown tbody th { background: transparent; color: var(--ink); }
+.calendar-recommendations { border-top: 1px solid var(--border); padding-top: var(--space-24); display: grid; gap: var(--space-16); min-width: 0; }
+.calendar-recommendations h2 { display: flex; align-items: center; gap: var(--space-8); }
+.calendar-recommendation-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-16); }
+.calendar-recommendation-card { background: var(--white); color: var(--ink); border: 1px solid var(--border); border-radius: var(--radius); padding: var(--space-24); display: grid; align-content: start; gap: var(--space-12); text-align: left; font: inherit; cursor: pointer; transition: background var(--control-transition), border-color var(--control-transition); }
+.calendar-recommendation-card:hover { background: var(--record-hover); border-color: var(--input-hover-border); box-shadow: var(--record-action-shadow); }
+.calendar-recommendation-card:active { background: var(--nav-text); border-color: var(--accent); }
+.calendar-recommendation-card .record-crowd-chip { justify-self: start; }
+.recommendation-date { font-weight: 700; }
+.recommendation-reasons { display: grid; gap: var(--space-8); }
+.recommendation-reasons [role=listitem] { display: list-item; margin-left: var(--space-16); }
+@media(max-width: 900px) { .calendar-recommendation-grid { grid-template-columns: 1fr; } }
+@media(prefers-reduced-motion: reduce) { .calendar-recommendation-card { transition: none; } }
