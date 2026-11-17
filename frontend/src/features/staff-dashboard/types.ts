@@ -8,4 +8,12 @@ export type DashboardSummary = {
   dates: Record<CrowdLevel, SummaryDate[]>
   busiest_weekday: string | null
   next_7_days: (SummaryDate & { crowd_level: CrowdLevel | null })[]
+  comparison: {
+    average_occupancy_2026_percent: number | null
+    average_occupancy_2025_percent: number | null
+    difference_points: number | null
+    days_busier_than_2025: number
+    days_quieter_than_2025: number
+    days_compared: number
+  }
 }

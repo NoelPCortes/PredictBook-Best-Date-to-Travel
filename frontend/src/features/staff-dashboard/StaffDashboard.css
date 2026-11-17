@@ -23,6 +23,9 @@
 .staff-seven-days time { display: grid; gap: var(--space-8); }
 .staff-seven-days strong { font-size: var(--staff-section-size); }
 .own-records-counts { display: flex; flex-wrap: wrap; gap: var(--space-32); margin: 0; }
+.staff-comparison-values { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--account-sidebar-width)), 1fr)); gap: var(--space-24); margin: 0; }
+.staff-comparison-values dt { color: var(--muted); font-weight: 600; }
+.staff-comparison-values dd { margin: var(--space-8) 0 0; font-size: var(--staff-section-size); font-weight: 700; }
 .own-records-counts dt { color: var(--muted); font-weight: 600; }
 .own-records-counts dd { font-family: 'Space Grotesk', sans-serif; font-size: var(--staff-value-size); font-weight: 700; margin: 0; }
 .app-header-staff .app-nav { gap: var(--space-32); padding: var(--space-8) var(--space-32); }

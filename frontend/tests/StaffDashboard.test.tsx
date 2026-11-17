@@ -13,6 +13,7 @@ import type { DashboardSummary } from '../src/features/staff-dashboard/types'
 vi.mock('../src/features/staff-dashboard/api', () => ({ getDashboardAccess: vi.fn(), getDashboardSummary: vi.fn(), getOwnRecordCounts: vi.fn() }))
 vi.mock('../src/api/lookups', () => ({ loadAirports: vi.fn() }))
 const summary: DashboardSummary = {
+  comparison: { average_occupancy_2026_percent: 65, average_occupancy_2025_percent: 60, difference_points: 5, days_busier_than_2025: 1, days_quieter_than_2025: 1, days_compared: 3 },
   airport: { id: 2, code: 'MNL', name: 'Manila' }, period_start: '2026-11-16', period_end: '2026-12-15',
   counts: { high: 2, medium: 1, low: 1 }, busiest_weekday: 'Monday',
   dates: { high: [{ date: '2026-11-16', weekday: 'Monday' }, { date: '2026-11-23', weekday: 'Monday' }], medium: [{ date: '2026-11-17', weekday: 'Tuesday' }], low: [{ date: '2026-11-18', weekday: 'Wednesday' }] },
@@ -61,6 +62,17 @@ it('changes the airport using the summary endpoint', async () => {
     select.dispatchEvent(new Event('change', { bubbles: true }))
   })
   expect(getDashboardSummary).toHaveBeenLastCalledWith('1')
+})
+it('shows the real flight and history comparison', async () => {
+  await render()
+  expect(container.textContent).toContain('2026 flights vs 2025 history')
+  expect([...container.querySelectorAll('.staff-comparison-values dd')].map(item => item.textContent)).toEqual(['65.0%', '60.0%', '5.0', '1', '1', '3'])
+})
+it('shows missing history without inventing a comparison', async () => {
+  vi.mocked(getDashboardSummary).mockResolvedValue({ ...summary, comparison: { ...summary.comparison, average_occupancy_2025_percent: null, difference_points: null, days_compared: 0 } })
+  await render()
+  expect(container.textContent).toContain('No 2025 history for this period.')
+  expect(container.querySelectorAll('.staff-comparison-values dd')[1]?.textContent).toBe('No data')
 })
 it('shows zero counts and useful empty messages without inventing dates', async () => {
   vi.mocked(getDashboardSummary).mockResolvedValue({ ...summary, counts: { high: 0, medium: 0, low: 0 }, dates: { high: [], medium: [], low: [] }, busiest_weekday: null })

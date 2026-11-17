@@ -10,6 +10,7 @@ import { useSignOut } from '../../components/useSignOut'
 import { calendarDate, calendarDateLabel } from '../../components/calendarDates'
 import { getDashboardAccess, getDashboardSummary } from './api'
 import OwnRecordsCard from './OwnRecordsCard'
+import ComparisonCard from './ComparisonCard'
 import '../../components/RecordManagement.css'
 import './StaffDashboard.css'
 
@@ -54,6 +55,7 @@ function DashboardContent() {
           <span>{day.crowd_level ? `${LABELS[day.crowd_level]} crowd` : 'No data'}</span>
         </li>)}</ol>
       </section>
+      <ComparisonCard comparison={result.comparison} />
     </>}
     <OwnRecordsCard />
   </>
