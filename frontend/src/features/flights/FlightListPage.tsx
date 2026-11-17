@@ -5,6 +5,8 @@ import RecordAlert from '../../components/RecordAlert'
 import DeleteConfirmation from '../../components/DeleteConfirmation'
 import { ApiError, fieldMessage } from '../../api/client'
 import { formatFlightTime } from '../../components/flightTime'
+import PageControls from '../../components/PageControls'
+import type { Records } from '../../api/pagination'
 import type { Flight } from '../../types/flights'
 import { deleteFlight, listFlights } from './api'
 
@@ -18,20 +20,21 @@ function FlightList() {
   const [pendingDelete, setPendingDelete] = useState<Flight | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState('')
-  const [flights, setFlights] = useState<Flight[]>([])
+  const [flights, setFlights] = useState<Records<Flight>>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
+  const [page, setPage] = useState(1)
   const [attempt, setAttempt] = useState(0)
   useEffect(() => {
     if (location.state?.success) navigate(location.pathname + location.search, { replace: true, state: null })
   }, [location.pathname, location.search, location.state, navigate])
   useEffect(() => {
     let isActive = true
-    void listFlights({ airport, date }).then(records => { if (isActive) setFlights(records) })
+    void listFlights({ airport, date, ...(page > 1 ? { page } : {}) }).then(records => { if (isActive) setFlights(records) })
       .catch(() => { if (isActive) setError('Unable to load flights. Please try again.') })
       .finally(() => { if (isActive) setIsLoading(false) })
     return () => { isActive = false }
-  }, [attempt, airport, date])
+  }, [attempt, airport, date, page])
   async function confirmDelete() {
     if (!pendingDelete || isDeleting) return
     setIsDeleting(true); setDeleteError(''); setSuccess('')
@@ -66,6 +69,7 @@ function FlightList() {
         {!flights.length && <tr><td colSpan={8}>No flights listed yet.</td></tr>}
       </tbody></table>
     </div>}
+    {!isLoading && !error && <PageControls rows={flights} page={page} onChange={value => { setPage(value); setIsLoading(true) }} />}
   </RecordLayout>
 }
 

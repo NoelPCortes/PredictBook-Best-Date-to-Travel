@@ -1,10 +1,10 @@
-import { apiRequest } from './client'
+import { readLookup } from './pagination'
 import type { Airline, Airport } from '../types/flights'
 
 export function loadAirports() {
-  return apiRequest<Airport[]>('/api/flights/airports/')
+  return readLookup<Airport>('/api/flights/airports/')
 }
 
 export function loadAirlines() {
-  return apiRequest<Airline[]>('/api/flights/airlines/')
+  return readLookup<Airline>('/api/flights/airlines/')
 }

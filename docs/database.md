@@ -225,3 +225,12 @@ Rules:
 
 - How crowd levels for "All Airports" are combined, since forecasts are stored per airport.
 - The dataset for flights, airports, airlines, and historical records.
+
+
+### Filter indexes
+
+Flight has flight_departure_idx (departure_time) for ordered upcoming/page reads,
+flight_origin_departure_idx (origin_id, departure_time) for route/date departures,
+and flight_dest_arrival_idx (destination_id, arrival_time) for airport/date arrivals.
+Migration flights.0003 adds indexes only. Existing foreign-key indexes and the
+forecast/history unique (airport_id, date) indexes are retained without duplication.

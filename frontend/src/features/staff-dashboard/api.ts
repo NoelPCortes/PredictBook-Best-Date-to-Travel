@@ -11,6 +11,6 @@ export function getDashboardSummary(airport?: string) {
 }
 
 export async function getOwnRecordCounts() {
-  const [flights, forecasts] = await Promise.all([loadFlights({ mine: true }), loadForecasts({ mine: true })])
-  return { flights: flights.length, forecasts: forecasts.length }
+  const [flights, forecasts] = await Promise.all([loadFlights({ mine: true, page_size: 1 }), loadForecasts({ mine: true, page_size: 1 })])
+  return { flights: flights.count ?? flights.length, forecasts: forecasts.count ?? forecasts.length }
 }

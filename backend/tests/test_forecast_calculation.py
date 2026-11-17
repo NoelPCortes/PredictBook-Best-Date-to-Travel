@@ -256,7 +256,7 @@ def test_calculated_rows_are_read_only_even_for_heads(scenario, role):
         else User.objects.create(username="head", email="head@example.com", role="head")
     )
     client = client_for(actor)
-    rows = client.get("/api/traffic/forecasts/").json()
+    rows = client.get("/api/traffic/forecasts/").json()["results"]
     assert all(
         row["is_calculated"]
         and row["created_by_username"] is None
@@ -303,8 +303,8 @@ def test_query_count_does_not_grow_per_forecast(scenario):
     recalculate_forecasts(scenario[0])
     with CaptureQueriesContext(connection) as second:
         response = client.get("/api/traffic/forecasts/")
-        assert len(response.json()) > 10
-    assert len(second) == len(first) == 3
+        assert len(response.json()["results"]) > 10
+    assert len(second) == len(first) == 4
 
 
 def test_command_requires_seed_staff_and_prints_only_counts(scenario, monkeypatch):

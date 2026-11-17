@@ -5,6 +5,8 @@ import RecordLayout from '../../components/RecordLayout'
 import RecordAlert from '../../components/RecordAlert'
 import DeleteConfirmation from '../../components/DeleteConfirmation'
 import CrowdChip from '../../components/CrowdChip'
+import PageControls from '../../components/PageControls'
+import type { Records } from '../../api/pagination'
 import type { Forecast } from '../../types/traffic'
 import type { Airport } from '../../types/flights'
 import { deleteForecast, loadForecastList } from './api'
@@ -13,22 +15,23 @@ export default function ForecastListPage() {
   const location = useLocation()
   const navigate = useNavigate()
   const [success, setSuccess] = useState(() => typeof location.state?.success === 'string' ? location.state.success as string : '')
-  const [forecasts, setForecasts] = useState<Forecast[]>([])
+  const [forecasts, setForecasts] = useState<Records<Forecast>>([])
   const [airports, setAirports] = useState<Airport[]>([])
   const [pendingDelete, setPendingDelete] = useState<Forecast | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
+  const [page, setPage] = useState(1)
   const [attempt, setAttempt] = useState(0)
   useEffect(() => { if (location.state?.success) navigate(location.pathname, { replace: true, state: null }) }, [location.pathname, location.state, navigate])
   useEffect(() => {
     let isActive = true
-    void loadForecastList().then(([records, options]) => { if (isActive) { setForecasts(records); setAirports(options) } })
+    void loadForecastList(page).then(([records, options]) => { if (isActive) { setForecasts(records); setAirports(options) } })
       .catch(() => { if (isActive) setError('Unable to load forecasts. Please try again.') })
       .finally(() => { if (isActive) setIsLoading(false) })
     return () => { isActive = false }
-  }, [attempt])
+  }, [attempt, page])
   const airportName = (id: number) => {
     const airport = airports.find(item => item.id === id)
     return airport ? `${airport.code} — ${airport.name}` : String(id)
@@ -60,5 +63,6 @@ export default function ForecastListPage() {
         <td>{record.can_edit && !record.is_calculated && <div className="record-actions"><Link className="record-button record-secondary" to={`/staff/forecasts/${record.id}/edit`}>Edit</Link><button type="button" className="record-button record-danger" disabled={isDeleting} onClick={() => { setDeleteError(''); setPendingDelete(record) }}>Delete</button></div>}</td>
       </tr>)}{!forecasts.length && <tr><td colSpan={7}>No forecasts listed yet.</td></tr>}</tbody>
     </table></div>}
+    {!isLoading && !error && <PageControls rows={forecasts} page={page} onChange={value => { setPage(value); setIsLoading(true) }} />}
   </RecordLayout>
 }

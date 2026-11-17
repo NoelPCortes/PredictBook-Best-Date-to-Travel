@@ -64,19 +64,21 @@ function DashboardContent() {
 export default function StaffDashboard() {
   const { profile } = useAuth()
   const { signOut, isSigningOut } = useSignOut()
+  const [accessAttempt, setAccessAttempt] = useState(0)
   const [access, setAccess] = useState<'loading' | 'allowed' | 'denied' | 'error'>('loading')
   useEffect(() => {
     let isActive = true
     void getDashboardAccess().then(() => { if (isActive) setAccess('allowed') })
       .catch(error => { if (isActive) setAccess(error instanceof ApiError && error.status === 403 ? 'denied' : 'error') })
     return () => { isActive = false }
-  }, [])
+  }, [accessAttempt])
   return <>
     <AppNavbar userName={profile?.username ?? ''} onSignOut={signOut} isSigningOut={isSigningOut} navigation="staff" />
     <main className="staff-dashboard record-page">
       {access === 'loading' && <p role="status">Checking dashboard access?</p>}
       {access === 'denied' && <RecordAlert kind="error">You do not have access to the Staff dashboard.</RecordAlert>}
       {access === 'error' && <RecordAlert kind="error">Unable to load the dashboard. Please try again later.</RecordAlert>}
+      {access === 'error' && <button type="button" className="record-button record-secondary" onClick={() => { setAccess('loading'); setAccessAttempt(value => value + 1) }}>Retry access</button>}
       {access === 'allowed' && <DashboardContent />}
     </main>
   </>

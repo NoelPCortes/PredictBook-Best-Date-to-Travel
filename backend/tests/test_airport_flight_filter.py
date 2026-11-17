@@ -52,13 +52,13 @@ def test_airport_filter_uses_arrival_or_departure_local_dates_and_combines_mine(
         "/api/flights/", {"airport": airport.pk, "date": "2026-12-01"}
     )
     assert response.status_code == 200
-    directions = {row["id"]: row["direction"] for row in response.json()}
+    directions = {row["id"]: row["direction"] for row in response.json()["results"]}
     assert directions == {
         departing.pk: "departing",
         arriving.pk: "arriving",
         other_flight.pk: "arriving",
     }
-    assert {row["id"] for row in response.json()} == {
+    assert {row["id"] for row in response.json()["results"]} == {
         departing.pk,
         arriving.pk,
         other_flight.pk,
@@ -68,7 +68,7 @@ def test_airport_filter_uses_arrival_or_departure_local_dates_and_combines_mine(
         for row in client.get(
             "/api/flights/",
             {"airport": airport.pk, "date": "2026-12-01", "mine": "true"},
-        ).json()
+        ).json()["results"]
     } == {departing.pk, arriving.pk}
     assert client.get("/api/flights/", {"airport": "bad"}).status_code == 400
     settings.TIME_ZONE = "Asia/Manila"
@@ -76,5 +76,5 @@ def test_airport_filter_uses_arrival_or_departure_local_dates_and_combines_mine(
         row["id"]
         for row in client.get(
             "/api/flights/", {"airport": airport.pk, "date": "2026-12-01"}
-        ).json()
+        ).json()["results"]
     }

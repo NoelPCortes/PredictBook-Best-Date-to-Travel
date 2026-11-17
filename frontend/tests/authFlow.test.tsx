@@ -419,7 +419,7 @@ describe('API token refresh', () => {
     fetchMock.mockResolvedValueOnce(response({}, 401)).mockResolvedValueOnce(response({}, 401))
       .mockReturnValueOnce(pending).mockImplementation(() => Promise.resolve(response(profile)))
     const first = apiRequest('/api/accounts/profile/')
-    const second = apiRequest('/api/accounts/profile/')
+    const second = apiRequest('/api/dashboard/')
     await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3))
     completeRefresh(response({ access: 'rotated-access', refresh: 'rotated-refresh' }))
     await Promise.all([first, second])

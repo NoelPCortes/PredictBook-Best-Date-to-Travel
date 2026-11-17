@@ -14,6 +14,7 @@ import '../../components/RecordManagement.css'
 export default function HeadPage() {
   const { profile } = useAuth()
   const { signOut, isSigningOut } = useSignOut()
+  const [accessAttempt, setAccessAttempt] = useState(0)
   const [access, setAccess] = useState<'loading' | 'allowed' | 'denied' | 'error'>('loading')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [listRefresh, setListRefresh] = useState(0)
@@ -26,7 +27,7 @@ export default function HeadPage() {
     void getHeadAccess().then(() => { if (isActive) setAccess('allowed') })
       .catch(error => { if (isActive) setAccess(error instanceof ApiError && error.status === 403 ? 'denied' : 'error') })
     return () => { isActive = false }
-  }, [])
+  }, [accessAttempt])
 
   async function handleAssign(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -74,6 +75,7 @@ export default function HeadPage() {
       {access === 'loading' && <p role="status">Checking Head access…</p>}
       {access === 'denied' && <p className="head-feedback head-error" role="alert">You do not have access to Head management.</p>}
       {access === 'error' && <p className="head-feedback head-error" role="alert">Unable to load Head management. Please try again later.</p>}
+      {access === 'error' && <button type="button" className="record-button record-secondary" onClick={() => { setAccess('loading'); setAccessAttempt(value => value + 1) }}>Retry access</button>}
       {access === 'allowed' && <section className="head-card" aria-labelledby="head-assign-title">
         <h2 id="head-assign-title">Assign Staff</h2>
         <p>Assign Staff access by email. The person can already have an account or register later.</p>

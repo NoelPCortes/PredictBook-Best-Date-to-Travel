@@ -3,6 +3,8 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from config.pagination import ListPagination
+
 from . import services
 from .models import StaffAssignment, User
 from .permissions import IsHead
@@ -129,9 +131,13 @@ class StaffListView(APIView):
         pending = StaffAssignment.objects.select_related("assigned_by").order_by(
             "email"
         )
-        return Response(
-            {
-                "staff": StaffListSerializer(staff, many=True).data,
-                "pending": PendingStaffSerializer(pending, many=True).data,
-            }
-        )
+        collections = {}
+        for name, queryset, serializer in (
+            ("staff", staff, StaffListSerializer),
+            ("pending", pending, PendingStaffSerializer),
+        ):
+            paginator = ListPagination()
+            paginator.page_query_param = f"{name}_page"
+            page = paginator.paginate_queryset(queryset, request, view=self)
+            collections[name] = paginator.get_paginated_response(serializer(page, many=True).data).data
+        return Response(collections)
