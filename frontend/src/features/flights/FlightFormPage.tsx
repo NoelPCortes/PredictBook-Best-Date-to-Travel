@@ -81,10 +81,10 @@ function FlightForm({ id }: { id?: string }) {
     {!isLoading && !loadError && canEdit && <form ref={formRef} className="record-form" onSubmit={submit} noValidate>
       {formError && <RecordAlert kind="error">{formError}</RecordAlert>}
       <div className="record-fields">
-        <RecordField name="airline" label="Airline" value={values.airline} onChange={value => change('airline', value)} error={errors.airline} options={airlines.map(airline => ({ value: String(airline.id), label: `${airline.name} (${airline.code})` }))} />
+        <RecordField searchable name="airline" label="Airline" value={values.airline} onChange={value => change('airline', value)} error={errors.airline} options={airlines.map(airline => ({ value: String(airline.id), label: `${airline.name} (${airline.code})` }))} />
         <RecordField name="flight_number" label="Flight number" value={values.flight_number} onChange={value => change('flight_number', value)} error={errors.flight_number} maxLength={10} />
-        <RecordField name="origin" label="Origin" value={values.origin} onChange={value => change('origin', value)} error={errors.origin} options={airportOptions} />
-        <RecordField name="destination" label="Destination" value={values.destination} onChange={value => change('destination', value)} error={errors.destination} options={airportOptions} />
+        <RecordField searchable name="origin" label="Origin" value={values.origin} onChange={value => change('origin', value)} error={errors.origin} options={airportOptions} />
+        <RecordField searchable name="destination" label="Destination" value={values.destination} onChange={value => change('destination', value)} error={errors.destination} options={airportOptions} />
         <RecordField name="departure_time" label="Departure (date and time)" value={values.departure_time} onChange={value => change('departure_time', value)} error={errors.departure_time} type="datetime-local" />
         <RecordField name="arrival_time" label="Arrival (date and time)" value={values.arrival_time} onChange={value => change('arrival_time', value)} error={errors.arrival_time} type="datetime-local" />
         <RecordField name="total_seats" label="Total seats" value={values.total_seats} onChange={value => change('total_seats', value)} error={errors.total_seats} type="number" step="1" />

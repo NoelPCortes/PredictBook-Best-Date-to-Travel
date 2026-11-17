@@ -82,7 +82,7 @@ export default function AirportCalendar(options: CalendarOptions) {
     {!airports.value && !airports.error && <p role="status">Loading airports…</p>}
     {airports.error && <><RecordAlert kind="error">Unable to load airports. Please try again.</RecordAlert><button type="button" className="calendar-text-button" onClick={() => setAttempt(value => value + 1)}>Retry airports</button></>}
     {airports.value && <>
-      <RecordField name="calendar-airport" label="Airport" value={selectedAirport} onChange={setAirportId} options={airports.value.map(airport => ({ value: String(airport.id), label: `${airport.code} — ${airport.name}` }))} />
+      <RecordField searchable name="calendar-airport" label="Airport" value={selectedAirport} onChange={setAirportId} options={airports.value.map(airport => ({ value: String(airport.id), label: `${airport.code} — ${airport.name}` }))} />
       {selectedAirport ? <AirportMonth airport={selectedAirport} {...options} /> : <p>No airports available.</p>}
     </>}
   </section>

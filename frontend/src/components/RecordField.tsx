@@ -1,4 +1,6 @@
 import type { HTMLInputTypeAttribute } from 'react'
+import SearchableSelect from './SearchableSelect'
+import type { SelectOption } from './SearchableSelect'
 
 type RecordFieldProps = {
   name: string
@@ -9,10 +11,12 @@ type RecordFieldProps = {
   type?: HTMLInputTypeAttribute
   step?: string
   maxLength?: number
-  options?: { value: string; label: string }[]
+  options?: SelectOption[]
+  searchable?: boolean
 }
 
-export default function RecordField({ name, label, value, onChange, error, type = 'text', step, maxLength, options }: RecordFieldProps) {
+export default function RecordField({ name, label, value, onChange, error, type = 'text', step, maxLength, options, searchable }: RecordFieldProps) {
+  if (searchable && options) return <SearchableSelect name={name} label={label} value={value} onChange={onChange} error={error} options={options} />
   const id = `record-${name}`
   const errorId = `${id}-error`
   const accessibility = { id, name, 'aria-invalid': error ? true as const : undefined, 'aria-describedby': error ? errorId : undefined }

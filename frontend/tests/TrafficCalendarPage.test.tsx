@@ -56,11 +56,8 @@ async function render() {
 function day(day: number) { return container.querySelector<HTMLButtonElement>(`button[aria-label^="January ${day},"]`)! }
 async function click(selector: string) { await act(async () => container.querySelector<HTMLButtonElement>(selector)!.click()) }
 async function changeAirport(value: string) {
-  await act(async () => {
-    const select = container.querySelector<HTMLSelectElement>('select')!
-    Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value')!.set!.call(select, value)
-    select.dispatchEvent(new Event('change', { bubbles: true }))
-  })
+  await click('#record-calendar-airport')
+  await click(`[role="option"][data-value="${value}"]`)
 }
 
 it('loads one airport, API crowd levels, no-data dates and actual weekdays', async () => {
@@ -76,7 +73,7 @@ it('loads one airport, API crowd levels, no-data dates and actual weekdays', asy
   expect(day(14).getAttribute('aria-current')).toBe('date')
   expect(day(14).getAttribute('aria-pressed')).toBe('true')
   expect(container.querySelector('.legend')?.textContent).toBe('LowMediumHighNo data')
-  expect(container.querySelector('select')?.textContent).not.toContain('All Airports')
+  expect(container.querySelector('[role=combobox]')?.textContent).not.toContain('All Airports')
 })
 it('shows selected crowd level and flights with PNG time and seat icons', async () => {
   await render()
@@ -229,7 +226,7 @@ it('handles missing airports and lookup failures', async () => {
 it('allows airport lookup retry', async () => {
   vi.mocked(loadAirports).mockRejectedValueOnce(new TypeError('Offline')); await render()
   expect(container.querySelector('[role="alert"]')?.textContent).toContain('Unable to load airports')
-  await click('.calendar-text-button'); expect(container.querySelector('select')).not.toBeNull()
+  await click('.calendar-text-button'); expect(container.querySelector('[role=combobox]')).not.toBeNull()
 })
 it.each(['staff', 'head', null] as const)('guards calendar access for %s', async role => {
   if (role) setProfile({ id: 1, username: role, email: `${role}@example.com`, role, first_name: '', last_name: '' })

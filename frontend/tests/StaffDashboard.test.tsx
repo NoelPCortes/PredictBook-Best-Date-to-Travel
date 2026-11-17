@@ -41,7 +41,7 @@ it('renders live counts, period, default airport, every date and the seven-day s
   await render()
   expect(container.querySelector('.eyebrow')?.textContent).toBe('STAFF DASHBOARD')
   expect([...container.querySelectorAll('.staff-metric-value')].map(item => item.textContent)).toEqual(['2', '1', '1', 'Monday'])
-  expect(container.querySelector('select')?.value).toBe('2')
+  expect(container.querySelector<HTMLButtonElement>('[role=combobox]')?.value).toBe('2')
   expect(container.querySelector('.staff-context')?.textContent).toContain('Next 30 daysNovember 16, 2026')
   expect([...container.querySelectorAll('.staff-level-cards time')].map(item => item.textContent)).toEqual(['Mon, Nov 16', 'Mon, Nov 23', 'Tue, Nov 17', 'Wed, Nov 18'])
   expect(container.querySelectorAll('.staff-seven-days li')).toHaveLength(7)
@@ -56,11 +56,8 @@ it('renders live counts, period, default airport, every date and the seven-day s
 })
 it('changes the airport using the summary endpoint', async () => {
   await render()
-  await act(async () => {
-    const select = container.querySelector('select')!
-    Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value')!.set!.call(select, '1')
-    select.dispatchEvent(new Event('change', { bubbles: true }))
-  })
+  await act(async () => container.querySelector<HTMLButtonElement>('[role=combobox]')!.click())
+  await act(async () => container.querySelector<HTMLElement>('[role=option][data-value="1"]')!.click())
   expect(getDashboardSummary).toHaveBeenLastCalledWith('1')
 })
 it('shows the real flight and history comparison', async () => {

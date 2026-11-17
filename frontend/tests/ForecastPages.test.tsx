@@ -41,9 +41,16 @@ function field(name: string) { return container.querySelector<HTMLInputElement |
 async function edit(name: string, value: string) {
   await act(async () => {
     const control = field(name)
+    if (control.getAttribute('role') === 'combobox') {
+      control.click()
+      return
+    }
     const prototype = control instanceof HTMLSelectElement ? HTMLSelectElement.prototype : HTMLInputElement.prototype
     Object.getOwnPropertyDescriptor(prototype, 'value')!.set!.call(control, value)
     control.dispatchEvent(new Event(control instanceof HTMLSelectElement ? 'change' : 'input', { bubbles: true }))
+  })
+  if (field(name).getAttribute('role') === 'combobox') await act(async () => {
+    container.querySelector<HTMLElement>(`[role="option"][data-value="${value}"]`)!.click()
   })
 }
 async function submit() { await act(async () => container.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))) }

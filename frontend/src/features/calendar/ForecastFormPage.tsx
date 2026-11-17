@@ -59,7 +59,7 @@ function ForecastForm({ id }: { id?: string }) {
     {!isLoading && !loadError && canEdit && <form ref={formRef} className="record-form" onSubmit={submit} noValidate>
       {formError && <RecordAlert kind="error">{formError}</RecordAlert>}
       <div className="record-fields">
-        <RecordField name="airport" label="Airport" value={values.airport} onChange={value => change('airport', value)} error={errors.airport} options={airports.map(airport => ({ value: String(airport.id), label: `${airport.code} — ${airport.name}` }))} />
+        <RecordField searchable name="airport" label="Airport" value={values.airport} onChange={value => change('airport', value)} error={errors.airport} options={airports.map(airport => ({ value: String(airport.id), label: `${airport.code} — ${airport.name}` }))} />
         <RecordField name="date" label="Date" type="date" value={values.date} onChange={value => change('date', value)} error={errors.date} />
         <RecordField name="crowd_level" label="Crowd level" value={values.crowd_level} onChange={value => change('crowd_level', value as CrowdLevel | '')} error={errors.crowd_level} options={['Low', 'Medium', 'High'].map(level => ({ value: level.toLowerCase(), label: level }))} />
         <RecordField name="crowd_score" label="Crowd score (optional)" type="number" step="any" value={values.crowd_score ?? ''} onChange={value => change('crowd_score', value)} error={errors.crowd_score} />
