@@ -19,7 +19,7 @@ export default function HeadPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [listRefresh, setListRefresh] = useState(0)
   const [emailError, setEmailError] = useState('')
-  const [feedback, setFeedback] = useState<{ message: string; isError: boolean } | null>(null)
+  const [feedback, setFeedback] = useState<{ message: string; isError: boolean; isInfo?: boolean } | null>(null)
   const emailRef = useRef<HTMLInputElement>(null)
   const feedbackRef = useRef<HTMLParagraphElement>(null)
   useEffect(() => {
@@ -43,7 +43,7 @@ export default function HeadPage() {
     setIsSubmitting(true)
     try {
       const result = await assignStaff(email)
-      setFeedback({ message: result.detail, isError: false })
+      setFeedback({ message: result.detail, isError: false, isInfo: result.detail === "Account already has Staff or Head access; no change made." })
       setListRefresh(value => value + 1)
     } catch (error) {
       if (error instanceof ApiError) {
@@ -76,16 +76,15 @@ export default function HeadPage() {
       {access === 'denied' && <p className="head-feedback head-error" role="alert">You do not have access to Head management.</p>}
       {access === 'error' && <p className="head-feedback head-error" role="alert">Unable to load Head management. Please try again later.</p>}
       {access === 'error' && <button type="button" className="record-button record-secondary" onClick={() => { setAccess('loading'); setAccessAttempt(value => value + 1) }}>Retry access</button>}
-      {access === 'allowed' && <section className="head-card" aria-labelledby="head-assign-title">
+      {access === 'allowed' && <StaffLists refresh={listRefresh}><section className="head-card" aria-labelledby="head-assign-title">
         <h2 id="head-assign-title">Assign Staff</h2>
         <p>Assign Staff access by email. The person can already have an account or register later.</p>
         <form onSubmit={handleAssign} noValidate aria-busy={isSubmitting} onChange={() => { setEmailError(''); setFeedback(null) }}>
           <AuthField ref={emailRef} id="head-staff-email" name="email" type="email" autoComplete="email" label="Email" error={emailError || undefined} errorId="head-staff-email-error" />
           <button className="button head-assign-button" type="submit" disabled={isSubmitting}>{isSubmitting ? 'Assigning Staff…' : 'Assign Staff'}</button>
         </form>
-        {feedback && <p ref={feedbackRef} tabIndex={-1} role={feedback.isError ? 'alert' : 'status'} className={`head-feedback ${feedback.isError ? 'head-error' : 'head-success'}`}>{feedback.message}</p>}
-      </section>}
-      {access === 'allowed' && <StaffLists refresh={listRefresh} />}
+        {feedback && <p ref={feedbackRef} tabIndex={-1} role={feedback.isError ? 'alert' : 'status'} className={`head-feedback ${feedback.isError ? 'head-error' : feedback.isInfo ? 'head-info' : 'head-success'}`}>{feedback.message}</p>}
+      </section></StaffLists>}
     </main>
   </>
 }

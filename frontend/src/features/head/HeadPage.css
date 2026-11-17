@@ -13,5 +13,20 @@
 .head-feedback { padding: var(--space-16); margin-top: var(--space-16); border-left: var(--alert-border-width) solid currentColor; }
 .head-success { color: var(--success-text); background: var(--success-background); }
 .head-error { color: var(--error-text); background: var(--error-background); }
+.head-info { color: var(--action-hover); background: var(--record-hover); }
+.head-management-layout { display: grid; grid-template-columns: minmax(var(--account-sidebar-width), 1fr) minmax(0, 2fr); gap: var(--space-24); align-items: start; }
+.head-main-panel, .head-staff-side { display: grid; gap: var(--space-24); min-width: 0; }
+.head-staff-list, .head-pending-list { display: grid; gap: var(--space-12); list-style: none; padding: 0; }
+.head-staff-row { width: 100%; display: grid; gap: var(--space-8); text-align: left; border: 1px solid var(--border); background: var(--white); color: var(--ink); min-height: var(--staff-nav-height); padding: var(--space-16); border-radius: var(--control-radius); font: inherit; cursor: pointer; overflow-wrap: anywhere; }
+.head-staff-row:hover { background: var(--record-hover); border-color: var(--input-hover-border); }
+.head-staff-row:active { background: var(--nav-text); }
+.head-staff-row[aria-pressed=true] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); background: var(--record-hover); }
+.head-staff-row:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.head-pending-list li { display: grid; gap: var(--space-8); border-top: 1px solid var(--border); padding-top: var(--space-16); overflow-wrap: anywhere; }
+.head-pending-list button { justify-self: start; }
+.staff-details-values { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: var(--space-24); }
+.staff-details-values dt { color: var(--muted); font-weight: 600; }
+.staff-details-values dd { margin: var(--space-8) 0 0; overflow-wrap: anywhere; }
+@media(max-width: 900px) { .head-management-layout { grid-template-columns: 1fr; } }
 @media (max-width: 600px) { .head-page { padding: var(--space-24) var(--space-16); } }
 @media (prefers-reduced-motion: reduce) { .head-assign-button { transition: none; } }
