@@ -108,6 +108,14 @@ class FlightSerializer(StrictFieldsMixin, serializers.ModelSerializer):
 
 
 class FlightFilterSerializer(serializers.Serializer):
+    destination = serializers.PrimaryKeyRelatedField(
+        queryset=Airport.objects.all(), required=False
+    )
+    airline = serializers.PrimaryKeyRelatedField(
+        queryset=Airline.objects.all(), required=False
+    )
+    search = serializers.CharField(required=False, allow_blank=True)
+    upcoming = serializers.BooleanField(required=False)
     airport = serializers.PrimaryKeyRelatedField(
         queryset=Airport.objects.all(), required=False
     )
@@ -116,3 +124,26 @@ class FlightFilterSerializer(serializers.Serializer):
     )
     date = serializers.DateField(required=False, input_formats=("%Y-%m-%d",))
     mine = serializers.BooleanField(required=False)
+
+
+class RouteDatesFilterSerializer(serializers.Serializer):
+    origin = serializers.IntegerField(min_value=1)
+    destination = serializers.IntegerField(min_value=1)
+    month = serializers.RegexField(r"^\d{4}-\d{2}$")
+
+    def validate_month(self, value):
+        from datetime import date
+
+        try:
+            return date.fromisoformat(f"{value}-01")
+        except ValueError:
+            raise serializers.ValidationError(
+                "Enter a valid month in YYYY-MM format."
+            ) from None
+
+    def validate(self, attrs):
+        if attrs["origin"] == attrs["destination"]:
+            raise serializers.ValidationError(
+                {"destination": ["Origin and destination must be different."]}
+            )
+        return attrs
