@@ -24,8 +24,8 @@ No flights listed for this date is shown only for a successful empty response.
 There is no Your bookings row. Home's other two cards show only their empty states.
 
 Landing and sign-in/sign-up marketing previews retain their separate samples.
-They were not changed. Smart date suggestions, production datasets, historical
-prediction logic, and accuracy evaluation remain TBD. The product's 75% accuracy
+They were not changed. Real recommendations now appear only on /calendar;
+production datasets and accuracy evaluation remain TBD. The product's 75% accuracy
 target has not been measured by this seat-utilization calculation.
 
 ## Calculation rule
@@ -37,20 +37,28 @@ An overnight flight may contribute on different origin and destination dates.
 
 - seats_total: sum of total_seats for the counted flights.
 - seats_booked: sum of total_seats minus available_seats.
-- crowd_score: seats_booked / seats_total * 100, rounded to one decimal.
+- flight occupancy: seats_booked / seats_total * 100.
+- history occupancy: simple average of each existing positive-seat historical record
+  at D minus 371, 364, and 357 days (matching weekdays around a year earlier).
+- crowd_score: 0.5 * flight occupancy + 0.5 * history occupancy, rounded once
+  to one decimal. Without history use flights only and explain that fallback.
 - Low: score below 50. Medium: 50 to below 75. High: 75 or above.
 
 Rounding uses decimal half-up before classifying the score. MEDIUM_THRESHOLD and
-HIGH_THRESHOLD are defined once in backend/traffic/calculation.py. No flights or
+HIGH_THRESHOLD, FLIGHT_WEIGHT=0.5, HISTORY_WEIGHT=0.5,
+HISTORY_DAY_OFFSETS=(371,364,357), RECOMMENDATION_WINDOW=7, and
+MAX_RECOMMENDATIONS=3 are defined once in backend/traffic/calculation.py. No flights or
 zero total seats gives no calculated forecast. Colors remain frontend styles;
 no color or aggregate-count column is stored in PostgreSQL.
 
-Calculated rows have exact source Calculated from flights and the current
+Calculated rows have exact source Calculated from 2026 flights and 2025 history and the current
 calculation timestamp. Their required creator is the user triggering the first
 calculation; management commands use the configured seed Staff user. Later
 recalculations preserve that original calculated creator.
 
-Any source other than exact Calculated from flights and Sample data is manual.
+Legacy Calculated from flights rows are also calculated, read-only, and upgraded
+on recalculation without changing their creator. Every source except these two
+calculated labels and exact Sample data is manual.
 Manual forecasts, including old blank/null sources, always take precedence and
 are never overwritten or deleted by recalculation. Blank API source input is
 normalized to Staff entry. Manual score/level inputs remain possible under their
@@ -107,3 +115,28 @@ dates, zero seats, manual protection, original creator retention, idempotence,
 old/new pairs, deletion, rollback, exact-source cleanup, read-only permissions,
 and query count. Frontend tests use mocked API data; live browser layout and the
 complete browser-to-database walkthrough remain unverified.
+
+
+## Explanations and recommendations
+
+GET /api/traffic/explanation/?airport=<id>&date=YYYY-MM-DD returns live counted
+flights, departing/arriving counts, total/booked seats and occupancy, matching
+history records and dates, daily history average, weights/thresholds, the computed
+score/level, departing open seats, and number-backed sentences. It shares the
+stored calculation function. With no flights/zero seats, has_data=false and the
+score/level are null. Manual forecasts stay unchanged: their stored level remains
+on the calendar; the explanation is labeled as a separate calculated blend.
+
+Only /calendar enables DateBreakdown (info-circleIcon) and RecommendedDates
+(bulbIcon) through optional shared-calendar render slots. Home enables neither.
+The breakdown shows backend sentences, flight/history/combined values and the
+history dates used. Requests are keyed by airport/date, refreshed on selection
+or month changes, and handle loading, errors, retries and obsolete responses.
+Flights use the airport/date endpoint and its departing/arriving direction field.
+
+GET /api/traffic/recommendations/?airport=<id>&date=YYYY-MM-DD implements the
+[recommendation rule](date-suggestions.md). Cards select their date, refreshing
+forecasts, flights, breakdown and recommendations. Neither endpoint returns user
+details. Both require authentication (401); missing/invalid parameters return
+400, unknown airports 404. Constant-query-count tests cover both endpoints.
+Raw SQL changes require an explicit recalculate_forecasts run.

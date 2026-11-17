@@ -59,3 +59,24 @@ airport selection, project timezone, permissions and response privacy. Frontend
 API-mocked tests cover the real layout/data, airport changes, zero-data states,
 loading, retries and own-record counts. A live visual/browser walkthrough remains
 unverified; tests do not establish a pixel-perfect layout on each viewport.
+
+
+## Flight/history comparison
+
+The existing summary now includes comparison with:
+average_occupancy_2026_percent, average_occupancy_2025_percent, difference_points,
+days_busier_than_2025, days_quieter_than_2025 and days_compared.
+Over forecast dates for the chosen airport/period, average the raw daily flight
+occupancies and the available daily history averages. History uses the same
+three offsets and positive-seat records as forecast calculation. Missing values
+are omitted from their respective averages; difference_points is the difference
+of those unrounded averages, or null if either is absent. Returned percentages
+and difference are rounded to one decimal. Daily busier/quieter counts compare
+only dates with both values; equal days count in days_compared but neither side.
+No user details appear.
+
+There is no Charts page, so a 2026 flights vs 2025 history card appears before
+Your records. It shows all six fields, uses No data for unavailable values and
+No 2025 history for this period. when history is absent. It shares the selected
+airport, summary loading/error/retry and period. API-mocked tests cover values
+and the no-history case; backend tests use hand-calculated daily averages.

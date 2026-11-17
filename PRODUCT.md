@@ -2,7 +2,7 @@
 
 This document describes what PredictBook is meant to do and what it will not do. For setup and run instructions, see [README.md](README.md). For the database tables, see [docs/database.md](docs/database.md).
 
-PredictBook is a web application that helps travelers find the best dates to fly. Crowd levels are calculated by the backend from departing and arriving flights, with manual forecasts still possible. Smart date suggestions remain future work. They are not produced by an AI model.
+PredictBook is a web application that helps travelers find the best dates to fly. Crowd levels blend 2026 flights with 2025 history, with manual forecasts still possible. The Traffic Calendar explains the calculated levels and recommends qualifying alternative dates. They are not produced by an AI model.
 
 ## Accounts implementation status
 
@@ -37,9 +37,9 @@ Travelers often have a hard time choosing flight dates because of crowded airpor
 - **Home page:** Travelers see the real airport calendar and flights. Because no bookings or search history are stored, the cards show only "No upcoming bookings yet." and "No recent searches yet." The sample rows, View all action, inactive sample search form, and booking-count row are removed.
 - **Flight search and details:** search by starting location, destination, and date. View the airline, departure and arrival times, destination, and open seats. Ticket prices are not shown.
 - **Traffic calendar:** a color-coded calendar of expected airport crowd levels (Low, Medium, High) for different airports and dates. The color of each date changes with the crowd level stored for that airport and date: Low is light green, Medium is amber, and High is dark orange. Each level is also available as text (in the legend, in the selected date's details, and in each date's accessible label), so color is never the only signal.
-- **Forecast calculation:** aggregate departures and arrivals for each airport and project-local date. Booked seats divided by total seats gives a one-decimal percentage: below 50 is Low, 50 to below 75 is Medium, and 75 or above is High. Flight changes recalculate affected pairs transactionally. Dates with no flights or no seats have no calculated forecast. Manual forecasts take precedence and remain possible.
-- **Smart date suggestions:** checks crowd levels and open seats to recommend the best dates to fly, and explains why.
-- **Staff dashboard and charts:** two separate pages. The Dashboard shows one airport over the next 30 local days, counts and every date by level, busiest weekday, the next seven days, and own-record counts. The Charts page shows crowd trends and busy travel days.
+- **Forecast calculation:** blend the booked-seat percentage of counted 2026 departures/arrivals equally with the average daily percentage from available 2025 records at 371, 364, and 357 days earlier. Without history, use flights only. Round once to one decimal: below 50 is Low, 50 to below 75 is Medium, and 75 or above is High. Flight changes recalculate affected pairs transactionally; raw SQL requires explicit recalculation. No flights or zero seats gives no calculated row. Manual forecasts remain possible and take precedence.
+- **Smart date suggestions:** on Traffic Calendar only, explain the calculated level using actual flight/history numbers and recommend up to three other dates within seven days before or after the selection. Dates need a forecast and open departing seats, and a lower stored score when the selection has a numeric score. Rank by score, open seats, then date; never pad missing results. Home shows neither explanations nor recommendations.
+- **Staff dashboard and charts:** the Dashboard is implemented; Charts is planned. The Dashboard shows one airport over the next 30 local days, counts and every date by level, busiest weekday, the next seven days, own-record counts, and a 2026-flight-versus-2025-history comparison. The Charts page remains future work.
 - **Role management:**
   - Django administrators create the initial Heads.
   - A Head can assign Staff access by entering an email address, whether the account already exists or not.
@@ -78,4 +78,4 @@ Travelers often have a hard time choosing flight dates because of crowded airpor
 
 ## Data Source
 
-The system cannot connect to live, private airline systems, so it relies on public or sample flight data. The exact datasets are still to be decided.
+The system cannot connect to live, private airline systems, so it relies on public or sample flight data. Local development has invented 2026 flights and 2025 history from backend/database/sample_flights.sql. These are not real schedules. Production datasets remain TBD.

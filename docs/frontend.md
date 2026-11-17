@@ -170,7 +170,7 @@ Airport changes preserve the selected date; month changes select day one. Real
 dates determine weekdays and month lengths. Stored levels determine colors,
 accessible date labels, the text legend, and the selected-date CrowdChip. Missing
 forecasts show No data; failed requests show separate errors and retry actions.
-The selected-date panel lists departing flights with airline, number, route,
+The selected-date panel lists departing and arriving flights with airline, number, route,
 times, and open seats, or No flights listed for this date.
 
 Calendar month arrows, flight times, and seats use the existing PNG assets. No
@@ -196,8 +196,7 @@ No data, selected flights, month/airport changes, stale responses, and role guar
 StaffDashboard tests also cover own-record counts. Tests use jsdom and mocked APIs;
 a live browser walkthrough and pixel-level verification remain unverified.
 
-Dedicated search results, booking persistence, All Airports aggregation, and
-smart date suggestions remain TBD. Forecast thresholds and score meaning are
+Dedicated search results, booking persistence, and All Airports aggregation remain TBD. Forecast thresholds and score meaning are
 now defined in the backend calculation service.
 
 
@@ -231,3 +230,29 @@ AppNavbar, HeadPage, StaffDashboard, Home, flight and forecast tests cover these
 changes alongside Standard Feature regressions. Browser layout and the complete
 live browser-to-database walkthrough remain unverified; jsdom/API tests do not
 prove viewport-perfect rendering.
+
+
+## Blended forecast explanation and recommendations
+
+TrafficCalendarPage supplies optional renderDetails/renderAfter callbacks to
+AirportCalendar. CalendarSelection passes airport, date, stored forecast and
+onSelectDate; the shared component never imports a feature module. DateBreakdown
+and RecommendedDates live in the existing calendar feature; its api.ts and
+types.ts define their calls/contracts. Home supplies neither slot, keeping its
+preview free of explanations and recommendations. No Home source file changed.
+
+DateBreakdown renders the backend sentences and a flight/history/combined table,
+plus history dates, with info-circleIcon. Manual levels stay visible with the
+calculated blend identified separately. RecommendedDates renders bulbIcon, up to
+three cards with crowd-chip text, score/difference, open seats and reasons. A card
+uses a native button to select its date, reloading all relevant requests. Both
+sections use keyed resources with loading/error/retry and stale-response protection.
+The calendar enables showFlightDirections and uses the server direction field
+from /api/flights/?airport=<id>&date=<date>; filtering remains server-owned.
+
+StaffDashboard adds ComparisonCard from the existing summary response's comparison
+object, with no chart library. Tests cover real numbers, absent history and
+existing states/role guards. Calendar tests cover breakdown, no history/data,
+flight directions, recommendations, selection, airport/month changes and errors.
+Home tests assert both new sections are absent. Browser/viewport verification
+remains unperformed; automated tests use jsdom with mocked APIs.

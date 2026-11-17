@@ -218,7 +218,7 @@ Other users' flights are never changed. Ambiguous seed-owned matches or conflict
 departures stop the whole operation without partial writes. No rows are deleted.
 The command recalculates forecasts from the seeded flights in the same
 transaction, preserving manual forecasts and removing only old rows whose source
-is exactly `Sample data`. Scores now measure the booked-seat percentage.
+is exactly `Sample data`. Scores now blend flight occupancy with matching historical daily percentages when history exists.
 
 The ten departures span tomorrow through nine days after today in the project's
 `TIME_ZONE` (currently UTC). Arrival durations are real elapsed time. These are
@@ -297,14 +297,17 @@ Flight create, PATCH, and delete operations recalculate the old and new affected
 airport/date pairs in the same database transaction. Dates use the project's
 `TIME_ZONE` (currently UTC). For each pair, count departing flights by departure
 date and arriving flights by arrival date. Sum their total seats and booked seats
-(total minus available). The score is the booked-seat percentage, rounded to one
-decimal: below 50 is Low, 50 to below 75 is Medium, and 75 or above is High.
+(total minus available). Blend flight occupancy equally with the average daily
+occupancy of positive-seat history records 371, 364, and 357 days earlier. Without
+history, use flights only. Round the final score to one decimal: below 50 is Low,
+50 to below 75 is Medium, and 75 or above is High.
 No flights or zero total seats yields no calculated row.
 
-Calculated rows use `Calculated from flights`; their first triggering user stays
+Calculated rows use `Calculated from 2026 flights and 2025 history` (legacy
+`Calculated from flights` rows stay calculated and are upgraded on recalculation); their first triggering user stays
 the creator. Subsequent calculations keep that owner. Commands use the seed Staff
-user named by `SEED_STAFF_USERNAME`. Every other source except the legacy exact
-`Sample data` marker is manual and is never overwritten or deleted by calculation.
+user named by `SEED_STAFF_USERNAME`. Every other source except these two calculated
+labels and the legacy exact `Sample data` marker is manual and is never overwritten or deleted by calculation.
 Forecast responses include live flight_count, seats_total, and seats_booked;
 calculated rows have is_calculated=true, created_by_username=null, and can_edit=false.
 
@@ -466,3 +469,69 @@ npm install
 npm install -D vitest prettier
 npm install react-router-dom       # page routing
 ```
+
+
+## Large local sample dataset (2026 flights and 2025 history)
+
+This is invented sample data, not real schedules. The plain SQL file
+[backend/database/sample_flights.sql](backend/database/sample_flights.sql) is
+repeatable and transactional. It creates ten airport lookups and five airlines
+with ON CONFLICT DO NOTHING, replaces only the configured seed user's flights
+with 7,300 flights (20 departing each day of 2026), and replaces ALL historical
+records with 3,650 invented rows (ten airports for every day in 2025). It does not
+change other users' flights or manual forecasts. Raw SQL changes do not trigger
+forecast calculation.
+
+Use this order from backend/ with the virtual environment active:
+
+1. Ensure the Staff user named by SEED_STAFF_USERNAME exists. On a fresh local
+   setup, configure a non-placeholder SEED_STAFF_PASSWORD and run
+   `python manage.py seed_staff`. Existing seed users do not need recreating.
+2. Run the SQL with psql against the existing configured PostgreSQL database.
+   Start `python manage.py shell`, then paste the following Python block. It
+   obtains connection values through Django's runtime settings, never prints
+   credentials, and configures the SQL session username and actual project zone
+   (currently UTC, not Asia/Manila). psql must be on PATH. The SQL also accepts a
+   seed user with Head role; the existing recalculation command requires Staff.
+
+```python
+import os
+import subprocess
+from django.conf import settings
+from psycopg import sql
+from flights.models import Flight
+from traffic.models import HistoricalRecord
+
+config = settings.DATABASES['default']
+child_env = os.environ.copy()
+child_env['PGPASSWORD'] = config['PASSWORD']
+child_env['PGOPTIONS'] = '-c TimeZone=' + settings.TIME_ZONE
+seed_setting = sql.SQL("SELECT set_config('predictbook.seed_staff_username', {}, false)").format(
+    sql.Literal(os.environ['SEED_STAFF_USERNAME'])
+).as_string()
+result = subprocess.run([
+    'psql', '-X', '-q', '-h', config['HOST'], '-p', str(config['PORT']),
+    '-U', config['USER'], '-d', config['NAME'], '-v', 'ON_ERROR_STOP=1',
+    '-c', seed_setting, '-f', str(settings.BASE_DIR / 'database' / 'sample_flights.sql'),
+], env=child_env, capture_output=True, text=True)
+if result.returncode:
+    raise RuntimeError('Sample SQL failed; no sample transaction was committed.')
+print('Flights in 2026:', Flight.objects.filter(departure_time__year=2026).count())
+print('Historical records:', HistoricalRecord.objects.count())
+```
+
+3. Exit the Python shell, then run `python manage.py recalculate_forecasts`.
+   It preserves manual forecasts and updates old calculated labels. The older
+   `python manage.py seed_sample_data` ten-flight command is unchanged and is an
+   alternative small fixture, not a required step after this large import.
+
+Traffic Calendar now reads GET /api/traffic/explanation/ and
+GET /api/traffic/recommendations/ with airport/date query parameters. Why this
+level shows real flight/history numbers and history dates; Recommended best date
+to travel ranks up to three qualifying dates within seven days either side.
+Home shows neither section. Staff Dashboard's existing summary includes a
+2026 flights vs 2025 history comparison, with explicit missing-history states.
+See [traffic calendar](docs/features/traffic-calendar.md),
+[recommendations](docs/features/date-suggestions.md) and
+[dashboard](docs/features/staff-dashboard.md) for contracts and tests.
+Production datasets, accuracy evaluation, Charts, and All Airports remain TBD.

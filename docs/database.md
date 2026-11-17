@@ -159,9 +159,9 @@ Expected airport crowd level for each airport and date. This table feeds the tra
 | airport | link to `airports` | yes | |
 | date | date | yes | |
 | crowd_level | CharField (6), choice: `low`, `medium`, `high` | yes | Must always be set |
-| crowd_score | FloatField (null=True, blank=True) | no | Calculated rows: booked-seat percentage rounded to one decimal; optional supplied score for manual entries |
+| crowd_score | FloatField (null=True, blank=True) | no | Calculated rows: flight/history blend rounded to one decimal; optional supplied score for manual entries |
 | calculated_at | date and time | yes | Server sets the current time on create and update; clients cannot send it |
-| data_source | CharField (100; null=True, blank=True) | no | `Calculated from flights` for automatic rows; `Staff entry` for blank API sources; `Sample data` identifies legacy removable fixtures. Other sources are manual |
+| data_source | CharField (100; null=True, blank=True) | no | `Calculated from 2026 flights and 2025 history` for automatic rows; legacy `Calculated from flights` is also calculated; `Staff entry` for blank API sources; `Sample data` identifies legacy removable fixtures. Other sources are manual |
 
 Rules:
 
@@ -172,13 +172,14 @@ Rules:
 - A blank data source is stored as `Staff entry`.
 - **The color is not stored.** The frontend picks it from `crowd_level` (see `../frontend/UI_STYLE_GUIDE.md`, traffic calendar).
 - Keep forecasts after their date passes. Comparing them with `historical_records` shows whether the 75% accuracy goal is met.
-- Automatic calculations count origin/departure-local-date and destination/arrival-local-date flights using `settings.TIME_ZONE` (currently UTC). Sum total seats and booked seats (total minus available). `crowd_score = seats_booked / seats_total * 100`, rounded to one decimal; Low is below 50, Medium is 50 to below 75, and High is 75 or above. Named constants are defined once in `traffic/calculation.py`.
+- Automatic calculations count origin/departure-local-date and destination/arrival-local-date flights using `settings.TIME_ZONE` (currently UTC). Sum total seats and booked seats (total minus available) for flight occupancy. History uses dates D minus 371, 364, and 357 days, ignoring missing/zero-total records; average their daily booked percentages equally. `crowd_score = 0.5 * flight occupancy + 0.5 * history average`, falling back to flight occupancy alone when history is absent. Round only the final score to one decimal; Low is below 50, Medium is 50 to below 75, and High is 75 or above. Named constants are defined once in `traffic/calculation.py`.
 - No flights or zero total seats produces no calculated row. If a flight change leaves no seats for a pair, remove only its calculated row. Manual entries are preserved even with no flights.
-- Every source except exact `Calculated from flights` and `Sample data` is manual. A manual airport/date entry always takes precedence and is never overwritten or deleted by automatic calculation.
+- Every source except exact `Calculated from 2026 flights and 2025 history`, legacy `Calculated from flights`, and `Sample data` is manual. Recalculation upgrades the legacy calculated label while preserving its creator. A manual airport/date entry always takes precedence and is never overwritten or deleted by automatic calculation.
 - A calculated row's required creator is the user who first triggers calculation, or the configured seed Staff user for management commands. Preserve that creator on later recalculations. Converting an old Sample data row establishes the current calculator as its calculated creator.
 - Calculated rows are read-only for every API role: PATCH and DELETE return 403. Clients cannot create the reserved calculated source. Staff/Head responses use `created_by_username=null`, `is_calculated=true`, and `can_edit=false`; the UI displays Calculated automatically. Traveler responses continue to omit creator fields.
 - Every forecast response includes live `flight_count`, `seats_total`, and `seats_booked`. These are response aggregates, not stored columns or new relationships. Two grouped flight queries serve the whole forecast list, guarded by a constant-query-count test.
-- Flight create/update/delete and old/new pair recalculation share a transaction and explicit services, without signals. Lookups are locked to serialize calculations and manual writes.
+- Constants in `traffic/calculation.py` are MEDIUM_THRESHOLD=50, HIGH_THRESHOLD=75, FLIGHT_WEIGHT=0.5, HISTORY_WEIGHT=0.5, HISTORY_DAY_OFFSETS=(371,364,357), RECOMMENDATION_WINDOW=7, and MAX_RECOMMENDATIONS=3. Flight/history reads are grouped or fetched in bulk; recalculation uses bulk writes.
+- Raw SQL flight/history changes do not trigger recalculation; run `python manage.py recalculate_forecasts` afterward. Flight create/update/delete and old/new pair recalculation share a transaction and explicit services, without signals. Lookups are locked to serialize calculations and manual writes.
 - The approved cleanup deletes only rows whose source is exactly `Sample data`; manual rows are not cleaned up. Sample flight seeding now calls calculation instead of inventing weekday levels.
 
 ### 3.7 `historical_records`
@@ -198,7 +199,7 @@ Rules:
 
 - One record per airport per date.
 - Totals only. No individual passenger or booking data.
-- The dataset these come from is **TBD** (see `PRODUCT.md`, Data Source). Sample data and SQL scripts go in `backend/database/`.
+- Local invented 2025 history comes from `backend/database/sample_flights.sql` (3,650 rows, ten airports). Production source datasets remain **TBD**. The script replaces all historical rows and only seed-owned flights, preserving manual forecasts and other users' flights.
 
 ---
 
