@@ -7,7 +7,7 @@ from rest_framework.views import APIView
 from flights.models import Airport
 
 from .calculation import flight_totals
-from .insights import date_explanation
+from .insights import date_explanation, date_recommendations
 from .models import CrowdForecast
 from .permissions import CanManageManualForecasts
 from .serializers import (
@@ -68,3 +68,13 @@ class DateExplanationView(APIView):
         filters.is_valid(raise_exception=True)
         airport = get_object_or_404(Airport, pk=filters.validated_data["airport"])
         return Response(date_explanation(airport, filters.validated_data["date"]))
+
+
+class DateRecommendationsView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    def get(self, request):
+        filters = DateInsightFilterSerializer(data=request.query_params)
+        filters.is_valid(raise_exception=True)
+        airport = get_object_or_404(Airport, pk=filters.validated_data["airport"])
+        return Response(date_recommendations(airport, filters.validated_data["date"]))
