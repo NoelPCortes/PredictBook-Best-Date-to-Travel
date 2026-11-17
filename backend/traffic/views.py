@@ -1,10 +1,20 @@
+from django.shortcuts import get_object_or_404
 from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from flights.models import Airport
 
 from .calculation import flight_totals
+from .insights import date_explanation
 from .models import CrowdForecast
 from .permissions import CanManageManualForecasts
-from .serializers import ForecastFilterSerializer, ForecastSerializer
+from .serializers import (
+    DateInsightFilterSerializer,
+    ForecastFilterSerializer,
+    ForecastSerializer,
+)
 from .services import save_forecast
 
 
@@ -48,3 +58,13 @@ class ForecastDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     def perform_update(self, serializer):
         save_forecast(serializer)
+
+
+class DateExplanationView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    def get(self, request):
+        filters = DateInsightFilterSerializer(data=request.query_params)
+        filters.is_valid(raise_exception=True)
+        airport = get_object_or_404(Airport, pk=filters.validated_data["airport"])
+        return Response(date_explanation(airport, filters.validated_data["date"]))

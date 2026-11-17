@@ -112,3 +112,8 @@ class ForecastFilterSerializer(serializers.Serializer):
             raise serializers.ValidationError(
                 "Enter a valid month in YYYY-MM format."
             ) from None
+
+
+class DateInsightFilterSerializer(serializers.Serializer):
+    airport = serializers.IntegerField(min_value=1)
+    date = serializers.DateField(input_formats=("%Y-%m-%d",))
