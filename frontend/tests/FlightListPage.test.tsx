@@ -31,8 +31,8 @@ beforeEach(() => {
 })
 afterEach(async () => { await act(async () => root.unmount()); container.remove(); clearSession() })
 
-async function render() {
-  await act(async () => root.render(<MemoryRouter initialEntries={['/staff/flights']}><Routes>
+async function render(path = '/staff/flights') {
+  await act(async () => root.render(<MemoryRouter initialEntries={[path]}><Routes>
     <Route path="/staff/flights" element={<RoleRoute allowedRoles={['staff', 'head']}><FlightListPage /></RoleRoute>} />
     <Route path="/home" element={<p>Traveler home</p>} /><Route path="/signin" element={<p>Sign in</p>} />
   </Routes></MemoryRouter>))
@@ -131,4 +131,14 @@ it.each(['head', 'traveler', null] as const)('guards the flight list for %s', as
   await render()
   expect(listFlights).toHaveBeenCalledTimes(role === 'head' ? 1 : 0)
   expect(container.textContent).toContain(role === 'head' ? 'Flights' : role === 'traveler' ? 'Traveler home' : 'Sign in')
+})
+
+
+it('reads airport/date filters and allows clearing them', async () => {
+  await render('/staff/flights?airport=2&date=2026-12-01')
+  expect(listFlights).toHaveBeenLastCalledWith({ airport: '2', date: '2026-12-01' })
+  expect(container.querySelector('.record-filter')?.textContent).toContain('2026-12-01')
+  await act(async () => container.querySelector<HTMLAnchorElement>('.record-filter a')!.click())
+  expect(listFlights).toHaveBeenLastCalledWith({ airport: '', date: '' })
+  expect(container.querySelector('.record-filter')).toBeNull()
 })

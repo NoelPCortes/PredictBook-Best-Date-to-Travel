@@ -5,7 +5,7 @@ import RecordField from './RecordField'
 import RecordAlert from './RecordAlert'
 import CrowdChip from './CrowdChip'
 import { formatFlightTime } from './flightTime'
-import { calendarDate, calendarDateLabel, changeMonth, monthDates, monthLabel, philippineToday } from './calendarDates'
+import { calendarDate, calendarDateLabel, changeMonth, monthDates, monthLabel, projectToday } from './calendarDates'
 import { useRemoteResource } from './useRemoteResource'
 import previousIcon from '../assets/icons/chevron-leftIcon.png'
 import nextIcon from '../assets/icons/chevron-rightIcon.png'
@@ -14,13 +14,13 @@ import seatIcon from '../assets/icons/SeatIcon.png'
 import './AirportCalendar.css'
 
 function AirportMonth({ airport }: { airport: string }) {
-  const today = philippineToday()
+  const today = projectToday()
   const [selectedDate, setSelectedDate] = useState(today)
   const month = selectedDate.slice(0, 7)
   const [forecastAttempt, setForecastAttempt] = useState(0)
   const [flightAttempt, setFlightAttempt] = useState(0)
   const fetchForecasts = useCallback(() => loadForecasts({ airport, month }), [airport, month])
-  const fetchFlights = useCallback(() => loadFlights({ origin: airport, date: selectedDate }), [airport, selectedDate])
+  const fetchFlights = useCallback(() => loadFlights({ airport, date: selectedDate }), [airport, selectedDate])
   const forecasts = useRemoteResource(`${airport}/${month}/${forecastAttempt}`, fetchForecasts)
   const flights = useRemoteResource(`${airport}/${selectedDate}/${flightAttempt}`, fetchFlights)
   const headingId = useId()
@@ -51,7 +51,7 @@ function AirportMonth({ airport }: { airport: string }) {
     <section className="airport-date-details" aria-live="polite" aria-atomic="true" aria-label="Selected date details">
       <h3>{calendarDateLabel(selectedDate)}</h3>
       {forecasts.value ? <CrowdChip level={selectedForecast?.crowd_level} /> : <p>{forecasts.error ? 'Crowd forecast unavailable.' : 'Loading crowd forecast…'}</p>}
-      {selectedForecast?.data_source === 'Sample data' && <p>Sample data</p>}
+      <p>Forecast dates: UTC. Flights include arrivals and departures.</p>
       <p>Flight times: Philippine time (Asia/Manila, UTC+08:00).</p>
       {!flights.value && !flights.error && <p role="status">Loading flights…</p>}
       {flights.error && <><RecordAlert kind="error">Unable to load flights. Please try again.</RecordAlert><button type="button" className="calendar-text-button" onClick={() => setFlightAttempt(value => value + 1)}>Retry flights</button></>}

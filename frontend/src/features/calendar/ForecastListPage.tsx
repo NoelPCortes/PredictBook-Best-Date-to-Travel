@@ -51,11 +51,14 @@ export default function ForecastListPage() {
     {isLoading && <p role="status">Loading forecasts…</p>}
     {error && <><RecordAlert kind="error">{error}</RecordAlert><button className="record-button record-secondary" onClick={() => { setIsLoading(true); setError(''); setAttempt(value => value + 1) }}>Try again</button></>}
     {!isLoading && !error && <div className="record-table-scroll" tabIndex={0} role="region" aria-label="Forecasts table"><table className="record-table">
-      <thead><tr>{['Airport', 'Date', 'Crowd level', 'Crowd score', 'Created by', 'Actions'].map(label => <th key={label} scope="col">{label}</th>)}</tr></thead>
+      <thead><tr>{['Airport', 'Date', 'Crowd level', 'Seats booked', 'Flights', 'Source', 'Actions'].map(label => <th key={label} scope="col">{label}</th>)}</tr></thead>
       <tbody>{forecasts.map(record => <tr key={record.id}>
-        <td>{airportName(record.airport)}</td><td><time dateTime={record.date}>{record.date}</time></td><td><CrowdChip level={record.crowd_level} /></td><td>{record.crowd_score ?? '—'}</td><td>{record.created_by_username}</td>
-        <td>{record.can_edit && <div className="record-actions"><Link className="record-button record-secondary" to={`/staff/forecasts/${record.id}/edit`}>Edit</Link><button type="button" className="record-button record-danger" disabled={isDeleting} onClick={() => { setDeleteError(''); setPendingDelete(record) }}>Delete</button></div>}</td>
-      </tr>)}{!forecasts.length && <tr><td colSpan={6}>No forecasts listed yet.</td></tr>}</tbody>
+        <td>{airportName(record.airport)}</td><td><time dateTime={record.date}>{record.date}</time></td><td><CrowdChip level={record.crowd_level} /></td>
+        <td>{record.seats_booked} of {record.seats_total} seats, {record.seats_total ? `${(record.seats_booked / record.seats_total * 100).toFixed(1)}%` : 'no seat data'}</td>
+        <td>{record.flight_count} <Link className="record-button record-secondary" to={`/staff/flights?airport=${record.airport}&date=${record.date}`}>View flights</Link></td>
+        <td>{record.is_calculated ? 'Calculated automatically' : 'Staff entry'}</td>
+        <td>{record.can_edit && !record.is_calculated && <div className="record-actions"><Link className="record-button record-secondary" to={`/staff/forecasts/${record.id}/edit`}>Edit</Link><button type="button" className="record-button record-danger" disabled={isDeleting} onClick={() => { setDeleteError(''); setPendingDelete(record) }}>Delete</button></div>}</td>
+      </tr>)}{!forecasts.length && <tr><td colSpan={7}>No forecasts listed yet.</td></tr>}</tbody>
     </table></div>}
   </RecordLayout>
 }

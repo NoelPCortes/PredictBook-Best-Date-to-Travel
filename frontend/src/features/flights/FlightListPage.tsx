@@ -8,8 +8,11 @@ import { formatFlightTime } from '../../components/flightTime'
 import type { Flight } from '../../types/flights'
 import { deleteFlight, listFlights } from './api'
 
-export default function FlightListPage() {
+function FlightList() {
   const location = useLocation()
+  const query = new URLSearchParams(location.search)
+  const airport = query.get('airport') ?? ''
+  const date = query.get('date') ?? ''
   const navigate = useNavigate()
   const [success, setSuccess] = useState(() => typeof location.state?.success === 'string' ? location.state.success as string : '')
   const [pendingDelete, setPendingDelete] = useState<Flight | null>(null)
@@ -20,15 +23,15 @@ export default function FlightListPage() {
   const [error, setError] = useState('')
   const [attempt, setAttempt] = useState(0)
   useEffect(() => {
-    if (location.state?.success) navigate(location.pathname, { replace: true, state: null })
-  }, [location.pathname, location.state, navigate])
+    if (location.state?.success) navigate(location.pathname + location.search, { replace: true, state: null })
+  }, [location.pathname, location.search, location.state, navigate])
   useEffect(() => {
     let isActive = true
-    void listFlights().then(records => { if (isActive) setFlights(records) })
+    void listFlights({ airport, date }).then(records => { if (isActive) setFlights(records) })
       .catch(() => { if (isActive) setError('Unable to load flights. Please try again.') })
       .finally(() => { if (isActive) setIsLoading(false) })
     return () => { isActive = false }
-  }, [attempt])
+  }, [attempt, airport, date])
   async function confirmDelete() {
     if (!pendingDelete || isDeleting) return
     setIsDeleting(true); setDeleteError(''); setSuccess('')
@@ -43,6 +46,7 @@ export default function FlightListPage() {
   return <RecordLayout>
     <header className="record-heading"><h1 tabIndex={-1}>Flights</h1><Link className="record-button" to="/staff/flights/new">Add flight</Link></header>
     <p>Flight times are shown in Philippine time (Asia/Manila, UTC+08:00).</p>
+    {(airport || date) && <p className="record-filter" role="status">Flights {airport ? `involving airport ${airport}` : ''}{date ? ` on ${date}` : ''} (forecast dates: UTC). <Link className="record-button record-ghost" to="/staff/flights">Clear filter</Link></p>}
     {success && <RecordAlert kind="success">{success}</RecordAlert>}
     {pendingDelete && <DeleteConfirmation key={pendingDelete.id} message={`Delete flight ${pendingDelete.airline_code} ${pendingDelete.flight_number}? This cannot be undone.`} isDeleting={isDeleting} error={deleteError} onCancel={() => { setPendingDelete(null); setDeleteError('') }} onDelete={() => { void confirmDelete() }} />}
     {isLoading && <p role="status">Loading flights…</p>}
@@ -63,4 +67,9 @@ export default function FlightListPage() {
       </tbody></table>
     </div>}
   </RecordLayout>
+}
+
+export default function FlightListPage() {
+  const location = useLocation()
+  return <FlightList key={location.search} />
 }

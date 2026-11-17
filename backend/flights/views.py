@@ -1,8 +1,11 @@
 from datetime import datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
+from django.db.models import Q
 from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated
+
+from traffic.calculation import project_timezone
 
 from .models import Airline, Airport, Flight
 from .permissions import CanManageOwnRecords
@@ -40,7 +43,24 @@ class FlightListCreateView(generics.ListCreateAPIView):
         )
         if "origin" in values:
             flights = flights.filter(origin=values["origin"])
-        if "date" in values:
+        if "airport" in values:
+            airport = values["airport"]
+            if "date" in values:
+                start = datetime.combine(
+                    values["date"], time.min, tzinfo=project_timezone()
+                )
+                end = start + timedelta(days=1)
+                flights = flights.filter(
+                    Q(origin=airport, departure_time__gte=start, departure_time__lt=end)
+                    | Q(
+                        destination=airport,
+                        arrival_time__gte=start,
+                        arrival_time__lt=end,
+                    )
+                )
+            else:
+                flights = flights.filter(Q(origin=airport) | Q(destination=airport))
+        elif "date" in values:
             start = datetime.combine(
                 values["date"], time.min, tzinfo=ZoneInfo("Asia/Manila")
             )

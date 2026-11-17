@@ -1,14 +1,15 @@
 import { apiRequest } from '../../api/client'
 import type { Flight } from '../../types/flights'
 import { loadAirlines, loadAirports } from '../../api/lookups'
+import { loadFlights } from '../../api/traffic'
 
 export type FlightInput = {
   airline: string; flight_number: string; origin: string; destination: string
   departure_time: string; arrival_time: string; total_seats: string; available_seats: string
 }
 
-export function listFlights() {
-  return apiRequest<Flight[]>('/api/flights/')
+export function listFlights(filters: { airport?: string; date?: string } = {}) {
+  return loadFlights(filters)
 }
 
 export function loadFlightOptions() {

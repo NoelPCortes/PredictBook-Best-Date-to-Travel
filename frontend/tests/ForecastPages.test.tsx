@@ -12,7 +12,7 @@ import { createForecast, deleteForecast, getForecast, loadForecastAirports, load
 import type { Forecast } from '../src/types/traffic'
 
 vi.mock('../src/features/calendar/api', () => ({ createForecast: vi.fn(), deleteForecast: vi.fn(), updateForecast: vi.fn(), getForecast: vi.fn(), loadForecastAirports: vi.fn(), loadForecastList: vi.fn() }))
-const forecast: Forecast = { id: 7, airport: 1, date: '2026-12-01', crowd_level: 'low', crowd_score: null, calculated_at: '2026-11-16T00:00:00Z', data_source: 'Staff entry', created_by_username: 'staff', can_edit: true }
+const forecast: Forecast = { id: 7, airport: 1, date: '2026-12-01', crowd_level: 'low', crowd_score: null, is_calculated: false, flight_count: 2, seats_total: 180, seats_booked: 124, calculated_at: '2026-11-16T00:00:00Z', data_source: 'Staff entry', created_by_username: 'staff', can_edit: true }
 const airports = [{ id: 1, code: 'CEB', name: 'Cebu', city: 'Cebu', country: 'Philippines' }]
 let container: HTMLDivElement
 let root: ReturnType<typeof createRoot>
@@ -55,7 +55,7 @@ it('lists airport, date, crowd chip with dot and text, score and author', async 
   expect(container.textContent).toContain('2026-12-01')
   expect(container.querySelector('.record-crowd-chip')?.textContent).toBe('Low crowd')
   expect(container.querySelector('.record-crowd-chip i')).not.toBeNull()
-  expect(container.querySelector('tbody')?.textContent).toContain('staff')
+  expect(container.querySelector('tbody')?.textContent).toContain('Staff entry')
   expect(container.querySelector('a[href="/staff/forecasts/new"]')?.textContent).toBe('Add forecast')
   expect(container.querySelector('.app-nav-links a[aria-current="page"]')?.textContent).toBe('Crowd forecasts')
   expect(container.querySelector('svg')).toBeNull()
@@ -63,7 +63,7 @@ it('lists airport, date, crowd chip with dot and text, score and author', async 
 it('hides edit and delete when can_edit is false', async () => {
   vi.mocked(loadForecastList).mockResolvedValue([[{ ...forecast, can_edit: false }], airports])
   await render()
-  expect(container.querySelector('tbody a, tbody button')).toBeNull()
+  expect(container.querySelector('tbody a[href$="/edit"], tbody button')).toBeNull()
 })
 it('shows the empty table message', async () => {
   vi.mocked(loadForecastList).mockResolvedValue([[], airports]); await render()
@@ -142,4 +142,14 @@ it.each(['/staff/forecasts', '/staff/forecasts/new', '/staff/forecasts/7/edit'])
 it('allows Heads to create forecasts', async () => {
   setProfile({ id: 1, username: 'head', email: 'head@example.com', role: 'head', first_name: '', last_name: '' })
   await render('/staff/forecasts/new'); expect(container.querySelector('form')).not.toBeNull()
+})
+
+
+it('shows live seats and flight references for read-only calculated rows', async () => {
+  vi.mocked(loadForecastList).mockResolvedValue([[{ ...forecast, is_calculated: true, can_edit: false, created_by_username: null }], airports])
+  await render()
+  expect(container.querySelector('tbody')?.textContent).toContain('124 of 180 seats, 68.9%')
+  expect(container.querySelector('tbody')?.textContent).toContain('Calculated automatically')
+  expect(container.querySelector('a[href="/staff/flights?airport=1&date=2026-12-01"]')?.textContent).toBe('View flights')
+  expect(container.querySelector('tbody a[href$="/edit"], tbody button')).toBeNull()
 })

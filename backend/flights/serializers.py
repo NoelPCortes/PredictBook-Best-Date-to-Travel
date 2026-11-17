@@ -26,16 +26,31 @@ class FlightSerializer(StrictFieldsMixin, serializers.ModelSerializer):
     origin_name = serializers.CharField(source="origin.name", read_only=True)
     destination_code = serializers.CharField(source="destination.code", read_only=True)
     destination_name = serializers.CharField(source="destination.name", read_only=True)
-    created_by_username = serializers.CharField(source="created_by.username", read_only=True)
+    created_by_username = serializers.CharField(
+        source="created_by.username", read_only=True
+    )
     can_edit = serializers.SerializerMethodField()
 
     class Meta:
         model = Flight
         fields = (
-            "id", "airline", "airline_name", "airline_code", "flight_number",
-            "origin", "origin_code", "origin_name", "destination", "destination_code",
-            "destination_name", "departure_time", "arrival_time", "total_seats",
-            "available_seats", "created_by_username", "can_edit",
+            "id",
+            "airline",
+            "airline_name",
+            "airline_code",
+            "flight_number",
+            "origin",
+            "origin_code",
+            "origin_name",
+            "destination",
+            "destination_code",
+            "destination_name",
+            "departure_time",
+            "arrival_time",
+            "total_seats",
+            "available_seats",
+            "created_by_username",
+            "can_edit",
         )
         read_only_fields = ("id",)
         validators = ()
@@ -62,9 +77,12 @@ class FlightSerializer(StrictFieldsMixin, serializers.ModelSerializer):
         if value("arrival_time") <= value("departure_time"):
             errors["arrival_time"] = ["Arrival must be after departure."]
         if not 0 <= value("available_seats") <= value("total_seats"):
-            errors["available_seats"] = ["Available seats must be between 0 and total seats."]
+            errors["available_seats"] = [
+                "Available seats must be between 0 and total seats."
+            ]
         duplicates = Flight.objects.filter(
-            airline=value("airline"), flight_number=value("flight_number"),
+            airline=value("airline"),
+            flight_number=value("flight_number"),
             departure_time=value("departure_time"),
         )
         if current:
@@ -79,6 +97,11 @@ class FlightSerializer(StrictFieldsMixin, serializers.ModelSerializer):
 
 
 class FlightFilterSerializer(serializers.Serializer):
-    origin = serializers.PrimaryKeyRelatedField(queryset=Airport.objects.all(), required=False)
+    airport = serializers.PrimaryKeyRelatedField(
+        queryset=Airport.objects.all(), required=False
+    )
+    origin = serializers.PrimaryKeyRelatedField(
+        queryset=Airport.objects.all(), required=False
+    )
     date = serializers.DateField(required=False, input_formats=("%Y-%m-%d",))
     mine = serializers.BooleanField(required=False)

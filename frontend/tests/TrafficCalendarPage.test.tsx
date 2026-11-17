@@ -16,7 +16,7 @@ const airports = [
   { id: 1, code: 'CEB', name: 'Cebu', city: 'Cebu', country: 'Philippines' },
   { id: 2, code: 'MNL', name: 'Manila', city: 'Manila', country: 'Philippines' },
 ]
-const forecast = (day: number, level: Forecast['crowd_level']): Forecast => ({ id: day, airport: 1, date: `2026-01-${String(day).padStart(2, '0')}`, crowd_level: level, crowd_score: null, calculated_at: '2026-01-01T00:00:00Z', data_source: 'Staff entry' })
+const forecast = (day: number, level: Forecast['crowd_level']): Forecast => ({ id: day, airport: 1, date: `2026-01-${String(day).padStart(2, '0')}`, crowd_level: level, crowd_score: null, is_calculated: false, flight_count: 2, seats_total: 180, seats_booked: 124, calculated_at: '2026-01-01T00:00:00Z', data_source: 'Staff entry' })
 let container: HTMLDivElement
 let root: ReturnType<typeof createRoot>
 beforeEach(() => {
@@ -50,7 +50,7 @@ async function changeAirport(value: string) {
 it('loads one airport, API crowd levels, no-data dates and actual weekdays', async () => {
   await render()
   expect(loadForecasts).toHaveBeenCalledWith({ airport: '1', month: '2026-01' })
-  expect(loadFlights).toHaveBeenCalledWith({ origin: '1', date: '2026-01-14' })
+  expect(loadFlights).toHaveBeenCalledWith({ airport: '1', date: '2026-01-14' })
   expect(container.querySelectorAll('.airport-day-grid button')).toHaveLength(31)
   expect([...container.querySelector('.airport-day-grid')!.children].indexOf(day(1))).toBe(11)
   expect(day(14).classList.contains('low')).toBe(true)
@@ -77,7 +77,7 @@ it('shows selected crowd level and flights with PNG time and seat icons', async 
 it('selects a no-data day and shows the empty flight message', async () => {
   await render(); vi.mocked(loadFlights).mockResolvedValue([])
   await act(async () => day(17).click())
-  expect(loadFlights).toHaveBeenLastCalledWith({ origin: '1', date: '2026-01-17' })
+  expect(loadFlights).toHaveBeenLastCalledWith({ airport: '1', date: '2026-01-17' })
   expect(container.querySelector('.airport-date-details .record-crowd-chip')?.textContent).toBe('No data')
   expect(container.textContent).toContain('No flights listed for this date.')
 })
@@ -85,7 +85,7 @@ it('changes airports without losing the selected date or exposing old flights', 
   await render(); vi.mocked(loadFlights).mockResolvedValue([]); vi.mocked(loadForecasts).mockResolvedValue([])
   await changeAirport('2')
   expect(loadForecasts).toHaveBeenLastCalledWith({ airport: '2', month: '2026-01' })
-  expect(loadFlights).toHaveBeenLastCalledWith({ origin: '2', date: '2026-01-14' })
+  expect(loadFlights).toHaveBeenLastCalledWith({ airport: '2', date: '2026-01-14' })
   expect(container.querySelector('.calendar-flight-list')).toBeNull()
 })
 it('enables month navigation and handles year boundaries and leap years', async () => {
@@ -97,9 +97,9 @@ it('enables month navigation and handles year boundaries and leap years', async 
   await click('[aria-label="Previous month"]'); await click('[aria-label="Previous month"]')
   expect(loadForecasts).toHaveBeenLastCalledWith({ airport: '1', month: '2025-12' })
 })
-it('uses Philippine today across the UTC day boundary', async () => {
+it('uses project UTC today across the Philippine day boundary', async () => {
   vi.setSystemTime(new Date('2026-01-13T17:00:00Z')); await render()
-  expect(loadFlights).toHaveBeenCalledWith({ origin: '1', date: '2026-01-14' })
+  expect(loadFlights).toHaveBeenCalledWith({ airport: '1', date: '2026-01-13' })
 })
 it('renders February 29 in a leap year with Tuesday alignment for February 1', async () => {
   vi.setSystemTime(new Date('2028-02-15T04:00:00Z')); await render()

@@ -18,8 +18,8 @@ beforeEach(async () => {
   vi.useFakeTimers(); vi.setSystemTime(new Date('2026-01-14T04:00:00Z'))
   vi.mocked(loadAirports).mockResolvedValue([{ id: 1, code: 'CEB', name: 'Cebu', city: 'Cebu', country: 'Philippines' }])
   vi.mocked(loadForecasts).mockResolvedValue([
-    { id: 1, airport: 1, date: '2026-01-14', crowd_level: 'high', crowd_score: null, calculated_at: '2026-01-01T00:00:00Z', data_source: 'Staff entry' },
-    { id: 2, airport: 1, date: '2026-01-17', crowd_level: 'medium', crowd_score: null, calculated_at: '2026-01-01T00:00:00Z', data_source: 'Staff entry' },
+    { id: 1, airport: 1, date: '2026-01-14', crowd_level: 'high', crowd_score: null, is_calculated: false, flight_count: 2, seats_total: 180, seats_booked: 124, calculated_at: '2026-01-01T00:00:00Z', data_source: 'Staff entry' },
+    { id: 2, airport: 1, date: '2026-01-17', crowd_level: 'medium', crowd_score: null, is_calculated: false, flight_count: 2, seats_total: 180, seats_booked: 124, calculated_at: '2026-01-01T00:00:00Z', data_source: 'Staff entry' },
   ])
   vi.mocked(loadFlights).mockResolvedValue([])
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
@@ -67,7 +67,7 @@ describe('Home page', () => {
     const panel = container.querySelector('.airport-date-details')
     expect(panel?.querySelector('h3')?.textContent).toBe('January 17, 2026')
     expect(panel?.querySelector('.record-crowd-chip')?.textContent).toBe('Medium crowd')
-    expect(loadFlights).toHaveBeenLastCalledWith({ origin: '1', date: '2026-01-17' })
+    expect(loadFlights).toHaveBeenLastCalledWith({ airport: '1', date: '2026-01-17' })
     expect(dayButton(17).getAttribute('aria-pressed')).toBe('true')
     expect(dayButton(14).getAttribute('aria-pressed')).toBe('false')
   })
