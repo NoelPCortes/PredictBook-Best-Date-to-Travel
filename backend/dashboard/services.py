@@ -4,7 +4,7 @@ from datetime import timedelta
 from django.utils import timezone
 
 from flights.models import Airport
-from traffic.calculation import project_timezone
+from traffic.calculation import calculate_pairs, project_timezone, rounded
 from traffic.models import CrowdForecast
 
 
@@ -57,4 +57,43 @@ def dashboard_summary(airport=None):
         "dates": dates,
         "busiest_weekday": busiest,
         "next_7_days": next_days,
+        "comparison": period_comparison(airport, rows),
+    }
+
+
+def period_comparison(airport, forecasts):
+    calculations = (
+        calculate_pairs({(airport.pk, row.date) for row in forecasts})
+        if airport
+        else {}
+    )
+    values = list(calculations.values())
+    flights = [row["occupancy"] for row in values if row["occupancy"] is not None]
+    history = [
+        row["history_average"] for row in values if row["history_average"] is not None
+    ]
+    paired = [
+        row
+        for row in values
+        if row["occupancy"] is not None and row["history_average"] is not None
+    ]
+    average_flights = sum(flights) / len(flights) if flights else None
+    average_history = sum(history) / len(history) if history else None
+    return {
+        "average_occupancy_2026_percent": rounded(average_flights)
+        if average_flights is not None
+        else None,
+        "average_occupancy_2025_percent": rounded(average_history)
+        if average_history is not None
+        else None,
+        "difference_points": rounded(average_flights - average_history)
+        if average_flights is not None and average_history is not None
+        else None,
+        "days_busier_than_2025": sum(
+            row["occupancy"] > row["history_average"] for row in paired
+        ),
+        "days_quieter_than_2025": sum(
+            row["occupancy"] < row["history_average"] for row in paired
+        ),
+        "days_compared": len(paired),
     }
