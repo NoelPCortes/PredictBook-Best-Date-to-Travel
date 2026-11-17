@@ -15,7 +15,7 @@ vi.mock('../src/features/head/api', async importOriginal => ({ ...await importOr
 vi.mock('../src/features/staff-dashboard/api', async importOriginal => ({
   ...await importOriginal<typeof import('../src/features/staff-dashboard/api')>(),
   getOwnRecordCounts: async () => ({ flights: 0, forecasts: 0 }),
-  getDashboardSummary: async () => ({ airport: null, period_start: '2026-11-16', period_end: '2026-12-15', counts: { low: 0, medium: 0, high: 0 }, dates: { low: [], medium: [], high: [] }, busiest_weekday: null, next_7_days: [], comparison: { average_occupancy_2026_percent: null, average_occupancy_2025_percent: null, difference_points: null, days_busier_than_2025: 0, days_quieter_than_2025: 0, days_compared: 0 } }),
+  getDashboardSummary: async () => ({ airport: null, period_start: '2026-11-16', period_end: '2026-12-15', counts: { low: 0, medium: 0, high: 0 }, dates: { low: [], medium: [], high: [] }, busiest_weekday: null, next_7_days: [], days: [], comparison: { average_occupancy_2026_percent: null, average_occupancy_2025_percent: null, difference_points: null, days_busier_than_2025: 0, days_quieter_than_2025: 0, days_compared: 0 } }),
 }))
 
 const profile = { id: 1, username: 'traveler', email: 'traveler@example.com', first_name: '', last_name: '', role: 'traveler' }

@@ -13,6 +13,11 @@ import type { DashboardSummary } from '../src/features/staff-dashboard/types'
 vi.mock('../src/features/staff-dashboard/api', () => ({ getDashboardAccess: vi.fn(), getDashboardSummary: vi.fn(), getOwnRecordCounts: vi.fn() }))
 vi.mock('../src/api/lookups', () => ({ loadAirports: vi.fn() }))
 const summary: DashboardSummary = {
+  days: [
+    {date:'2026-11-16',weekday:'Monday',crowd_level:'high',crowd_score:80.4,seats_booked:124,seats_total:180,flight_count:3},
+    {date:'2026-11-17',weekday:'Tuesday',crowd_level:'medium',crowd_score:60,seats_booked:60,seats_total:100,flight_count:1},
+    {date:'2026-11-18',weekday:'Wednesday',crowd_level:'low',crowd_score:40,seats_booked:40,seats_total:100,flight_count:1},
+  ],
   comparison: { average_occupancy_2026_percent: 65, average_occupancy_2025_percent: 60, difference_points: 5, days_busier_than_2025: 1, days_quieter_than_2025: 1, days_compared: 3 },
   airport: { id: 2, code: 'MNL', name: 'Manila' }, period_start: '2026-11-16', period_end: '2026-12-15',
   counts: { high: 2, medium: 1, low: 1 }, busiest_weekday: 'Monday',
@@ -98,4 +103,22 @@ it('handles own-record count errors independently', async () => {
   vi.mocked(getOwnRecordCounts).mockRejectedValueOnce(new TypeError('Offline')); await render()
   expect(container.querySelector('.own-records [role="alert"]')).not.toBeNull()
   expect(container.querySelector('.staff-metrics')).not.toBeNull()
+})
+
+it('renders 30 accessible bars, levels, heights, references and selected details', async () => {
+  await render()
+  expect(container.querySelectorAll('.crowd-chart-day')).toHaveLength(30)
+  expect([...container.querySelectorAll<HTMLElement>('.crowd-chart-fill')].map(bar=>bar.style.height)).toEqual(['80.4%','60%','40%'])
+  expect(container.querySelector('.crowd-chart-fill.high')).not.toBeNull()
+  expect(container.querySelector('.crowd-chart-fill.medium')).not.toBeNull()
+  expect(container.querySelector('.crowd-chart-fill.low')).not.toBeNull()
+  expect(container.querySelector('.crowd-chart-legend')?.textContent).toBe('LowMediumHighNo data')
+  expect(container.querySelector('.crowd-chart-references')?.textContent).toContain('Medium from 50')
+  expect(container.querySelector('.crowd-chart-references')?.textContent).toContain('High from 75')
+  expect(container.querySelector('.crowd-chart-score')?.textContent).toBe('80')
+  const first=container.querySelector<HTMLButtonElement>('.crowd-chart-day')!
+  expect(first.getAttribute('aria-label')).toBe('Monday, Nov 16: High crowd, score 80.4%, 124 of 180 seats booked on 3 flights.')
+  await act(async () => container.querySelectorAll<HTMLButtonElement>('.crowd-chart-day')[3]!.click())
+  expect(container.querySelector('.crowd-chart-details')?.textContent).toContain('No data')
+  expect(container.querySelectorAll('.crowd-chart-date')[15]?.textContent).toContain('Dec')
 })

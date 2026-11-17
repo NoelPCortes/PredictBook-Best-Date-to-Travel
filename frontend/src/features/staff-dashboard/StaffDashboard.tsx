@@ -11,6 +11,7 @@ import { calendarDate, calendarDateLabel } from '../../components/calendarDates'
 import { getDashboardAccess, getDashboardSummary } from './api'
 import OwnRecordsCard from './OwnRecordsCard'
 import ComparisonCard from './ComparisonCard'
+import CrowdChart from './CrowdChart'
 import '../../components/RecordManagement.css'
 import './StaffDashboard.css'
 
@@ -38,6 +39,7 @@ function DashboardContent() {
     {(summary.error || airports.error) && <><RecordAlert kind="error">Unable to load the airport summary. Please try again.</RecordAlert><button className="record-button record-secondary" onClick={() => setAttempt(value => value + 1)}>Retry summary</button></>}
     {result && <>
       {!result.airport && <p>No airports available.</p>}
+      <CrowdChart summary={result} />
       {result.airport && Object.values(result.counts).every(count => count === 0) && <p>No data for this airport in this period.</p>}
       <section className="staff-metrics" aria-label="30-day crowd summary">
         {LEVELS.map(level => <article className="staff-card" key={level}><h2>{LABELS[level]} crowd days</h2><p className="staff-metric-value">{result.counts[level]}</p></article>)}

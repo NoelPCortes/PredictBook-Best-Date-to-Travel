@@ -1,7 +1,9 @@
 import type { CrowdLevel } from '../../types/traffic'
 
 export type SummaryDate = { date: string; weekday: string }
+export type SummaryDay = SummaryDate & { crowd_level: CrowdLevel; crowd_score: number | null; seats_booked: number; seats_total: number; flight_count: number }
 export type DashboardSummary = {
+  days: SummaryDay[]
   airport: { id: number; code: string; name: string } | null
   period_start: string; period_end: string
   counts: Record<CrowdLevel, number>
