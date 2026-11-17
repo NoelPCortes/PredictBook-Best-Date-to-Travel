@@ -6,9 +6,9 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { clearSession, setProfile } from '../src/api/authState'
 import { ApiError } from '../src/api/client'
 import HeadPage from '../src/features/head/HeadPage'
-import { assignStaff, getHeadAccess } from '../src/features/head/api'
+import { assignStaff, getHeadAccess, getStaffList, revokeStaff } from '../src/features/head/api'
 
-vi.mock('../src/features/head/api', () => ({ assignStaff: vi.fn(), getHeadAccess: vi.fn() }))
+vi.mock('../src/features/head/api', () => ({ assignStaff: vi.fn(), getHeadAccess: vi.fn(), getStaffList: vi.fn(), revokeStaff: vi.fn() }))
 let container: HTMLDivElement
 let root: ReturnType<typeof createRoot>
 
@@ -16,6 +16,8 @@ beforeEach(() => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
   setProfile({ id: 1, username: 'head_user', email: 'head@example.com', first_name: '', last_name: '', role: 'head' })
   vi.mocked(getHeadAccess).mockReset().mockResolvedValue({ detail: 'Head management access granted.' })
+  vi.mocked(getStaffList).mockReset().mockResolvedValue({ staff: [], pending: [] })
+  vi.mocked(revokeStaff).mockReset().mockResolvedValue({ detail: 'Staff access revoked.' })
   vi.mocked(assignStaff).mockReset().mockResolvedValue({ detail: 'Staff access assigned.' })
   container = document.createElement('div')
   document.body.append(container)
@@ -45,7 +47,7 @@ it('renders Head navigation and only the approved email assignment form after se
   await render()
   expect(getHeadAccess).toHaveBeenCalledOnce()
   expect(container.querySelector('h1')?.textContent).toBe('Head management')
-  expect([...container.querySelectorAll('.app-nav-links a')].map(link => link.textContent)).toEqual(['Head management', 'Dashboard'])
+  expect([...container.querySelectorAll('.app-nav-links a')].map(link => link.textContent)).toEqual(['Dashboard', 'Flights', 'Crowd forecasts', 'Head management'])
   expect(container.querySelector('a[aria-current="page"]')?.getAttribute('href')).toBe('/head')
   expect(container.querySelector('.brand')?.getAttribute('href')).toBe('/head')
   expect(container.querySelector('a[href="/staff/dashboard"]')).not.toBeNull()
@@ -53,7 +55,7 @@ it('renders Head navigation and only the approved email assignment form after se
   expect(container.querySelector('label')?.textContent).toBe('Email')
   expect(emailInput().type).toBe('email')
   expect(container.textContent).toContain('head_user')
-  expect(container.textContent).not.toMatch(/Promote|Remove|Charts/)
+  expect(container.textContent).not.toMatch(/Promote|Charts/)
   expect(container.querySelector('svg')).toBeNull()
 })
 
@@ -140,4 +142,49 @@ it('removes the form if Head access is revoked before assignment', async () => {
   await submit()
   expect(container.querySelector('[role="alert"]')?.textContent).toContain('do not have access')
   expect(container.querySelector('form')).toBeNull()
+})
+
+
+it('renders Staff and pending lists, then refreshes them after assignment', async () => {
+  vi.mocked(getStaffList).mockResolvedValue({ staff: [{ username: 'staff_a', email: 'a@example.com' }], pending: [{ email: 'pending@example.com', assigned_by_username: 'head_user', assigned_at: '2026-11-17T04:00:00Z' }] })
+  await render()
+  expect(container.querySelector('[aria-label="Staff table"]')?.textContent).toContain('staff_a')
+  expect(container.querySelector('[aria-label="Pending assignments table"]')?.textContent).toContain('pending@example.com')
+  expect(container.querySelector('[aria-label="Pending assignments table"]')?.textContent).toContain('head_user')
+  await submit()
+  expect(getStaffList).toHaveBeenCalledTimes(2)
+})
+it('shows empty states for both lists', async () => {
+  await render()
+  expect(container.textContent).toContain('No Staff accounts yet.')
+  expect(container.textContent).toContain('No pending assignments.')
+})
+it.each([false, true])('confirms and removes the selected Staff or pending assignment: %s', async isPending => {
+  vi.mocked(getStaffList).mockResolvedValue({ staff: [{ username: 'staff_a', email: 'a@example.com' }], pending: [{ email: 'pending@example.com', assigned_by_username: 'head_user', assigned_at: '2026-11-17T04:00:00Z' }] })
+  await render()
+  const table = isPending ? 'Pending assignments table' : 'Staff table'
+  await act(async () => container.querySelector<HTMLButtonElement>(`[aria-label="${table}"] button`)!.click())
+  const message = container.querySelector('[role="alertdialog"]')?.textContent
+  expect(message).toContain(isPending ? 'Remove the pending Staff assignment for pending@example.com?' : 'Remove Staff access for staff_a? They become a Traveler. Their account is not deleted.')
+  expect(document.activeElement?.textContent).toBe('Cancel')
+  expect(revokeStaff).not.toHaveBeenCalled()
+  await act(async () => container.querySelector<HTMLButtonElement>('[role="alertdialog"] .record-ghost')!.click())
+  expect(revokeStaff).not.toHaveBeenCalled()
+  await act(async () => container.querySelector<HTMLButtonElement>(`[aria-label="${table}"] button`)!.click())
+  vi.mocked(getStaffList).mockResolvedValue({ staff: [], pending: [] })
+  await act(async () => container.querySelector<HTMLButtonElement>('[role="alertdialog"] .record-danger')!.click())
+  expect(revokeStaff).toHaveBeenCalledWith(isPending ? 'pending@example.com' : 'a@example.com')
+  expect(container.textContent).toContain('Staff access revoked.')
+  expect(getStaffList).toHaveBeenCalledTimes(2)
+})
+it('shows backend list and removal errors without hiding them', async () => {
+  vi.mocked(getStaffList).mockRejectedValueOnce(new ApiError(403, { detail: 'Head access required.' }))
+  await render()
+  expect(container.querySelector('[role="alert"]')?.textContent).toBe('Head access required.')
+  vi.mocked(getStaffList).mockResolvedValue({ staff: [{ username: 'staff_a', email: 'a@example.com' }], pending: [] })
+  await act(async () => [...container.querySelectorAll('button')].find(button => button.textContent === 'Retry lists')!.click())
+  vi.mocked(revokeStaff).mockRejectedValueOnce(new ApiError(400, { detail: 'Only Staff access can be revoked here.' }))
+  await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="Staff table"] button')!.click())
+  await act(async () => container.querySelector<HTMLButtonElement>('[role="alertdialog"] .record-danger')!.click())
+  expect(container.querySelector('[role="alertdialog"] [role="alert"]')?.textContent).toBe('Only Staff access can be revoked here.')
 })

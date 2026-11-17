@@ -8,12 +8,15 @@ import { useSignOut } from '../../components/useSignOut'
 import { assignStaff, getHeadAccess } from './api'
 import '../../components/AuthLayout.css'
 import './HeadPage.css'
+import StaffLists from './StaffLists'
+import '../../components/RecordManagement.css'
 
 export default function HeadPage() {
   const { profile } = useAuth()
   const { signOut, isSigningOut } = useSignOut()
   const [access, setAccess] = useState<'loading' | 'allowed' | 'denied' | 'error'>('loading')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [listRefresh, setListRefresh] = useState(0)
   const [emailError, setEmailError] = useState('')
   const [feedback, setFeedback] = useState<{ message: string; isError: boolean } | null>(null)
   const emailRef = useRef<HTMLInputElement>(null)
@@ -40,6 +43,7 @@ export default function HeadPage() {
     try {
       const result = await assignStaff(email)
       setFeedback({ message: result.detail, isError: false })
+      setListRefresh(value => value + 1)
     } catch (error) {
       if (error instanceof ApiError) {
         const message = fieldMessage(error.fields.email)
@@ -65,8 +69,8 @@ export default function HeadPage() {
 
   return <>
     <AppNavbar userName={profile?.username ?? ''} onSignOut={signOut} isSigningOut={isSigningOut} navigation="head" />
-    <main className="head-page">
-      <h1>Head management</h1>
+    <main className="head-page record-page">
+      <h1 tabIndex={-1}>Head management</h1>
       {access === 'loading' && <p role="status">Checking Head access…</p>}
       {access === 'denied' && <p className="head-feedback head-error" role="alert">You do not have access to Head management.</p>}
       {access === 'error' && <p className="head-feedback head-error" role="alert">Unable to load Head management. Please try again later.</p>}
@@ -79,6 +83,7 @@ export default function HeadPage() {
         </form>
         {feedback && <p ref={feedbackRef} tabIndex={-1} role={feedback.isError ? 'alert' : 'status'} className={`head-feedback ${feedback.isError ? 'head-error' : 'head-success'}`}>{feedback.message}</p>}
       </section>}
+      {access === 'allowed' && <StaffLists refresh={listRefresh} />}
     </main>
   </>
 }

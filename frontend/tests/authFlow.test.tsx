@@ -11,6 +11,7 @@ import { signup } from '../src/features/signup/api'
 import { logout } from '../src/features/homepage/api'
 
 vi.mock('../src/api/lookups', () => ({ loadAirports: async () => [] }))
+vi.mock('../src/features/head/api', async importOriginal => ({ ...await importOriginal<typeof import('../src/features/head/api')>(), getStaffList: async () => ({ staff: [], pending: [] }) }))
 vi.mock('../src/features/staff-dashboard/api', async importOriginal => ({
   ...await importOriginal<typeof import('../src/features/staff-dashboard/api')>(),
   getOwnRecordCounts: async () => ({ flights: 0, forecasts: 0 }),
