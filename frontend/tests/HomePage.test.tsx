@@ -40,21 +40,10 @@ function dayButton(day: number): HTMLButtonElement {
   if (!button) throw new Error('Missing day: ' + day)
   return button
 }
-function input(name: string): HTMLInputElement {
-  const field = container.querySelector<HTMLInputElement>(`input[name="${name}"]`)
-  if (!field) throw new Error('Missing field: ' + name)
-  return field
-}
-async function type(name: string, value: string) {
-  await act(async () => {
-    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(input(name), value)
-    input(name).dispatchEvent(new Event('input', { bubbles: true }))
-  })
-}
 describe('Home page', () => {
   it('greets the authenticated user and renders the main heading', () => {
     expect(container.querySelectorAll('h1')).toHaveLength(1)
-    expect(container.querySelector('h1')?.textContent).toBe('Search flights and check airport crowds')
+    expect(container.querySelector('h1')?.textContent).toBe('Check airport crowds and flights')
     expect(container.querySelector('.eyebrow')?.textContent).toBe('WELCOME BACK, LARCE')
   })
   it('uses the shared real-data calendar with correct weekdays and enabled navigation', () => {
@@ -71,7 +60,7 @@ describe('Home page', () => {
     expect(panel?.querySelector('h3')?.textContent).toBe('January 14, 2026')
     expect(panel?.querySelector('.record-crowd-chip')?.textContent).toBe('High crowd')
     expect(panel?.textContent).toContain('No flights listed for this date.')
-    expect(container.querySelector('.home-sample-label')?.textContent).toBe('Sample data: flight search, bookings, and recent searches.')
+    expect(container.querySelector('.home-sample-label')).toBeNull()
   })
   it('selects January 17 and loads flights for that date', async () => {
     await act(async () => dayButton(17).click())
@@ -82,17 +71,13 @@ describe('Home page', () => {
     expect(dayButton(17).getAttribute('aria-pressed')).toBe('true')
     expect(dayButton(14).getAttribute('aria-pressed')).toBe('false')
   })
-  it('offers exactly From, To and Date fields and swaps the route', async () => {
-    const form = container.querySelector('form')
-    expect([...form!.querySelectorAll('label')].map(label => label.textContent)).toEqual(['From', 'To', 'Date'])
-    expect(form?.querySelectorAll('input')).toHaveLength(3)
-    await type('from', 'JFK')
-    await type('to', 'LAX')
-    await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="Swap from and to"]')?.click())
-    expect(input('from').value).toBe('LAX')
-    expect(input('to').value).toBe('JFK')
-    expect(container.querySelector('[aria-label="Passengers"]')).toBeNull()
-    expect(container.querySelector('[aria-label="Seat Class"]')).toBeNull()
+  it('shows only empty states for bookings and recent searches without sample content', () => {
+    expect(container.querySelector('[aria-labelledby="upcoming-title"]')?.textContent).toContain('No upcoming bookings yet.')
+    expect(container.querySelector('[aria-labelledby="recent-title"]')?.textContent).toContain('No recent searches yet.')
+    expect(container.textContent).not.toContain('Sample data')
+    expect(container.textContent).not.toContain('View all')
+    expect(container.textContent).not.toContain('JFK')
+    expect(container.querySelector('form, svg, .trip-row')).toBeNull()
   })
   it('shows the active Home link, calendar destination and no notifications', () => {
     expect(container.querySelector('nav a[href="/home"][aria-current="page"]')?.textContent).toBe('Home')

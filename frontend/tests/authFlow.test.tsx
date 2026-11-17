@@ -191,7 +191,7 @@ describe('connected account flows', () => {
     await submit()
     expect(readTokens()).toEqual(tokens)
     expect(container.querySelector('.eyebrow')?.textContent).toBe('WELCOME BACK, TRAVELER')
-    expect(container.textContent).toContain('Sample data')
+    expect(container.textContent).toContain('No upcoming bookings yet.')
     const signout = [...container.querySelectorAll('button')].find(button => button.textContent === 'Sign out')!
     await act(async () => signout.click())
     const logoutCall = fetchMock.mock.calls.find(([url]) => String(url).endsWith('/logout/'))!
@@ -210,7 +210,7 @@ describe('connected account flows', () => {
     writeTokens(tokens)
     fetchMock.mockResolvedValue(response(profile))
     await render(path)
-    expect(container.querySelector('h1')?.textContent).toBe('Search flights and check airport crowds')
+    expect(container.querySelector('h1')?.textContent).toBe('Check airport crowds and flights')
   })
 
   it('clears tokens locally even when logout fails', async () => {
