@@ -47,6 +47,25 @@ def dashboard_summary(airport=None):
                 "crowd_level": levels.get(date),
             }
         )
+    calculations = calculate_pairs({(row.airport_id, row.date) for row in rows})
+    days = []
+    for row in rows:
+        data = calculations[(row.airport_id, row.date)]
+        score = row.crowd_score
+        if score is None and data["history_average"] is not None:
+            score = rounded(data["history_average"])
+        days.append(
+            {
+                "date": row.date.isoformat(),
+                "weekday": row.date.strftime("%A"),
+                "crowd_level": row.crowd_level,
+                "crowd_score": score,
+                **{
+                    field: data["flights"][field]
+                    for field in ("seats_booked", "seats_total", "flight_count")
+                },
+            }
+        )
     return {
         "airport": {"id": airport.pk, "code": airport.code, "name": airport.name}
         if airport
@@ -57,15 +76,20 @@ def dashboard_summary(airport=None):
         "dates": dates,
         "busiest_weekday": busiest,
         "next_7_days": next_days,
-        "comparison": period_comparison(airport, rows),
+        "comparison": period_comparison(airport, rows, calculations),
+        "days": days,
     }
 
 
-def period_comparison(airport, forecasts):
+def period_comparison(airport, forecasts, calculations=None):
     calculations = (
-        calculate_pairs({(airport.pk, row.date) for row in forecasts})
-        if airport
-        else {}
+        calculations
+        if calculations is not None
+        else (
+            calculate_pairs({(airport.pk, row.date) for row in forecasts})
+            if airport
+            else {}
+        )
     )
     values = list(calculations.values())
     flights = [row["occupancy"] for row in values if row["occupancy"] is not None]
