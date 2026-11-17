@@ -9,6 +9,7 @@ from django.utils import timezone
 
 from accounts.models import User
 from flights.models import Airline, Airport, Flight
+from traffic.calculation import recalculate_forecasts
 
 AIRPORTS = (
     ("MNL", "Ninoy Aquino International Airport", "Manila", "Philippines"),
@@ -159,6 +160,7 @@ class Command(BaseCommand):
                         "The seed Staff user is missing. Run python manage.py seed_staff first."
                     )
                 seed_flights(staff, numbers)
+                recalculate_forecasts(staff, remove_sample_data=True)
         except IntegrityError:
             raise CommandError(
                 "Sample data conflicts with existing database constraints. No rows changed."

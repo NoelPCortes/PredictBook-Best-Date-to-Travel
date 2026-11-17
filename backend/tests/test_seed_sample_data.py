@@ -74,7 +74,7 @@ def test_creates_only_approved_lookups_and_ten_owned_flights(staff):
     assert Flight.objects.count() == 10
     assert Flight.objects.filter(created_by=staff).count() == 10
     assert set(Flight.objects.values_list("flight_number", flat=True)) == set(NUMBERS)
-    assert not CrowdForecast.objects.exists()
+    assert CrowdForecast.objects.filter(data_source="Calculated from flights").exists()
 
 
 def test_exact_schedule_and_database_rules_use_project_timezone(staff, settings):
@@ -251,7 +251,10 @@ def test_existing_lookups_and_forecasts_are_never_modified(staff):
     assert airline.code == "5J"
     assert Airport.objects.filter(pk=extra_airport.pk).exists()
     assert Airline.objects.filter(pk=extra_airline.pk).exists()
-    assert CrowdForecast.objects.count() == 1
+    assert (
+        CrowdForecast.objects.exclude(data_source="Calculated from flights").count()
+        == 1
+    )
     assert CrowdForecast.objects.filter(pk=forecast.pk).values().get() == before
 
 

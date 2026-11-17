@@ -1,4 +1,3 @@
-
 from datetime import datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
@@ -13,7 +12,7 @@ from .serializers import (
     FlightFilterSerializer,
     FlightSerializer,
 )
-from .services import save_flight
+from .services import delete_flight, save_flight
 
 
 class AirportListView(generics.ListAPIView):
@@ -36,12 +35,18 @@ class FlightListCreateView(generics.ListCreateAPIView):
         filters = FlightFilterSerializer(data=self.request.query_params)
         filters.is_valid(raise_exception=True)
         values = filters.validated_data
-        flights = Flight.objects.select_related("airline", "origin", "destination", "created_by")
+        flights = Flight.objects.select_related(
+            "airline", "origin", "destination", "created_by"
+        )
         if "origin" in values:
             flights = flights.filter(origin=values["origin"])
         if "date" in values:
-            start = datetime.combine(values["date"], time.min, tzinfo=ZoneInfo("Asia/Manila"))
-            flights = flights.filter(departure_time__gte=start, departure_time__lt=start + timedelta(days=1))
+            start = datetime.combine(
+                values["date"], time.min, tzinfo=ZoneInfo("Asia/Manila")
+            )
+            flights = flights.filter(
+                departure_time__gte=start, departure_time__lt=start + timedelta(days=1)
+            )
         if values.get("mine"):
             flights = flights.filter(created_by=self.request.user)
         return flights.order_by("departure_time", "pk")
@@ -53,8 +58,13 @@ class FlightListCreateView(generics.ListCreateAPIView):
 class FlightDetailView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = (IsAuthenticated, CanManageOwnRecords)
     serializer_class = FlightSerializer
-    queryset = Flight.objects.select_related("airline", "origin", "destination", "created_by")
+    queryset = Flight.objects.select_related(
+        "airline", "origin", "destination", "created_by"
+    )
     http_method_names = ("get", "patch", "delete", "head", "options")
 
     def perform_update(self, serializer):
         save_flight(serializer)
+
+    def perform_destroy(self, instance):
+        delete_flight(instance, self.request.user)
