@@ -71,7 +71,7 @@ function FlightForm({ id }: { id?: string }) {
       setIsSaving(false)
     }
   }
-  const airportOptions = airports.map(airport => ({ value: String(airport.id), label: `${airport.code} — ${airport.name}` }))
+  const airportOptions = airports.map(airport => ({ value: String(airport.id), label: `${airport.code} — ${airport.name}`, searchText: `${airport.city} ${airport.country}` }))
   return <RecordLayout>
     <h1>{id ? 'Edit flight' : 'Add flight'}</h1>
     <p>Enter flight dates and times in Philippine time (Asia/Manila, UTC+08:00).</p>

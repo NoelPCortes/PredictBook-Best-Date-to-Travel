@@ -193,7 +193,7 @@ describe('connected account flows', () => {
     await submit()
     expect(readTokens()).toEqual(tokens)
     expect(container.querySelector('.eyebrow')?.textContent).toBe('WELCOME BACK, TRAVELER')
-    expect(container.textContent).toContain('No upcoming bookings yet.')
+    expect(container.textContent).toContain('No upcoming booking yet. Search flights to get started.')
     const signout = [...container.querySelectorAll('button')].find(button => button.textContent === 'Sign out')!
     await act(async () => signout.click())
     const logoutCall = fetchMock.mock.calls.find(([url]) => String(url).endsWith('/logout/'))!

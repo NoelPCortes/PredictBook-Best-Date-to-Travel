@@ -2,7 +2,7 @@ import { useCallback, useId, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { Forecast } from '../types/traffic'
 import { loadAirports } from '../api/lookups'
-import { loadFlights, loadForecasts } from '../api/traffic'
+import { loadFlights, loadForecasts, loadRouteDates } from '../api/traffic'
 import RecordField from './RecordField'
 import RecordAlert from './RecordAlert'
 import CrowdChip from './CrowdChip'
@@ -16,24 +16,33 @@ import seatIcon from '../assets/icons/SeatIcon.png'
 import './AirportCalendar.css'
 
 export type CalendarSelection = { airport: string; date: string; forecast?: Forecast; onSelectDate: (date: string) => void }
-type CalendarOptions = { renderDetails?: (selection: CalendarSelection) => ReactNode; renderAfter?: (selection: CalendarSelection) => ReactNode; showFlightDirections?: boolean }
+export type CalendarRoute = { origin: string; destination: string; originCode: string; destinationCode: string }
+type CalendarOptions = { route?: CalendarRoute; onClearRoute?: () => void; renderDetails?: (selection: CalendarSelection) => ReactNode; renderAfter?: (selection: CalendarSelection) => ReactNode; showFlightDirections?: boolean }
 
-function AirportMonth({ airport, renderDetails, renderAfter, showFlightDirections }: { airport: string } & CalendarOptions) {
+function AirportMonth({ airport, renderDetails, renderAfter, showFlightDirections, route, onClearRoute }: { airport: string } & CalendarOptions) {
+  const routeOrigin = route?.origin
+  const routeDestination = route?.destination
+  const [routeAttempt, setRouteAttempt] = useState(0)
   const today = projectToday()
   const [selectedDate, setSelectedDate] = useState(today)
   const month = selectedDate.slice(0, 7)
   const [forecastAttempt, setForecastAttempt] = useState(0)
   const [flightAttempt, setFlightAttempt] = useState(0)
   const fetchForecasts = useCallback(() => loadForecasts({ airport, month }), [airport, month])
-  const fetchFlights = useCallback(() => loadFlights({ airport, date: selectedDate }), [airport, selectedDate])
+  const fetchFlights = useCallback(() => loadFlights({ airport, date: selectedDate, ...(routeOrigin && routeDestination ? { origin: routeOrigin, destination: routeDestination } : {}) }), [airport, selectedDate, routeOrigin, routeDestination])
   const forecasts = useRemoteResource(`${airport}/${month}/${forecastAttempt}`, fetchForecasts)
-  const flights = useRemoteResource(`${airport}/${selectedDate}/${flightAttempt}`, fetchFlights)
+  const flights = useRemoteResource(`${airport}/${selectedDate}/${route?.origin}/${route?.destination}/${flightAttempt}`, fetchFlights)
+  const fetchRouteDates = useCallback(() => routeOrigin && routeDestination ? loadRouteDates(routeOrigin, routeDestination, month) : Promise.resolve(null), [routeOrigin, routeDestination, month])
+  const routeDates = useRemoteResource(`route-dates/${route?.origin}/${route?.destination}/${month}/${routeAttempt}`, fetchRouteDates)
   const headingId = useId()
   const selectedForecast = forecasts.value?.find(record => record.date === selectedDate)
   const days = monthDates(month)
   const firstWeekday = calendarDate(days[0]!).getUTCDay()
-  return <><div className="airport-calendar-layout">
+  return <><div className={`airport-calendar-layout${route ? ' route-mode' : ''}`}>
     <section className="airport-calendar-month" aria-labelledby={headingId}>
+      {route && <><p>Route: {route.originCode} to {route.destinationCode}. Only route dates have crowd colors and a highlight ring.</p><button type="button" className="calendar-text-button" onClick={onClearRoute}>Show all crowd levels</button></>}
+      {route && !routeDates.value && !routeDates.error && <p role="status">Loading route dates...</p>}
+      {routeDates.error && <><RecordAlert kind="error">Unable to load route dates. Please try again.</RecordAlert><button className="calendar-text-button" onClick={() => setRouteAttempt(value => value + 1)}>Retry route dates</button></>}
       <div className="airport-calendar-heading">
         <h2 id={headingId}>{monthLabel(month)}</h2>
         <button type="button" className="calendar-month-button" aria-label="Previous month" onClick={() => setSelectedDate(`${changeMonth(month, -1)}-01`)}><img src={previousIcon} alt="" /></button>
@@ -46,12 +55,14 @@ function AirportMonth({ airport, renderDetails, renderAfter, showFlightDirection
         {Array.from({ length: firstWeekday }, (_, index) => <span aria-hidden="true" key={`blank-${index}`} />)}
         {days.map(date => {
           const forecast = forecasts.value?.find(record => record.date === date)
-          const level = forecast?.crowd_level
+          const routeDay = routeDates.value?.find(item => item.date === date)
+          const level = route && !routeDay ? undefined : forecast?.crowd_level
           const levelText = level ? `${level[0]!.toUpperCase()}${level.slice(1)} crowd` : forecasts.error ? 'Forecast unavailable' : forecasts.value ? 'No data' : 'Loading crowd forecast'
-          return <button type="button" key={date} className={`calendar-day ${level ?? 'no-data'}`} aria-label={`${calendarDateLabel(date)}, ${levelText}`} aria-pressed={selectedDate === date} aria-current={date === today ? 'date' : undefined} onClick={() => setSelectedDate(date)}>{Number(date.slice(-2))}</button>
+          const accessible = route ? routeDay ? `${calendarDateLabel(date)}, ${routeDay.flight_count} flights from ${route.originCode} to ${route.destinationCode}, ${levelText}` : `${calendarDateLabel(date)}, No flights on this route` : `${calendarDateLabel(date)}, ${levelText}`
+          return <button type="button" key={date} className={`calendar-day ${level ?? 'no-data'}${routeDay ? ' route-highlight' : ''}`} aria-label={accessible} aria-pressed={selectedDate === date} aria-current={date === today ? 'date' : undefined} onClick={() => setSelectedDate(date)}>{Number(date.slice(-2))}</button>
         })}
       </div>
-      <div className="legend">{(['low', 'medium', 'high'] as const).map(level => <span key={level}><i className={level} aria-hidden="true" />{level[0]!.toUpperCase() + level.slice(1)}</span>)}<span><i className="no-data" aria-hidden="true" />No data</span></div>
+      <p>{route ? 'Route dates only; other days are neutral.' : 'All crowd levels for this airport.'}</p><div className="legend">{(['low', 'medium', 'high'] as const).map(level => <span key={level}><i className={level} aria-hidden="true" />{level[0]!.toUpperCase() + level.slice(1)}</span>)}<span><i className="no-data" aria-hidden="true" />No data</span></div>
     </section>
     <section className="airport-date-details" aria-live="polite" aria-atomic="true" aria-label="Selected date details">
       <h3>{calendarDateLabel(selectedDate)}</h3>
@@ -77,13 +88,13 @@ export default function AirportCalendar(options: CalendarOptions) {
   const [airportId, setAirportId] = useState('')
   const [attempt, setAttempt] = useState(0)
   const airports = useRemoteResource(`airports/${attempt}`, loadAirports)
-  const selectedAirport = airportId || String(airports.value?.[0]?.id ?? '')
+  const selectedAirport = options.route?.origin || airportId || String(airports.value?.[0]?.id ?? '')
   return <section className="airport-calendar" aria-label="Airport traffic calendar">
     {!airports.value && !airports.error && <p role="status">Loading airports…</p>}
     {airports.error && <><RecordAlert kind="error">Unable to load airports. Please try again.</RecordAlert><button type="button" className="calendar-text-button" onClick={() => setAttempt(value => value + 1)}>Retry airports</button></>}
     {airports.value && <>
-      <RecordField searchable name="calendar-airport" label="Airport" value={selectedAirport} onChange={setAirportId} options={airports.value.map(airport => ({ value: String(airport.id), label: `${airport.code} — ${airport.name}` }))} />
-      {selectedAirport ? <AirportMonth airport={selectedAirport} {...options} /> : <p>No airports available.</p>}
+      <RecordField searchable name="calendar-airport" label="Airport" value={selectedAirport} onChange={value => { setAirportId(value); options.onClearRoute?.() }} options={airports.value.map(airport => ({ value: String(airport.id), label: `${airport.code} — ${airport.name}`, searchText: `${airport.city} ${airport.country}` }))} />
+      {selectedAirport ? <AirportMonth airport={selectedAirport} {...options} onClearRoute={() => { if (options.route) setAirportId(options.route.origin); options.onClearRoute?.() }} /> : <p>No airports available.</p>}
     </>}
   </section>
 }

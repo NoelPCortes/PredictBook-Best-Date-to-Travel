@@ -6,4 +6,8 @@
 .summary-card { background: var(--white); border: 1px solid var(--border); border-radius: var(--radius); padding: var(--space-24); }
 .summary-card h2, .home-calendar-preview > h2 { font-size: var(--account-section-size); margin-bottom: var(--space-16); }
 .home-calendar-preview { min-width: 0; }
+.home-route-search { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)) auto; gap: var(--space-16); align-items: end; }
+.home-recent-routes { list-style: none; padding: 0; display: grid; gap: var(--space-8); }
+.home-page .calendar-flight-list img { width: var(--alert-icon-size); height: var(--alert-icon-size); }
+@media(max-width: 900px) { .home-route-search { grid-template-columns: 1fr; } }
 @media(max-width: 600px) { .home-page { padding: var(--space-24) var(--space-16); } .home-summary { grid-template-columns: 1fr; } }
