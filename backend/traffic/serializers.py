@@ -7,7 +7,7 @@ from accounts.serializers import StrictFieldsMixin
 from flights.models import Airport
 from flights.permissions import can_edit_record
 
-from .calculation import CALCULATED_SOURCE, flight_totals
+from .calculation import CALCULATED_SOURCES, flight_totals
 from .models import CrowdForecast
 
 
@@ -52,7 +52,7 @@ class ForecastSerializer(StrictFieldsMixin, serializers.ModelSerializer):
         )
 
     def get_is_calculated(self, obj):
-        return obj.data_source == CALCULATED_SOURCE
+        return obj.data_source in CALCULATED_SOURCES
 
     def get_created_by_username(self, obj):
         return None if self.get_is_calculated(obj) else obj.created_by.username
@@ -77,7 +77,7 @@ class ForecastSerializer(StrictFieldsMixin, serializers.ModelSerializer):
         return self.totals(obj)["seats_booked"]
 
     def validate(self, attrs):
-        if attrs.get("data_source") == CALCULATED_SOURCE:
+        if attrs.get("data_source") in CALCULATED_SOURCES:
             raise serializers.ValidationError(
                 {"data_source": ["Calculated forecasts are managed automatically."]}
             )

@@ -4,7 +4,7 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 
 from flights.models import Airport
 
-from .calculation import CALCULATED_SOURCE
+from .calculation import CALCULATED_SOURCES
 from .models import CrowdForecast
 
 
@@ -28,7 +28,7 @@ def save_forecast(serializer, **kwargs):
                     .filter(pk=serializer.instance.pk)
                     .first()
                 )
-                if current and current.data_source == CALCULATED_SOURCE:
+                if current and current.data_source in CALCULATED_SOURCES:
                     raise PermissionDenied("Calculated forecasts are read-only.")
             return serializer.save(calculated_at=timezone.now(), **kwargs)
     except IntegrityError as error:
