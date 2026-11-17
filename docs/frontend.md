@@ -85,7 +85,7 @@ The actual scripts run Vite, Oxlint, Vitest, and TypeScript followed by Vite res
 | authFlow.test.tsx | Sign-up success/validation, role redirects/guards, Head payloads, profile persistence/payloads, password payloads, logout and one-attempt refresh |
 | SignInPage.test.tsx | Fields, links, required errors, first-invalid focus and valid resubmission |
 | SignUpPage.test.tsx | Fields, links, required/email/matching errors, error clearing and no extra password rule |
-| HomePage.test.tsx | Greeting, real calendar, empty booking/search states, no sample controls and navbar |
+| HomePage.test.tsx | Route search, recent routes per user, upcoming route, highlights, clear actions and calendar-only section exclusions |
 | StaffDashboard.test.tsx | API counts/date lists, selected airport, period, empty data, loading/errors and own-record counts |
 | HeadPage.test.tsx | Email assignment, backend success/errors, pending requests and authorization |
 | ProfilePage.test.tsx | Editable fields, read-only role, linked errors, password confirmation, successes and sidebar focus |
@@ -166,7 +166,7 @@ submissions, update the table, and announce success. Focus is restored afterward
 HomeCalendar and TrafficCalendarPage use the same shared AirportCalendar. It
 starts with the first airport returned by the lookup and today's project date
 (currently UTC).
-Airport changes preserve the selected date; month changes select day one. Real
+Airport changes preserve the selected date; month changes select today in its month, otherwise day one. Real
 dates determine weekdays and month lengths. Stored levels determine colors,
 accessible date labels, the text legend, and the selected-date CrowdChip. Missing
 forecasts show No data; failed requests show separate errors and retry actions.
@@ -175,8 +175,9 @@ times, and open seats, or No flights listed for this date.
 
 Calendar month arrows, flight times, and seats use the existing PNG assets. No
 new inline SVG or dependency was added. Shared calendar styles use global tokens,
-44px control heights, and responsive layouts. Home's booking and search cards show only empty states; the sample form, rows,
-View all, labels, constants and booking-count row are gone.
+44px control heights, and responsive layouts. Home has real route search and
+browser-only recent route pairs; its booking label summarizes a route, not a
+booking record. The prior sample constants and booking-count row are gone.
 
 Flight entry/display and existing origin/date filtering use Philippine time
 (Asia/Manila, UTC+08:00). The shared calendar and new airport/date flight filter
@@ -185,7 +186,7 @@ are formatted without browser-timezone shifts. useRemoteResource keys reads by
 airport/month/date and discards obsolete responses after selection changes.
 
 StaffDashboard adds OwnRecordsCard after server authorization. It reads flight
-and forecast lists with mine=true and counts their returned arrays. Loading,
+and forecast lists with mine=true and page_size=1 and reads each response count. Loading,
 errors, and retry affect only that card. All other displayed dashboard data comes
 from GET /api/dashboard/summary/. Shared auth/profile behavior is unchanged.
 
@@ -234,12 +235,13 @@ prove viewport-perfect rendering.
 
 ## Blended forecast explanation and recommendations
 
-TrafficCalendarPage supplies optional renderDetails/renderAfter callbacks to
+TrafficCalendarPage supplies optional renderDetails/renderBefore callbacks to
 AirportCalendar. CalendarSelection passes airport, date, stored forecast and
 onSelectDate; the shared component never imports a feature module. DateBreakdown
 and RecommendedDates live in the existing calendar feature; its api.ts and
 types.ts define their calls/contracts. Home supplies neither slot, keeping its
-preview free of explanations and recommendations. No Home source file changed.
+preview free of explanations and recommendations. Home now adds its separate
+route-search state and calendar highlighting options.
 
 DateBreakdown renders the backend sentences and a flight/history/combined table,
 plus history dates, with info-circleIcon. Manual levels stay visible with the
@@ -256,3 +258,73 @@ existing states/role guards. Calendar tests cover breakdown, no history/data,
 flight directions, recommendations, selection, airport/month changes and errors.
 Home tests assert both new sections are absent. Browser/viewport verification
 remains unperformed; automated tests use jsdom with mocked APIs.
+
+
+## Searchable controls and paginated reads
+
+SearchableSelect in src/components is reused by every airport/airline picker,
+including forms, Home, calendar, Dashboard and Staff flight search. RecordField's
+searchable option delegates to it; form ids, values and linked errors are retained.
+It uses the existing SearchIcon and chevron-downIcon, visible labels, combobox and
+listbox/option roles, expanded/controls/active-descendant state, a search box,
+44px rows and a scrollable eight-row list. Airports match code/name/city/country;
+airlines name/code. Arrows, Home/End, Enter, Escape, typing, pointer/touch selection,
+Clear and outside-click closing are supported. No dependency or icon was added.
+
+src/api/pagination.ts adapts page envelopes to records with count/next/previous
+metadata; PageControls requests bounded pages. Lookups follow their small pages
+for complete picker options. getOwnRecordCounts uses count from page_size=1.
+The shared API client deduplicates pending identical GETs by request/session,
+without storing fulfilled responses. It retains JWT rotation/logout behavior
+and has no artificial short timeout. Page/resource failures have existing retry
+controls; tests cover a slow request and retry without installing dependencies.
+
+## Redesigned pages
+
+Home keeps all logic in the existing homepage feature. Its order is From/To
+search card, upcoming booking/recent searches, active route results, then shared
+calendar. recentRoutes.ts alone manages the last five distinct route pairs under
+predictbook:recent-routes:<user id>. Only origin/destination are stored; Clear
+removes that user's list. The newest saved route with upcoming flights supplies
+the booking count and next three departure times. API calls live in feature api.ts.
+RouteResults reads upcoming From-to-To pages and FlightCards renders the existing
+PNG clock/seat icons. Route-date data colors/rings only route days using the From
+airport's forecasts; neutral days and accessible names explain the route mode.
+Show all crowd levels restores normal mode. No booking table or personal data
+is introduced, and Home enables neither recommendation nor explanation slots.
+
+Traffic Calendar uses searchable Airport and Airline pickers, then the existing
+RecommendedDates before the grid, then daily flights followed by DateBreakdown.
+Airline is sent only to the flight read; levels, breakdown and recommendations
+remain airport-wide. Flight pages preserve project-local UTC airport/date grouping
+while displaying timestamps in Philippine time. The month selection rule uses
+today when in the shown month, otherwise day one.
+
+StaffDashboard adds CrowdChart with 30 keyboard-focusable HTML column buttons,
+score heights and whole-score labels, level colors/text, dashed 50/75 references,
+day/month labels, a legend and selected/hovered date details. Missing scores show
+No data. The backend supplies history fallback for a null manual score without
+writing it. Existing cards, date lists, comparison and own-record counts remain.
+No chart library or SVG is used; the chart scrolls to preserve tap target widths.
+
+Staff Flights places text, From/To, airline and date search above the table. Search
+and Clear update URL/server filters and paginated results. Staff Crowd forecasts
+starts with airport cards and forecast counts, fetched through the lookup. An
+airport opens its search/month/level/source filters and existing permitted table
+actions. Global search instead shows matching records across airports; Clear
+search and Back to airports restore the initial list. No flights reads No flight
+data in the seats cell; otherwise real booked/total seats and percentage appear.
+
+Head management uses StaffLists as a two-column shell: searchable Staff and
+pending assignments on the left, the existing Assign form and StaffDetailsCard
+on the right. Selection is highlighted; no selection shows a hint. Details load
+only the protected Staff endpoint, show Not set for empty names, and retain
+confirmation before removing Staff access. Pending Remove still targets only its
+assignment. Assign/revoke rules are unchanged. The unchanged-assignment message
+uses an info alert. Lists, details and access failures have loading/error handling
+and retry; assignment/removal refresh lists. Narrow screens stack the columns.
+
+Frontend tests cover these changes with mocked APIs/jsdom alongside Standard
+Features. Browser access was unavailable for visual inspection; responsive
+rendering, touch hardware, and the full live UI walkthrough remain unverified.
+Landing, sign-in, sign-up and profile sources were not changed by this increment.

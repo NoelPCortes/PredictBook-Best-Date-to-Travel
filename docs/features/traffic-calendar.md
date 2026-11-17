@@ -21,7 +21,8 @@ matches the forecast's live references. The earlier origin/date filter retains
 its Philippine departure-date behavior. Flight details include airline, flight
 number, route, departure/arrival times with ClockIcon, and open seats with SeatIcon.
 No flights listed for this date is shown only for a successful empty response.
-There is no Your bookings row. Home's other two cards show only their empty states.
+There is no Your bookings row in the calendar. Home's separate cards now summarize
+browser route searches, not stored bookings; its calendar can highlight a route.
 
 Landing and sign-in/sign-up marketing previews retain their separate samples.
 They were not changed. Real recommendations now appear only on /calendar;
@@ -83,7 +84,7 @@ The numbers are live aggregates even for manual forecasts. Staff/Head responses
 use created_by_username=null and can_edit=false for calculated rows; the UI shows
 Calculated automatically. Traveler responses omit creator information. Two
 aggregate flight queries serve the entire forecast list, rather than querying
-per row; a regression test fixes the nonempty list at three forecast-data queries with authentication already resolved.
+per row; a regression test fixes the nonempty list at four forecast-data queries (count, page and two flight aggregates), with authentication already resolved.
 
 `GET /api/traffic/forecasts/` supports airport, month=YYYY-MM, and mine=true.
 POST creates manual entries. Detail GET/PATCH/DELETE remains at
@@ -140,3 +141,36 @@ forecasts, flights, breakdown and recommendations. Neither endpoint returns user
 details. Both require authentication (401); missing/invalid parameters return
 400, unknown airports 404. Constant-query-count tests cover both endpoints.
 Raw SQL changes require an explicit recalculate_forecasts run.
+
+
+## Redesigned layout and filters
+
+/calendar keeps the existing recommendation and explanation logic. The order is
+header, searchable Airport/Airline pickers and hint, Recommended best date to
+travel, then month grid and selected-date panel. Flights precede Why this level
+in that panel. Airline is optional (All airlines) and changes only the flight
+request's airline parameter; airport forecasts, explanation and recommendations
+are unaffected. The hint states: Crowd levels are per airport. The airline filter
+only changes the flight list.
+
+The initial selected date is today in the project's UTC zone. Month navigation
+selects today when returning to its month, otherwise day one. Airline and airport
+changes retain the selected date. Flight lists are paginated and keep their
+existing time/seat icons and direction labels. All airport/airline controls use
+the shared SearchableSelect and existing assets.
+
+Forecasts remain airport-wide stored levels. /api/traffic/forecasts/ now returns
+{count,next,previous,results}, default/capped page size 50. Additional optional
+filters are search (airport code/name/city or date text YYYY-MM-DD/YYYY-MM), level
+(low/medium/high), and source (calculated/manual), combined with existing filters.
+Both calculated source labels count as calculated. Manual source filtering excludes
+those labels and the legacy Sample data marker; blank/null manual sources remain.
+
+Staff Crowd forecasts begins with a global search box and an Airports list with
+code/name/city/country/forecast_count, without downloading all forecasts. Selecting
+an airport opens its search, month/level/source filters and paginated table, with
+Back to airports and Add forecast. Global search instead shows results across
+all airports; Clear search restores the airport list. No counted flights displays
+No flight data. Otherwise the seats cell shows booked of total and percentage.
+Existing permission-based Edit/Delete, confirmation, success messages and View
+flights links remain. Home never enables recommendations or the breakdown.

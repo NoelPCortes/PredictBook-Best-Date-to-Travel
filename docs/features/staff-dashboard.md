@@ -49,8 +49,9 @@ been removed. There are no sample labels or fixed future dates on this page.
 Heads retain Dashboard, Flights, Crowd forecasts and Head management navigation
 on this and every other Staff page. Staff see the first three links only.
 
-Chart definitions, chart API contracts and routes remain TBD. There is no Charts
-page, no new dashboard table, and no individual traveler detail in these summaries.
+The Dashboard column chart is implemented below. A separate Charts page, its
+additional chart definitions/API contracts and routes remain TBD. There is no
+new dashboard table or individual traveler detail in these summaries.
 
 ## Verification
 
@@ -80,3 +81,27 @@ Your records. It shows all six fields, uses No data for unavailable values and
 No 2025 history for this period. when history is absent. It shares the selected
 airport, summary loading/error/retry and period. API-mocked tests cover values
 and the no-history case; backend tests use hand-calculated daily averages.
+
+
+## Daily column chart and counts
+
+The summary adds days for forecast dates in the period, each with date, weekday,
+crowd_level, crowd_score, seats_booked, seats_total and flight_count. The existing
+flight/history aggregates are shared with comparison, avoiding a query per date.
+A null manual score uses the matching 2025 daily history average for this read
+only; no stored manual field or level changes. Without that history it stays null.
+The backend regression test guards five data queries for an explicit airport,
+with authentication resolved, across different numbers of dates.
+
+CrowdChart renders 30 day slots with native focusable buttons, no chart library
+or SVG. Height is score on a 0-100 scale, color is the stored level, and whole
+scores appear above bars. Dashed lines mark Medium from 50 and High from 75.
+Day numbers appear under every bar; month/weekday labels appear first and on a
+month change. Missing scores/days show No data. A text/color legend and each
+bar's accessible name expose meaning. Hover, focus or selection updates the
+weekday/date, level, score and live booked/total seat and flight-count line.
+
+All summary cards, level date lists, Next 7 days, comparison and Your records
+remain. Loading/errors use the summary's existing states. Your records requests
+mine=true with page_size=1 and uses response count, rather than downloading all
+created records. No fulfilled-response cache is used.

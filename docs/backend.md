@@ -32,14 +32,21 @@ every request, including when the caller's token predates a role change.
 | GET, POST | `/api/traffic/forecasts/` | List or create crowd forecasts |
 | GET, PATCH, DELETE | `/api/traffic/forecasts/<id>/` | Retrieve, update or delete a forecast |
 
-Lists return arrays ordered by departure time for flights and by date/airport for
-forecasts. Flight filters are `origin=<airport id>`, `date=YYYY-MM-DD`, and
-`mine=true`. The new `airport=<id>` filter counts departures and arrivals using
-project-local dates when combined with date. Without airport, existing
-departure-date filtering uses the Philippine day from midnight to
-midnight in `Asia/Manila`. Forecast filters are `airport=<airport id>`,
-`month=YYYY-MM`, and `mine=true`. Filters combine. Omitting filters returns all
-readable records; `mine=true` restricts results to the signed-in creator.
+List endpoints use {count,next,previous,results}, default/capped page size 50,
+with page and optional page_size. Flights order by departure_time then pk;
+forecasts by date/airport/pk. Airport/airline lookups are also paginated; airport
+rows include an aggregate forecast_count. No lookup write permission is added.
+
+Flight filters combine origin, destination, airline, airport, date, search,
+upcoming and mine. Lookup ids select origin/destination/airline; upcoming=true
+means departure_time >= now. Search partially matches flight number, airline
+name/code and origin/destination code/name/city case-insensitively. With airport,
+date counts origin/departure and destination/arrival in project-local UTC dates,
+matching forecasts; without airport, existing date filtering stays Philippine
+departure-date filtering. Forecast filters combine airport, month=YYYY-MM,
+mine=true, search, level and source. Search includes airport code/name/city and
+ISO date text; level is low/medium/high, source is calculated/manual. Both
+calculated labels count as calculated; manual excludes them and Sample data.
 
 Flight input uses `airline`, `flight_number`, `origin`, `destination`,
 `departure_time`, `arrival_time`, `total_seats`, and `available_seats`. Responses
@@ -130,7 +137,7 @@ only calculated rows. A failed calculation rolls back the flight change.
 
 Forecast reads add is_calculated and live flight_count, seats_total, seats_booked.
 Two grouped aggregate queries cover a list of any size; the query-count guard
-expects three forecast-data queries with authentication already resolved. Calculated
+expects four forecast-data queries with authentication already resolved, including the page count. Calculated
 rows return can_edit=false and created_by_username=null to Staff/Heads. Travelers
 continue to omit creator information. Calculated detail writes return 403 for
 Staff and Heads; attempts to create the reserved source return field-level 400.
@@ -145,14 +152,22 @@ level), busiest_weekday or null, and next_7_days (date/weekday/crowd_level or nu
 Tied busiest weekdays use the earliest first high date. No user details appear.
 The approved [dashboard contract](features/staff-dashboard.md) covers empty data.
 
-GET /api/accounts/staff/ admits Heads only, returning staff and pending arrays.
-Staff records have username/email only; pending records have email,
-assigned_by_username and assigned_at only. No IDs, names, passwords or other
-fields are returned. Existing POST /api/accounts/staff/assign/ and staff/revoke/
-retain their rules and message-only responses. Revoking Staff sets Traveler;
-revoking a pending assignment deletes only that assignment. Authentication,
-profile and Head promotion/removal behavior remains unchanged.
+GET /api/accounts/staff/ admits Heads only and returns independently paginated
+staff and pending objects. staff_page/pending_page control them, page_size is
+capped at 50, and optional search matches Staff username/email. Staff list rows
+contain id/username/email only; pending retains email/assigned_by_username/assigned_at.
 
+GET /api/accounts/staff/<id>/ is Head-only and returns exactly id, username,
+email, first_name, last_name, date_joined, flights_created and forecasts_created.
+It returns 404 for unknown/non-Staff targets, 403 for Staff/Travelers and 401
+signed out. Separate aggregate subqueries avoid a flight-by-forecast join and
+serve the detail in one data query, with auth resolved. No password, token,
+last_login, role, Traveler or other Head details are exposed.
+
+Existing POST /api/accounts/staff/assign/ and staff/revoke/ retain message-only
+responses and their rules. Revoking Staff sets Traveler without deleting the
+account; revoking a pending assignment deletes only that assignment. Authentication,
+profile and Head promotion/removal behavior remains unchanged.
 
 ## Sample SQL and efficient recalculation
 
@@ -200,8 +215,60 @@ with authentication already resolved.
 
 The airport-filtered flight list includes direction=departing or arriving relative
 to that airport, counting origin/departure dates and destination/arrival dates in
-settings.TIME_ZONE. Other existing filters and unpaginated array responses remain.
+settings.TIME_ZONE. Existing filters remain; list responses now use the paginated envelope above.
 The summary adds comparison with average_occupancy_2026_percent,
 average_occupancy_2025_percent, difference_points, days_busier_than_2025,
 days_quieter_than_2025 and days_compared; see the
 [dashboard contract](features/staff-dashboard.md) for missing-data semantics.
+
+
+## Route dates, daily series, and indexes
+
+GET /api/flights/route-dates/?origin=<id>&destination=<id>&month=YYYY-MM permits
+all signed-in roles and returns {dates:[{date,flight_count,open_seats}]} for only
+that route's monthly departures. Date grouping is project-local UTC. Missing,
+invalid or equal route parameters return 400; an unknown airport returns 404;
+signed-out requests return 401. Airport existence and grouped flight counts use
+two data queries regardless of the number of days, with auth resolved.
+
+The dashboard summary keeps all previous fields and adds days, each with date,
+weekday, crowd_level, crowd_score, seats_booked, seats_total and flight_count.
+Only dates with a forecast appear; the UI supplies the missing-day slots. Flight
+aggregates are shared with comparison, avoiding queries per day. Null manual
+scores fall back to matching 2025 history for this read only; stored manual
+forecasts and their levels remain untouched. No history leaves score null.
+
+Migration flights.0003_flight_filter_indexes adds only flight_departure_idx,
+flight_origin_departure_idx and flight_dest_arrival_idx. They support ordered
+upcoming reads, route/departure date filters and airport/arrival date filters.
+Existing FK and forecast/history unique airport/date indexes are retained.
+This redesign did not modify or recalculate application data.
+
+## Measured performance
+
+Django test-client measurements used the existing PostgreSQL dataset (7,300
+flights, 3,614 forecasts, 3,650 historical rows), authenticated requests, rendered
+JSON, and medians of three runs. Values exclude browser/network transfer and DOM
+rendering. The original ten-second browser delay was not reproduced locally.
+
+| Call | Before | After Step 1 | Before size | After size |
+|---|---:|---:|---:|---:|
+| Flights list | 1,121.8 ms | 18.8 ms | 3,226,043 B | 21,967 B |
+| Forecast list | 370.6 ms | 22.0 ms | 1,128,756 B | 15,736 B |
+| Seed user's flights mine=true | 1,084.2 ms | 10.6 ms | 3,218,743 B | 536 B |
+| Seed user's forecasts mine=true | 489.0 ms | 18.5 ms | 1,128,473 B | 432 B |
+| Default dashboard summary | 19.2 ms | 19.4 ms | 2,095 B | 2,095 B |
+
+The main confirmed cost was serializing/transferring whole lists and rendering
+thousands of rows, including fetching whole lists merely to count own records.
+There was no per-row query explosion: before pagination the flight/forecast
+lists used 2/4 queries with JWT authentication; pagination adds one COUNT query
+to each but sharply reduces serialization and payload size. Access gates add
+serial requests, but locally took only a few milliseconds. Head/calendar data
+calls were already small/fast in the baseline; browser causes remain unverified.
+Development StrictMode repeats effects; the API client now shares identical
+pending GETs, removing the entry after completion. This is not response caching.
+There was no short client timeout; a regression test permits a 16-second response
+and a retry after failure. The measured local data calls meet the two-second
+target, not a claim about full browser rendering. Browser access was unavailable
+for the attempted visual check.

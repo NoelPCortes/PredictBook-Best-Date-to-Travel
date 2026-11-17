@@ -193,9 +193,10 @@ Backend tests run against Django's separate PostgreSQL test database (the databa
 user needs permission to create it). They cover accounts, role permissions, and
 schema constraints. They do not switch to SQLite. React Sign-Up and Sign-In now
 use the existing API. Home is protected and displays the signed-in username;
-its calendar reads airport forecasts and flights from the API. The booking and
-recent-search cards show empty states because neither is stored. The inactive
-sample flight-search form has been removed.
+its calendar reads airport forecasts and flights from the API. Home searches
+From/To routes and stores only the last five route pairs in browser storage per
+user, with Clear. Your upcoming booking summarizes a saved route with upcoming
+flights; there is no booking table or passenger data.
 Sign out blacklists the refresh token and clears the local session even if the
 request fails. Tokens are stored in localStorage only through the shared auth
 storage module. A 401 causes one refresh attempt, then a single retry; failed
@@ -243,7 +244,8 @@ frontend guards are backed by current-role checks on protected Staff/Head APIs.
 The Staff dashboard uses real forecasts for today through today + 29 days at
 one selected airport. It shows counts, every date by level, the busiest weekday,
 next seven days, and own-record counts. The Head page lists Staff and pending
-assignments and supports Assign and Remove. Charts and promote/remove-Head
+assignments, selected Staff details, and supports Assign and Remove. The dashboard
+has a daily crowd column chart. A separate Charts page and promote/remove-Head
 screens remain unbuilt. See [accounts](docs/features/accounts.md) and
 [frontend](docs/frontend.md) for paths, payloads, guards, and limitations.
 
@@ -336,8 +338,10 @@ or the first airport by code. It returns airport, period_start, period_end,
 counts, dates grouped by level (date and weekday), busiest_weekday, and next_7_days.
 Ties choose the weekday whose first high date is earliest. All Airports remains TBD.
 
-Head-only list: `GET /api/accounts/staff/`, returning staff username/email and
-pending email/assigned_by_username/assigned_at only. Assign and Remove reuse
+Head-only list: `GET /api/accounts/staff/`, returning independently paginated
+staff (id/username/email) and pending (email/assigned_by_username/assigned_at).
+`GET /api/accounts/staff/<id>/` exposes only the eight approved Staff detail fields;
+unknown, Traveler, or Head ids return 404. Assign and Remove reuse
 `POST /api/accounts/staff/assign/` and `/api/accounts/staff/revoke/`. Removing
 Staff makes the account a Traveler; pending removal deletes only its assignment.
 
@@ -535,3 +539,30 @@ See [traffic calendar](docs/features/traffic-calendar.md),
 [recommendations](docs/features/date-suggestions.md) and
 [dashboard](docs/features/staff-dashboard.md) for contracts and tests.
 Production datasets, accuracy evaluation, Charts, and All Airports remain TBD.
+
+
+## Page redesign setup and API pagination
+
+Apply the standard backend migration step: `python manage.py migrate` from
+backend/. Migration flights.0003_flight_filter_indexes adds only three indexes:
+departure time, origin/departure time, and destination/arrival time. It was applied
+locally. No new dependency, environment variable, table or field is required.
+This redesign did not edit or recalculate application data.
+
+List responses now use {count, next, previous, results}, with 50 rows by default,
+page=1 initially, and page_size capped at 50. This includes flights, forecasts,
+and airport/airline lookups. The Head list wraps separate paginated staff and
+pending objects, using staff_page and pending_page; search filters Staff by
+username/email. Clients must read results and count instead of treating the
+response as an array. The app already does this; own-record counts request one
+row and use count, while lookup pickers load their small lookup collections.
+
+Home's route results use origin/destination/upcoming filters. Route highlighting
+reads GET /api/flights/route-dates/?origin=<id>&destination=<id>&month=YYYY-MM.
+Calendar recommendations now appear below the airport/airline pickers and above
+the month grid. Airline changes only its flight list. Forecast/route dates remain
+UTC; flight timestamps still display in Philippine time. Staff Flights exposes
+search and filters; Staff Crowd forecasts opens with airports before records.
+See [flight search](docs/features/flight-search.md),
+[dashboard](docs/features/staff-dashboard.md), and
+[Head management](docs/features/accounts.md) for the implemented contracts.

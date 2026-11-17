@@ -21,7 +21,9 @@ stores the returned tokens and keeps only safe profile fields in memory, then
 opens the landing page for the role returned by the backend.
 
 `features/homepage` reuses the existing Home UI. It displays the signed-in username;
-the calendar and flight data come from the API, while bookings and recent searches have empty states.
+the calendar and flight data come from the API. Home now searches routes and
+keeps five browser-only route pairs per user; upcoming booking is a route summary,
+not a stored booking.
 `profile/` restores the current user's profile after reload. Home is
 Traveler-only; Staff and Heads have separate areas as described below. `/` stays
 public. Sign out calls `logout/` with the refresh token, then clears the local
@@ -48,7 +50,8 @@ Passwords and password hashes are never returned. Protected endpoints require
 | `profile/` | PATCH | Any of first_name, last_name, username, email | profile | Signed-in user |
 | `password/change/` | POST | current_password, new_password | detail | Signed-in user |
 | `head/` | GET | none | detail | Head |
-| `staff/` | GET | none | staff: username/email; pending: email/assigned_by_username/assigned_at | Head |
+| `staff/` | GET | optional staff_page, pending_page, page_size, search | paginated staff: id/username/email; paginated pending: email/assigned_by_username/assigned_at | Head |
+| `staff/<id>/` | GET | none | id, username, email, first_name, last_name, date_joined, flights_created, forecasts_created | Head; target must be Staff |
 | `staff/assign/` | POST | email | detail | Head |
 | `heads/promote/` | POST | email | detail | Head; target must be Staff |
 | `heads/remove/` | POST | email, role (`staff` or `traveler`) | detail | Head; self or Head they promoted |
@@ -72,7 +75,7 @@ list is the explicit privacy exception described below. Requests containing unsu
 |---|---|---|
 | `/` | Public, including signed-in visitors | Existing Landing page |
 | `/signin`, `/signup` | Signed-out visitors | Signed-in visitors go to their role landing page |
-| `/home` | Traveler | Real calendar/flights and booking/search empty states |
+| `/home` | Traveler | Route search, browser recent routes, upcoming-route summary and route calendar |
 | `/staff/dashboard` | Staff and Head | Real single-airport 30-day dashboard |
 | `/head` | Head | Head landing page; Staff/pending lists, Assign and Remove |
 | `/profile` | All authenticated roles | Own profile, password change, Sign Out |
@@ -131,12 +134,27 @@ Head navigation always contains Dashboard, Flights, Crowd forecasts and Head
 management in that order, including on Staff pages. Staff have no Head link and
 Travelers retain Home and Traffic Calendar. The active page is highlighted.
 
-`GET /api/accounts/staff/` returns exactly {staff: [...], pending: [...]}.
-Staff rows contain username and email only. Pending rows contain email,
-assigned_by_username and assigned_at only. There are no IDs, names, passwords,
-hashes, roles, or other user fields in this response. Only Head can read it;
-Staff/Travelers get 403 and signed-out callers get 401. Staff lists include
-accounts with role=staff; Heads themselves are not listed as Staff.
+`GET /api/accounts/staff/` returns {staff: page, pending: page}; each page is
+{count,next,previous,results}, with 50 rows by default (page_size capped at 50).
+staff_page and pending_page select independent pages. Optional search matches
+Staff username/email case-insensitively. Staff rows contain id, username and email;
+pending rows retain email, assigned_by_username and assigned_at. Heads are not
+included as Staff. The list uses related-object loading, not queries per row.
+
+`GET /api/accounts/staff/<id>/` returns exactly id, username, email, first_name,
+last_name, date_joined, flights_created and forecasts_created. It is Head-only:
+401 signed out, 403 for Staff/Travelers, and 404 for unknown or non-Staff targets.
+Separate aggregate subqueries calculate the two counts in one data query and
+avoid multiplying flight rows by forecast rows. No password, token, last_login,
+role or other user fields are returned.
+
+The responsive two-column page has Staff search/list and pending assignments on
+the left, Assign Staff above a selected Staff details card on the right. Selected
+Staff is highlighted; no selection shows a hint. Empty names show Not set. Pending
+rows have Remove; selected Staff details has Remove Staff access. Confirmation
+explains that Staff becomes Traveler and the account is retained. The unchanged
+assignment message is an info alert, rather than a success alert. Lists and
+details handle loading, errors and retry; assignment/removal refresh the lists.
 
 The existing Assign form posts only email to `/api/accounts/staff/assign/`.
 Successful assignment shows the backend result and refreshes both lists. Remove
@@ -199,7 +217,8 @@ password. Password fields are write-only and hashed using Django's password API.
 - Profile endpoints always operate on the signed-in user. Role, promoter, password,
   and another user's ID cannot be set through profile updates. Management accepts
   the target email and returns only a result message for actions. The approved
-  Head list is limited to Staff username/email and the three pending fields above.
+  Head reads are limited to the approved Staff list/detail fields and the three
+  pending fields above, never details about Travelers or other Heads.
 
 ## Development-only Staff seed
 

@@ -10,7 +10,7 @@ The backend provides sign-up, username/email sign-in, token refresh, logout,
 self-only profile updates, password changes, and Head role management. JWT access
 tokens last 15 minutes; refresh tokens last 7 days and rotate with blacklisting.
 Head management actions return result messages. The Head-only list exposes Staff
-username/email and limited pending-assignment fields. Existing account forms,
+id/username/email in the list and the approved Staff detail fields, plus limited pending-assignment fields. Existing account forms,
 profile, guards, and role dashboards are connected; Head lists, Assign, and Remove
 are implemented. See
 [accounts API documentation](docs/features/accounts.md) for the contract.
@@ -34,12 +34,13 @@ Travelers often have a hard time choosing flight dates because of crowded airpor
   - Sign-in is token-based. The frontend uses the token for later requests.
   - Users can sign in with their username or their email address.
   - Public sign-up does not allow users to select Staff or Head access. Staff access is assigned by a Head using an email address, whether an account already exists or not.
-- **Home page:** Travelers see the real airport calendar and flights. Because no bookings or search history are stored, the cards show only "No upcoming bookings yet." and "No recent searches yet." The sample rows, View all action, inactive sample search form, and booking-count row are removed.
+- **Home route search:** Travelers search From and To airports only, with different airports required. Upcoming From-to-To flights are ordered by departure and paginated. The last five distinct routes are stored in this browser per signed-in user, newest first, with Clear. Your upcoming booking means the most recent saved route with upcoming flights, showing its count and next three departure times; it is not a booking record. Route dates highlight the From airport calendar; Show all crowd levels restores normal colors. No dates, passenger data, bookings table, recommendations, or breakdown are added to Home.
+- **Searchable pickers:** every airport/airline picker uses the shared searchable combobox/listbox with code/name matching, city/country airport matching, keyboard and touch support, visible labels, error states, and existing icons.
 - **Flight search and details:** search by starting location, destination, and date. View the airline, departure and arrival times, destination, and open seats. Ticket prices are not shown.
 - **Traffic calendar:** a color-coded calendar of expected airport crowd levels (Low, Medium, High) for different airports and dates. The color of each date changes with the crowd level stored for that airport and date: Low is light green, Medium is amber, and High is dark orange. Each level is also available as text (in the legend, in the selected date's details, and in each date's accessible label), so color is never the only signal.
 - **Forecast calculation:** blend the booked-seat percentage of counted 2026 departures/arrivals equally with the average daily percentage from available 2025 records at 371, 364, and 357 days earlier. Without history, use flights only. Round once to one decimal: below 50 is Low, 50 to below 75 is Medium, and 75 or above is High. Flight changes recalculate affected pairs transactionally; raw SQL requires explicit recalculation. No flights or zero seats gives no calculated row. Manual forecasts remain possible and take precedence.
 - **Smart date suggestions:** on Traffic Calendar only, explain the calculated level using actual flight/history numbers and recommend up to three other dates within seven days before or after the selection. Dates need a forecast and open departing seats, and a lower stored score when the selection has a numeric score. Rank by score, open seats, then date; never pad missing results. Home shows neither explanations nor recommendations.
-- **Staff dashboard and charts:** the Dashboard is implemented; Charts is planned. The Dashboard shows one airport over the next 30 local days, counts and every date by level, busiest weekday, the next seven days, own-record counts, and a 2026-flight-versus-2025-history comparison. The Charts page remains future work.
+- **Staff pages:** Crowd overview adds a selectable 30-day column chart with score heights, level colors, 50/75 reference lines, and live flight/seat details, retaining all existing summary cards, date lists, seven-day strip, comparison and own-record counts. Missing manual scores use matching 2025 history for the chart without changing stored forecasts. Flights has server-side search and pagination. Crowd forecasts starts with airport counts, with per-airport filters or global search. A separate Charts page remains TBD.
 - **Role management:**
   - Django administrators create the initial Heads.
   - A Head can assign Staff access by entering an email address, whether the account already exists or not.
@@ -52,7 +53,7 @@ Travelers often have a hard time choosing flight dates because of crowded airpor
   - Fully revoking Staff access returns the user to Traveler.
   - Removing a Head does not affect the Heads they previously promoted.
   - Role removal does not delete the user's account.
-  - Heads have a management page listing Staff username/email and pending assignments. Assign and Remove use the existing email-based rules and confirmation. Head navigation includes Dashboard, Flights, Crowd forecasts, and Head management on every Staff page. Promote/remove-Head interfaces remain future work under the existing backend permissions.
+- **Head management:** a searchable Staff side list and pending assignments sit beside Assign Staff and the selected Staff details. Heads may read only id, username, email, first_name, last_name, date_joined, flights_created, and forecasts_created for Staff; no Traveler or Head details are exposed. Remove retains confirmation and changes Staff to Traveler without deleting the account. An unchanged assignment is an info alert. Existing Head navigation and promote/remove-Head backend rules remain; those additional management screens remain future work.
 
 ## Privacy
 
