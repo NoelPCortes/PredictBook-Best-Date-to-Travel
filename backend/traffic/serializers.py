@@ -99,6 +99,9 @@ class ForecastSerializer(StrictFieldsMixin, serializers.ModelSerializer):
 
 
 class ForecastFilterSerializer(serializers.Serializer):
+    search = serializers.CharField(required=False, allow_blank=True)
+    level = serializers.ChoiceField(choices=CrowdForecast.CrowdLevel.choices, required=False)
+    source = serializers.ChoiceField(choices=("calculated", "manual"), required=False)
     airport = serializers.PrimaryKeyRelatedField(
         queryset=Airport.objects.all(), required=False
     )

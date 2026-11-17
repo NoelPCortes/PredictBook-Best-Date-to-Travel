@@ -8,9 +8,10 @@ from .permissions import can_edit_record
 
 
 class AirportSerializer(serializers.ModelSerializer):
+    forecast_count = serializers.IntegerField(read_only=True)
     class Meta:
         model = Airport
-        fields = ("id", "code", "name", "city", "country")
+        fields = ("id", "code", "name", "city", "country", "forecast_count")
 
 
 class AirlineSerializer(serializers.ModelSerializer):

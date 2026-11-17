@@ -27,7 +27,7 @@ from .services import delete_flight, save_flight
 class AirportListView(generics.ListAPIView):
     permission_classes = (IsAuthenticated,)
     serializer_class = AirportSerializer
-    queryset = Airport.objects.order_by("code")
+    queryset = Airport.objects.annotate(forecast_count=Count("crowdforecast")).order_by("code")
 
 
 class AirlineListView(generics.ListAPIView):

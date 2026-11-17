@@ -1,3 +1,5 @@
+from django.db.models import CharField, Q
+from django.db.models.functions import Cast
 from django.shortcuts import get_object_or_404
 from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated
@@ -6,7 +8,7 @@ from rest_framework.views import APIView
 
 from flights.models import Airport
 
-from .calculation import flight_totals
+from .calculation import CALCULATED_SOURCES, SAMPLE_SOURCE, flight_totals
 from .insights import date_explanation, date_recommendations
 from .models import CrowdForecast
 from .permissions import CanManageManualForecasts
@@ -27,6 +29,21 @@ class ForecastListCreateView(generics.ListCreateAPIView):
         filters.is_valid(raise_exception=True)
         values = filters.validated_data
         forecasts = CrowdForecast.objects.select_related("airport", "created_by")
+        if values.get("search"):
+            forecasts = forecasts.annotate(date_text=Cast("date", CharField())).filter(
+                Q(airport__code__icontains=values["search"])
+                | Q(airport__name__icontains=values["search"])
+                | Q(airport__city__icontains=values["search"])
+                | Q(date_text__icontains=values["search"])
+            )
+        if "level" in values:
+            forecasts = forecasts.filter(crowd_level=values["level"])
+        if values.get("source") == "calculated":
+            forecasts = forecasts.filter(data_source__in=CALCULATED_SOURCES)
+        elif values.get("source") == "manual":
+            forecasts = forecasts.exclude(
+                data_source__in=(*CALCULATED_SOURCES, SAMPLE_SOURCE)
+            )
         if "airport" in values:
             forecasts = forecasts.filter(airport=values["airport"])
         if "month" in values:
