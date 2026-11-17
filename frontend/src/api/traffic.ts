@@ -3,10 +3,13 @@ import { readPage } from './pagination'
 import type { Forecast } from '../types/traffic'
 import type { Flight } from '../types/flights'
 
-export function loadForecasts(filters: { airport?: string; month?: string; mine?: boolean; page?: number; page_size?: number } = {}) {
+export function loadForecasts(filters: { airport?: string; month?: string; search?: string; level?: string; source?: string; mine?: boolean; page?: number; page_size?: number } = {}) {
   const query = new URLSearchParams()
   if (filters.airport) query.set('airport', filters.airport)
   if (filters.month) query.set('month', filters.month)
+  if (filters.search) query.set('search', filters.search)
+  if (filters.level) query.set('level', filters.level)
+  if (filters.source) query.set('source', filters.source)
   if (filters.page) query.set('page', String(filters.page))
   if (filters.page_size) query.set('page_size', String(filters.page_size))
   if (filters.mine) query.set('mine', 'true')

@@ -6,7 +6,7 @@ import type { DateExplanation, DateRecommendations } from './types'
 
 export type ForecastInput = { airport: string; date: string; crowd_level: CrowdLevel | ''; crowd_score: string | null; data_source: string }
 
-export function loadForecastList(page?: number) { return Promise.all([loadForecasts(page && page > 1 ? { page } : {}), loadAirports()]) }
+export function loadForecastList(filters: Parameters<typeof loadForecasts>[0] = {}) { return loadForecasts(filters) }
 export function loadForecastAirports() { return loadAirports() }
 export function getForecast(id: string) { return apiRequest<Forecast>(`/api/traffic/forecasts/${id}/`) }
 export function createForecast(values: ForecastInput) { return apiRequest<Forecast>('/api/traffic/forecasts/', { method: 'POST', body: JSON.stringify(values) }) }
