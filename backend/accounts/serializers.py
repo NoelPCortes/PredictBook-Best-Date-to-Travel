@@ -111,7 +111,25 @@ class RemoveHeadSerializer(EmailSerializer):
 class StaffListSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ("username", "email")
+        fields = ("id", "username", "email")
+
+
+class StaffDetailSerializer(serializers.ModelSerializer):
+    flights_created = serializers.IntegerField(read_only=True)
+    forecasts_created = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = User
+        fields = (
+            "id",
+            "username",
+            "email",
+            "first_name",
+            "last_name",
+            "date_joined",
+            "flights_created",
+            "forecasts_created",
+        )
 
 
 class PendingStaffSerializer(serializers.ModelSerializer):

@@ -38,7 +38,7 @@ def test_head_lists_only_approved_staff_and_pending_fields():
     client = APIClient()
     client.force_authenticate(head)
     result = client.get(PATH).json()
-    assert result["staff"]["results"] == [{"username": staff.username, "email": staff.email}]
+    assert result["staff"]["results"] == [{"id": staff.pk, "username": staff.username, "email": staff.email}]
     assert len(result["pending"]["results"]) == 1
     assert set(result["pending"]["results"][0]) == {"email", "assigned_by_username", "assigned_at"}
     assert result["pending"]["results"][0]["email"] == pending.email
@@ -63,7 +63,7 @@ def test_existing_assign_and_revoke_refresh_lists_without_deleting_accounts():
         == 200
     )
     assert client.get(PATH).json()["staff"]["results"] == [
-        {"username": target.username, "email": target.email}
+        {"id": target.pk, "username": target.username, "email": target.email}
     ]
     response = client.post(
         "/api/accounts/staff/revoke/", {"email": target.email}, format="json"
