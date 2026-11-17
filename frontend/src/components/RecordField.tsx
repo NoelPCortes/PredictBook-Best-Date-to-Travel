@@ -11,11 +11,12 @@ type RecordFieldProps = {
   type?: HTMLInputTypeAttribute
   step?: string
   maxLength?: number
+  placeholder?: string
   options?: SelectOption[]
   searchable?: boolean
 }
 
-export default function RecordField({ name, label, value, onChange, error, type = 'text', step, maxLength, options, searchable }: RecordFieldProps) {
+export default function RecordField({ name, label, value, onChange, error, type = 'text', step, maxLength, options, searchable, placeholder }: RecordFieldProps) {
   if (searchable && options) return <SearchableSelect name={name} label={label} value={value} onChange={onChange} error={error} options={options} />
   const id = `record-${name}`
   const errorId = `${id}-error`
@@ -26,7 +27,7 @@ export default function RecordField({ name, label, value, onChange, error, type 
       {options ? <select {...accessibility} value={value} onChange={event => onChange(event.target.value)}>
         <option value="">Choose {label.toLowerCase()}</option>
         {options.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
-      </select> : <input {...accessibility} value={value} onChange={event => onChange(event.target.value)} type={type} step={step} maxLength={maxLength} />}
+      </select> : <input {...accessibility} value={value} onChange={event => onChange(event.target.value)} type={type} step={step} maxLength={maxLength} placeholder={placeholder} />}
     </div>
     {error && <p className="record-field-error" id={errorId}>{error}</p>}
   </div>

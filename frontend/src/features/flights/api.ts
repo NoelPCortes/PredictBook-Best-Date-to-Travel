@@ -8,7 +8,7 @@ export type FlightInput = {
   departure_time: string; arrival_time: string; total_seats: string; available_seats: string
 }
 
-export function listFlights(filters: { airport?: string; date?: string; page?: number } = {}) {
+export function listFlights(filters: Parameters<typeof loadFlights>[0] = {}) {
   return loadFlights(filters)
 }
 
