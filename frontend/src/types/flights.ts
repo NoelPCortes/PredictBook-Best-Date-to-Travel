@@ -18,4 +18,5 @@ export type Flight = {
   available_seats: number
   created_by_username?: string
   can_edit?: boolean
+  direction?: 'departing' | 'arriving'
 }

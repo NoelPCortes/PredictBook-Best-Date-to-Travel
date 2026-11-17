@@ -52,6 +52,12 @@ def test_airport_filter_uses_arrival_or_departure_local_dates_and_combines_mine(
         "/api/flights/", {"airport": airport.pk, "date": "2026-12-01"}
     )
     assert response.status_code == 200
+    directions = {row["id"]: row["direction"] for row in response.json()}
+    assert directions == {
+        departing.pk: "departing",
+        arriving.pk: "arriving",
+        other_flight.pk: "arriving",
+    }
     assert {row["id"] for row in response.json()} == {
         departing.pk,
         arriving.pk,

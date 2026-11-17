@@ -30,6 +30,7 @@ class FlightSerializer(StrictFieldsMixin, serializers.ModelSerializer):
         source="created_by.username", read_only=True
     )
     can_edit = serializers.SerializerMethodField()
+    direction = serializers.SerializerMethodField()
 
     class Meta:
         model = Flight
@@ -51,12 +52,15 @@ class FlightSerializer(StrictFieldsMixin, serializers.ModelSerializer):
             "available_seats",
             "created_by_username",
             "can_edit",
+            "direction",
         )
         read_only_fields = ("id",)
         validators = ()
 
     def get_fields(self):
         fields = super().get_fields()
+        if not self.context["request"].query_params.get("airport"):
+            fields.pop("direction")
         if self.context["request"].user.role == User.Role.TRAVELER:
             fields.pop("created_by_username")
             fields.pop("can_edit")
@@ -64,6 +68,13 @@ class FlightSerializer(StrictFieldsMixin, serializers.ModelSerializer):
 
     def get_can_edit(self, obj):
         return can_edit_record(self.context["request"].user, obj)
+
+    def get_direction(self, obj):
+        return (
+            "departing"
+            if str(obj.origin_id) == self.context["request"].query_params.get("airport")
+            else "arriving"
+        )
 
     def validate(self, attrs):
         current = self.instance

@@ -9,9 +9,18 @@ import { loadFlights, loadForecasts } from '../src/api/traffic'
 import RoleRoute from '../src/components/RoleRoute'
 import TrafficCalendarPage from '../src/features/calendar/TrafficCalendarPage'
 import type { Forecast } from '../src/types/traffic'
+import { loadDateExplanation } from '../src/features/calendar/api'
+import type { DateExplanation } from '../src/features/calendar/types'
 
 vi.mock('../src/api/lookups', () => ({ loadAirports: vi.fn() }))
 vi.mock('../src/api/traffic', () => ({ loadFlights: vi.fn(), loadForecasts: vi.fn() }))
+vi.mock('../src/features/calendar/api', () => ({ loadDateExplanation: vi.fn() }))
+const explanation: DateExplanation = {
+  airport: { id: 1, code: 'CEB', name: 'Cebu' }, date: '2026-01-14', weekday: 'Wednesday', has_data: true,
+  flights: { count: 2, departing_count: 1, arriving_count: 1, seats_total: 200, seats_booked: 80, occupancy_percent: 40 },
+  history: { used_dates: ['2025-01-15'], records: [], average_occupancy_percent: 60 }, weights: { flights: 50, history: 50 }, thresholds: { medium_from: 50, high_from: 75 },
+  crowd_score: 50, crowd_level: 'medium', history_available: true, open_seats: 60, sentences: ['The combined score is 50.0, which is Medium.'],
+}
 const airports = [
   { id: 1, code: 'CEB', name: 'Cebu', city: 'Cebu', country: 'Philippines' },
   { id: 2, code: 'MNL', name: 'Manila', city: 'Manila', country: 'Philippines' },
@@ -25,8 +34,10 @@ beforeEach(() => {
   vi.mocked(loadAirports).mockReset().mockResolvedValue(airports)
   vi.mocked(loadForecasts).mockReset().mockResolvedValue([forecast(14, 'low'), forecast(15, 'medium'), forecast(16, 'high')])
   vi.mocked(loadFlights).mockReset().mockResolvedValue([{
+    direction: 'departing',
     id: 7, airline: 1, airline_name: 'Philippine Airlines', airline_code: 'PR', flight_number: '100', origin: 1, origin_code: 'CEB', origin_name: 'Cebu', destination: 2, destination_code: 'MNL', destination_name: 'Manila', departure_time: '2026-01-14T00:00:00Z', arrival_time: '2026-01-14T01:30:00Z', total_seats: 180, available_seats: 25,
   }])
+  vi.mocked(loadDateExplanation).mockReset().mockResolvedValue(explanation)
   setProfile({ id: 1, username: 'traveler', email: 'traveler@example.com', role: 'traveler', first_name: '', last_name: '' })
   container = document.createElement('div'); document.body.append(container); root = createRoot(container)
 })
@@ -80,6 +91,44 @@ it('selects a no-data day and shows the empty flight message', async () => {
   expect(loadFlights).toHaveBeenLastCalledWith({ airport: '1', date: '2026-01-17' })
   expect(container.querySelector('.airport-date-details .record-crowd-chip')?.textContent).toBe('No data')
   expect(container.textContent).toContain('No flights listed for this date.')
+})
+it('renders the real breakdown, history dates, and strict flight directions', async () => {
+  const departing = (await loadFlights())[0]!
+  vi.mocked(loadFlights).mockResolvedValue([departing, { ...departing, id: 8, direction: 'arriving' }])
+  await render()
+  expect(loadDateExplanation).toHaveBeenCalledWith('1', '2026-01-14')
+  expect(container.querySelector('.calendar-flight-list')?.textContent).toContain('Departing')
+  expect(container.querySelector('.calendar-flight-list')?.textContent).toContain('Arriving')
+  const details = container.querySelector('.calendar-breakdown')!
+  expect(details.textContent).toContain('Why this level')
+  expect(details.textContent).toContain('80 of 200 seats; 40.0%')
+  expect(details.textContent).toContain('January 15, 2025')
+  expect(details.textContent).toContain('60.0%')
+  expect(details.querySelector('img[src*="info-circleIcon"]')).not.toBeNull()
+  await act(async () => day(15).click())
+  expect(loadDateExplanation).toHaveBeenLastCalledWith('1', '2026-01-15')
+  await changeAirport('2')
+  expect(loadDateExplanation).toHaveBeenLastCalledWith('2', '2026-01-15')
+  await click('[aria-label="Next month"]')
+  expect(loadDateExplanation).toHaveBeenLastCalledWith('2', '2026-02-01')
+})
+it('shows no-history and no-data breakdown states from the API', async () => {
+  vi.mocked(loadDateExplanation).mockResolvedValue({ ...explanation, history_available: false, history: { used_dates: [], records: [], average_occupancy_percent: null }, sentences: ['No 2025 history is available for this date, so the score uses 2026 flights only.'] })
+  await render()
+  expect(container.textContent).toContain('No 2025 history is available for this date')
+  vi.mocked(loadDateExplanation).mockResolvedValue({ ...explanation, has_data: false, crowd_score: null, crowd_level: null, sentences: [] })
+  await act(async () => day(17).click())
+  expect(container.textContent).toContain('No calculated forecast: no flights with seat data for this date.')
+})
+it('handles breakdown loading, request errors, and retry', async () => {
+  vi.mocked(loadDateExplanation).mockReturnValueOnce(new Promise(() => {}))
+  await render()
+  expect(container.textContent).toContain('Loading level breakdown')
+  vi.mocked(loadDateExplanation).mockRejectedValueOnce(new Error('Offline'))
+  await act(async () => day(15).click())
+  expect(container.querySelector('.calendar-breakdown [role="alert"]')).not.toBeNull()
+  await click('.calendar-breakdown button')
+  expect(container.querySelector('.calendar-breakdown table')).not.toBeNull()
 })
 it('changes airports without losing the selected date or exposing old flights', async () => {
   await render(); vi.mocked(loadFlights).mockResolvedValue([]); vi.mocked(loadForecasts).mockResolvedValue([])

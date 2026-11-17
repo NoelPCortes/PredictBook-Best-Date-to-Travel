@@ -1,4 +1,6 @@
 import { useCallback, useId, useState } from 'react'
+import type { ReactNode } from 'react'
+import type { Forecast } from '../types/traffic'
 import { loadAirports } from '../api/lookups'
 import { loadFlights, loadForecasts } from '../api/traffic'
 import RecordField from './RecordField'
@@ -13,7 +15,10 @@ import clockIcon from '../assets/icons/ClockIcon.png'
 import seatIcon from '../assets/icons/SeatIcon.png'
 import './AirportCalendar.css'
 
-function AirportMonth({ airport }: { airport: string }) {
+export type CalendarSelection = { airport: string; date: string; forecast?: Forecast; onSelectDate: (date: string) => void }
+type CalendarOptions = { renderDetails?: (selection: CalendarSelection) => ReactNode; showFlightDirections?: boolean }
+
+function AirportMonth({ airport, renderDetails, showFlightDirections }: { airport: string } & CalendarOptions) {
   const today = projectToday()
   const [selectedDate, setSelectedDate] = useState(today)
   const month = selectedDate.slice(0, 7)
@@ -53,11 +58,13 @@ function AirportMonth({ airport }: { airport: string }) {
       {forecasts.value ? <CrowdChip level={selectedForecast?.crowd_level} /> : <p>{forecasts.error ? 'Crowd forecast unavailable.' : 'Loading crowd forecast…'}</p>}
       <p>Forecast dates: UTC. Flights include arrivals and departures.</p>
       <p>Flight times: Philippine time (Asia/Manila, UTC+08:00).</p>
+      {renderDetails?.({ airport, date: selectedDate, forecast: selectedForecast, onSelectDate: setSelectedDate })}
       {!flights.value && !flights.error && <p role="status">Loading flights…</p>}
       {flights.error && <><RecordAlert kind="error">Unable to load flights. Please try again.</RecordAlert><button type="button" className="calendar-text-button" onClick={() => setFlightAttempt(value => value + 1)}>Retry flights</button></>}
       {flights.value?.length === 0 && <p>No flights listed for this date.</p>}
       {flights.value && flights.value.length > 0 && <ul className="calendar-flight-list">{flights.value.map(flight => <li key={flight.id}>
         <h4>{flight.airline_name} ({flight.airline_code}) · {flight.flight_number}</h4>
+        {showFlightDirections && flight.direction && <p><strong>{flight.direction === 'departing' ? 'Departing' : 'Arriving'}</strong></p>}
         <p>{flight.origin_code} — {flight.origin_name} → {flight.destination_code} — {flight.destination_name}</p>
         <p><img src={clockIcon} alt="" /><span>Departure: <time dateTime={flight.departure_time}>{formatFlightTime(flight.departure_time)}</time><br />Arrival: <time dateTime={flight.arrival_time}>{formatFlightTime(flight.arrival_time)}</time></span></p>
         <p><img src={seatIcon} alt="" />{flight.available_seats} open seats / {flight.total_seats} total seats</p>
@@ -66,7 +73,7 @@ function AirportMonth({ airport }: { airport: string }) {
   </div>
 }
 
-export default function AirportCalendar() {
+export default function AirportCalendar(options: CalendarOptions) {
   const [airportId, setAirportId] = useState('')
   const [attempt, setAttempt] = useState(0)
   const airports = useRemoteResource(`airports/${attempt}`, loadAirports)
@@ -76,7 +83,7 @@ export default function AirportCalendar() {
     {airports.error && <><RecordAlert kind="error">Unable to load airports. Please try again.</RecordAlert><button type="button" className="calendar-text-button" onClick={() => setAttempt(value => value + 1)}>Retry airports</button></>}
     {airports.value && <>
       <RecordField name="calendar-airport" label="Airport" value={selectedAirport} onChange={setAirportId} options={airports.value.map(airport => ({ value: String(airport.id), label: `${airport.code} — ${airport.name}` }))} />
-      {selectedAirport ? <AirportMonth airport={selectedAirport} /> : <p>No airports available.</p>}
+      {selectedAirport ? <AirportMonth airport={selectedAirport} {...options} /> : <p>No airports available.</p>}
     </>}
   </section>
 }
