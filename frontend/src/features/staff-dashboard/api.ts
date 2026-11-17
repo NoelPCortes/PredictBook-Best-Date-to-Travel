@@ -1,8 +1,13 @@
 import { apiRequest } from '../../api/client'
 import { loadFlights, loadForecasts } from '../../api/traffic'
+import type { DashboardSummary } from './types'
 
 export function getDashboardAccess() {
   return apiRequest<{ detail: string; is_sample: boolean }>('/api/dashboard/')
+}
+
+export function getDashboardSummary(airport?: string) {
+  return apiRequest<DashboardSummary>(`/api/dashboard/summary/${airport ? `?airport=${encodeURIComponent(airport)}` : ''}`)
 }
 
 export async function getOwnRecordCounts() {

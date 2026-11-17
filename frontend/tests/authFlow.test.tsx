@@ -14,6 +14,7 @@ vi.mock('../src/api/lookups', () => ({ loadAirports: async () => [] }))
 vi.mock('../src/features/staff-dashboard/api', async importOriginal => ({
   ...await importOriginal<typeof import('../src/features/staff-dashboard/api')>(),
   getOwnRecordCounts: async () => ({ flights: 0, forecasts: 0 }),
+  getDashboardSummary: async () => ({ airport: null, period_start: '2026-11-16', period_end: '2026-12-15', counts: { low: 0, medium: 0, high: 0 }, dates: { low: [], medium: [], high: [] }, busiest_weekday: null, next_7_days: [] }),
 }))
 
 const profile = { id: 1, username: 'traveler', email: 'traveler@example.com', first_name: '', last_name: '', role: 'traveler' }
