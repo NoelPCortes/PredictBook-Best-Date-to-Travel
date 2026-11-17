@@ -10,6 +10,6 @@ export default function TrafficCalendarPage() {
   const { signOut, isSigningOut } = useSignOut()
   return <>
     <AppNavbar userName={profile?.username ?? ''} onSignOut={signOut} isSigningOut={isSigningOut} />
-    <main className="record-page"><h1>Traffic Calendar</h1><AirportCalendar showFlightDirections renderDetails={selection => <DateBreakdown {...selection} />} renderAfter={selection => <RecommendedDates {...selection} />} /></main>
+    <main className="record-page"><h1>Traffic Calendar</h1><AirportCalendar airlineFilter showFlightDirections renderDetails={selection => <DateBreakdown {...selection} />} renderBefore={selection => <RecommendedDates {...selection} />} /></main>
   </>
 }

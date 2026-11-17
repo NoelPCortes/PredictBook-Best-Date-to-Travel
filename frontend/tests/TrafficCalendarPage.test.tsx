@@ -4,7 +4,7 @@ import { createRoot } from 'react-dom/client'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { clearSession, setProfile } from '../src/api/authState'
-import { loadAirports } from '../src/api/lookups'
+import { loadAirports, loadAirlines } from '../src/api/lookups'
 import { loadFlights, loadForecasts } from '../src/api/traffic'
 import RoleRoute from '../src/components/RoleRoute'
 import TrafficCalendarPage from '../src/features/calendar/TrafficCalendarPage'
@@ -12,7 +12,7 @@ import type { Forecast } from '../src/types/traffic'
 import { loadDateExplanation, loadDateRecommendations } from '../src/features/calendar/api'
 import type { DateExplanation, DateRecommendations } from '../src/features/calendar/types'
 
-vi.mock('../src/api/lookups', () => ({ loadAirports: vi.fn() }))
+vi.mock('../src/api/lookups', () => ({ loadAirports: vi.fn(), loadAirlines: vi.fn() }))
 vi.mock('../src/api/traffic', () => ({ loadFlights: vi.fn(), loadForecasts: vi.fn() }))
 vi.mock('../src/features/calendar/api', () => ({ loadDateExplanation: vi.fn(), loadDateRecommendations: vi.fn() }))
 const recommendations: DateRecommendations = {
@@ -35,6 +35,7 @@ let root: ReturnType<typeof createRoot>
 beforeEach(() => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
   vi.useFakeTimers(); vi.setSystemTime(new Date('2026-01-14T04:00:00Z'))
+  vi.mocked(loadAirlines).mockReset().mockResolvedValue([{id:1,name:'Airline',code:'PR'}])
   vi.mocked(loadAirports).mockReset().mockResolvedValue(airports)
   vi.mocked(loadForecasts).mockReset().mockResolvedValue([forecast(14, 'low'), forecast(15, 'medium'), forecast(16, 'high')])
   vi.mocked(loadFlights).mockReset().mockResolvedValue([{
@@ -234,4 +235,24 @@ it.each(['staff', 'head', null] as const)('guards calendar access for %s', async
   await render()
   expect(loadAirports).not.toHaveBeenCalled()
   expect(container.textContent).toBe(role === 'staff' ? 'Staff dashboard' : role === 'head' ? 'Head management' : 'Sign in')
+})
+
+it('puts recommendations above the month and filters flights only by airline', async () => {
+  await render()
+  const recommendation = container.querySelector('.calendar-recommendations')!
+  const month = container.querySelector('.airport-calendar-month')!
+  expect(recommendation.compareDocumentPosition(month) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  expect(container.textContent).toContain('Crowd levels are per airport. The airline filter only changes the flight list.')
+  const explanations = vi.mocked(loadDateExplanation).mock.calls.length
+  const suggestions = vi.mocked(loadDateRecommendations).mock.calls.length
+  await click('#record-calendar-airline'); await click('[role=option][data-value="1"]')
+  expect(loadFlights).toHaveBeenLastCalledWith({airport:'1',date:'2026-01-14',airline:'1'})
+  expect(loadDateExplanation).toHaveBeenCalledTimes(explanations)
+  expect(loadDateRecommendations).toHaveBeenCalledTimes(suggestions)
+  const panel=container.querySelector('.airport-date-details')!
+  expect(panel.querySelector('.calendar-flight-list')!.compareDocumentPosition(panel.querySelector('.calendar-breakdown')!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+})
+it('selects today when navigating back into the current month', async () => {
+  await render(); await click('[aria-label="Next month"]'); await click('[aria-label="Previous month"]')
+  expect(day(14).getAttribute('aria-pressed')).toBe('true')
 })
