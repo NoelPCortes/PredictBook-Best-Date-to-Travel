@@ -56,7 +56,6 @@ function HomeContent({ userId }: { userId: number }) {
     search({ origin, destination }, optional)
   }
   return <>
-    <HomeCalendar route={active ? { ...active, originCode: code(active.origin), destinationCode: code(active.destination) } : undefined} onClearRoute={() => setActive(undefined)} />
     <section className="summary-card home-search-card" aria-label="Search flights">
       <form onSubmit={submit} className="home-route-search" noValidate>
         <RecordField searchable name="home-origin" label="From" value={origin} onChange={setOrigin} options={airportOptions(airports.value ?? [])} error={error && !origin ? error : undefined} />
@@ -84,6 +83,7 @@ function HomeContent({ userId }: { userId: number }) {
       </section>
     </div>
     {active && <RouteResults key={`${active.origin}/${active.destination}/${run}`} route={active} label={label(active)} filters={applied} />}
+    <HomeCalendar route={active ? { ...active, originCode: code(active.origin), destinationCode: code(active.destination) } : undefined} onClearRoute={() => setActive(undefined)} />
   </>
 }
 

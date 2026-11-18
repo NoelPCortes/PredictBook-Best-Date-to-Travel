@@ -186,13 +186,13 @@ it('keeps upcoming for hours without dates and appends four-flight pages', async
 })
 
 function expectHomeBlockOrder(hasResults: boolean) {
-  const selectors = ['.home-hero', '.home-calendar-preview', '.home-search-card', '[aria-labelledby="upcoming-title"]', '[aria-labelledby="recent-title"]', ...(hasResults ? ['.home-route-results'] : [])]
+  const selectors = ['.home-hero', '.home-search-card', '[aria-labelledby="upcoming-title"]', '[aria-labelledby="recent-title"]', ...(hasResults ? ['.home-route-results'] : []), '.home-calendar-preview']
   const blocks = selectors.map(selector => container.querySelector(selector)!)
   for (let index = 1; index < blocks.length; index++) {
     expect(blocks[index - 1]!.compareDocumentPosition(blocks[index]!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   }
 }
-it('places the unchanged calendar directly after the header and before search/results', async () => {
+it('places search and active results before the unchanged calendar', async () => {
   expectHomeBlockOrder(false)
   const calendar = container.querySelector('.home-calendar-preview')
   expect(container.querySelectorAll('.home-calendar-preview')).toHaveLength(1)
@@ -201,7 +201,7 @@ it('places the unchanged calendar directly after the header and before search/re
   expect(container.querySelector('.home-calendar-preview')).toBe(calendar)
   expect(dayButton(14).classList.contains('route-highlight')).toBe(true)
 })
-it('keeps header, calendar, search, booking, recent searches and results in narrow-screen DOM order', async () => {
+it('keeps header, search, booking, recent searches, results and calendar in narrow-screen DOM order', async () => {
   const originalWidth = window.innerWidth
   Object.defineProperty(window, 'innerWidth', { configurable: true, value: 390 })
   try {
@@ -226,7 +226,7 @@ it('keeps the scroll position while a search and saved-route click update result
     Object.defineProperty(window, 'scrollY', { configurable: true, value: originalScrollY })
   }
 })
-it('keeps the top calendar mounted and highlighted when the upcoming booking is opened', async () => {
+it('keeps the calendar mounted and highlighted when the upcoming booking is opened', async () => {
   saveRecentRoute(1, { origin: '1', destination: '2' })
   const flight = {id:9, airline:1,airline_code:'PR',airline_name:'Airline',flight_number:'123',origin:1,origin_code:'CEB',origin_name:'Cebu',destination:2,destination_code:'NRT',destination_name:'Narita',departure_time:'2026-01-15T00:00:00Z',arrival_time:'2026-01-15T02:00:00Z',total_seats:100,available_seats:50}
   vi.mocked(loadFlights).mockImplementation(async filters => filters?.upcoming ? Object.assign([flight], {count:1,next:null}) : [])
