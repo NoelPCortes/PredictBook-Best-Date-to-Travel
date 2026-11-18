@@ -36,7 +36,10 @@
 .route-mode .calendar-day.no-data:not(.route-highlight)[aria-pressed=true] { background: var(--no-data-background); color: var(--disabled-text); }
 
 .traffic-calendar-grid { display: grid; grid-template-columns: minmax(0, 1fr) var(--travel-sidebar-width); gap: var(--space-24); align-items: start; }
-.traffic-calendar-sidebar { grid-column: 2; grid-row: 1; position: sticky; top: var(--space-24); max-height: calc(100vh - var(--space-40)); overflow-y: auto; display: grid; gap: var(--space-24); padding: var(--space-4); }
+.traffic-calendar-sidebar { grid-column: 2; grid-row: 1; position: sticky; top: var(--space-24); max-height: calc(100vh - var(--space-40)); overflow-y: auto; display: grid; gap: var(--space-24); padding: var(--space-24); background: var(--ink); color: var(--white); border-radius: var(--radius); }
+.traffic-calendar-controls > p, .traffic-calendar-suggestions .calendar-recommendations > p { color: var(--nav-text); }
+.traffic-calendar-sidebar .calendar-recommendations h2 > img { background: var(--nav-text); border-radius: 50%; padding: var(--space-4); width: var(--space-32); height: var(--space-32); }
+.traffic-calendar-sidebar .calendar-recommendation-card:focus-visible { outline-color: var(--white); }
 .traffic-calendar-main { grid-column: 1; grid-row: 1; min-width: 0; }
 .traffic-calendar-main .airport-calendar-layout { grid-template-columns: 1fr; }
 .traffic-calendar-main .airport-date-details { border-left: 0; padding-left: 0; border-top: 1px solid var(--border); padding-top: var(--space-24); }
@@ -48,6 +51,7 @@
 @media(max-width: 1100px) {
   .traffic-calendar-grid { display: flex; flex-direction: column; }
   .traffic-calendar-sidebar { display: contents; }
+  .traffic-calendar-controls, .traffic-calendar-suggestions { background: var(--ink); color: var(--white); padding: var(--space-24); border-radius: var(--radius); }
   .traffic-calendar-controls { order: 1; width: 100%; }
   .traffic-calendar-main { order: 2; width: 100%; }
   .traffic-calendar-suggestions { order: 3; width: 100%; }
