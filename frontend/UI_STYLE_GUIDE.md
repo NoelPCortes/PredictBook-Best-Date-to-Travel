@@ -177,6 +177,7 @@ Bar rules:
 
 Rules:
 
+- A bordered field container owns the field background. Its inner text, date, select, or searchable-dropdown control has a transparent background so it uses the container background. Keep the border, label, focus ring, error, and disabled states above; disabled containers use Gray 100.
 - Every input has a **visible label**. The label sits at the top of the input box in small, bold, Gray 600 text. Do not use placeholder text as the label.
 - Hints appear below the field in small Gray 600 text.
 - Error messages say what is wrong and how to fix it, right next to the field.
