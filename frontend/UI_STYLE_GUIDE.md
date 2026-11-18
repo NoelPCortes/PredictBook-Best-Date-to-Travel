@@ -131,7 +131,7 @@ Rules:
 ### Top bar
 
 - Background Navy, white text, at least 60px tall, soft shadow underneath.
-- Logo on the left, navigation links next to it, and the user menu on the right.
+- Logo on the left, navigation links next to it, and one profile button on the right linking to `/profile` (My account). It contains UserCircleIcon in a White or Blue 100 circular badge and the signed-in username, with accessible name `My account, {username}`, at least 44px height, the current-page highlight and visible white focus ring. Do not recolor the icon or add a new icon. There is no top-bar Sign out button; Sign Out remains on My account.
 
 ### Sidebar
 

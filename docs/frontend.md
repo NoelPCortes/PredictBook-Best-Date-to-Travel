@@ -34,6 +34,8 @@ Paths below are relative to frontend/.
 | src/api/lookups.ts | Authenticated airport and airline lookups |
 | src/api/traffic.ts | Shared flight/forecast reads with origin/date/airport/month/mine filters |
 | src/types/flights.ts; src/types/traffic.ts | Shared flight, lookup, forecast, and crowd-level contracts |
+| src/api/recentRoutes.ts | Shared browser-only last-five From/To pairs per user, with Clear; no optional filters |
+| src/components/useAppendPages.ts | Four-at-a-time appending, loading/retry and obsolete-response protection |
 | src/api/session.ts | Shared logout request using the current refresh token |
 | src/components/useSignOut.ts | Shared logout/local clearing/navigation behavior |
 | src/components/RoleRoute.tsx | Role navigation guard, including Staff access for Heads |
@@ -51,7 +53,7 @@ The three account-related UIs were moved from existing `src/pages` files into th
 | Brand | AuthLayout, AppNavbar, ProfilePage | Existing CSS calendar mark and PredictBook link; role areas link to their landing page |
 | AuthLayout | SignInPage, SignUpPage | Accepts pageId, title, intro, panelTitle, panelIntro, typed sample days and children; owns the split layout and static calendar |
 | AuthField | SignInPage, SignUpPage, HeadPage, profile forms | Label, input and optional error; accepts input attributes/ref; links errors with aria-describedby and sets aria-invalid |
-| AppNavbar | HomePage, StaffDashboard, HeadPage | Role-specific existing links, real username linked to /profile, and shared Sign out action |
+| AppNavbar | HomePage, StaffDashboard, HeadPage | Role-specific existing links and one profile icon/username link to /profile; Sign Out stays on My account |
 | Icon | Unused legacy helper | Retained legacy inline-SVG helper; changed Home and role pages do not render it |
 | TrafficCalendar | LandingPage | Static 30-day marketing preview; not the /calendar page |
 | HomeCalendar | HomePage | Wraps the shared real-data AirportCalendar; no booking fixture or named sample chip export |
@@ -135,7 +137,11 @@ excluded from requests. Both forms display backend errors beside the matching
 fields, focus the first invalid input, and display success/general error messages.
 Profile saves update memory; reload obtains persisted values from the backend.
 Sidebar section links move focus and indicate the selected section. Sign Out
-uses the same shared behavior as the other authenticated pages.
+remains here, posts the refresh token to the existing blacklist endpoint and
+clears local tokens/session even when the request fails. The top bar no longer
+has Sign out. Its profile link uses UserCircleIcon inside a light circular
+badge, username, My account, {username} as its accessible name, a current-page
+underline and visible white focus ring; role navigation links are unchanged.
 
 Sign-Up success sends a consumed navigation flag to Sign-In and shows
 **Account created. Please sign in.** with successIcon. Form edits or navigation
@@ -236,8 +242,8 @@ prove viewport-perfect rendering.
 ## Blended forecast explanation and recommendations
 
 TrafficCalendarPage supplies optional renderDetails/renderBefore callbacks to
-AirportCalendar. CalendarSelection passes airport, date, stored forecast and
-onSelectDate; the shared component never imports a feature module. DateBreakdown
+AirportCalendar. CalendarSelection passes airport, date, optional booking destination, stored
+forecast and onSelectDate; the shared component never imports a feature module. DateBreakdown
 and RecommendedDates live in the existing calendar feature; its api.ts and
 types.ts define their calls/contracts. Home supplies neither slot, keeping its
 preview free of explanations and recommendations. Home now adds its separate
@@ -246,7 +252,8 @@ route-search state and calendar highlighting options.
 DateBreakdown renders the backend sentences and a flight/history/combined table,
 plus history dates, with info-circleIcon. Manual levels stay visible with the
 calculated blend identified separately. RecommendedDates renders bulbIcon, up to
-three cards with crowd-chip text, score/difference, open seats and reasons. A card
+three Low crowd cards with score/open seats, up to two actual departing flight
+previews, backend reasons and a positive difference when available. A card
 uses a native button to select its date, reloading all relevant requests. Both
 sections use keyed resources with loading/error/retry and stale-response protection.
 The calendar enables showFlightDirections and uses the server direction field
@@ -272,7 +279,10 @@ airlines name/code. Arrows, Home/End, Enter, Escape, typing, pointer/touch selec
 Clear and outside-click closing are supported. No dependency or icon was added.
 
 src/api/pagination.ts adapts page envelopes to records with count/next/previous
-metadata; PageControls requests bounded pages. Lookups follow their small pages
+metadata and rejects obsolete unpaginated arrays with a clear backend-restart
+message, instead of silently accepting an unfiltered list. PageControls requests
+bounded Staff pages; useAppendPages appends four-flight Home/calendar pages and
+discards delayed requests after selection changes. Lookups follow their small pages
 for complete picker options. getOwnRecordCounts uses count from page_size=1.
 The shared API client deduplicates pending identical GETs by request/session,
 without storing fulfilled responses. It retains JWT rotation/logout behavior
@@ -281,35 +291,66 @@ controls; tests cover a slow request and retry without installing dependencies.
 
 ## Redesigned pages
 
-Home keeps all logic in the existing homepage feature. Its order is From/To
-search card, upcoming booking/recent searches, active route results, then shared
-calendar. recentRoutes.ts alone manages the last five distinct route pairs under
-predictbook:recent-routes:<user id>. Only origin/destination are stored; Clear
-removes that user's list. The newest saved route with upcoming flights supplies
-the booking count and next three departure times. API calls live in feature api.ts.
-RouteResults reads upcoming From-to-To pages and FlightCards renders the existing
-PNG clock/seat icons. Route-date data colors/rings only route days using the From
-airport's forecasts; neutral days and accessible names explain the route mode.
-Show all crowd levels restores normal mode. No booking table or personal data
-is introduced, and Home enables neither recommendation nor explanation slots.
+Home keeps page logic in the existing homepage feature. Required From/To
+searchable pickers are joined by optional Departure/Arrival date inputs and
+native From/To hour groups. Each has visible labels, Any first and the exact
+midnight-range hint. Hours filter inclusively in Asia/Manila with or without a
+date; reversed ranges/dates show linked errors, focus an invalid field and do not
+call the API. Upcoming stays enabled unless a departure date is filled. Clear
+optional filters resets only those controls. The main column has header, search,
+active results, calendar/panel; the approximately 340px side column holds booking
+and recent routes. Narrow order is header, search, side cards, results, calendar.
 
-Traffic Calendar uses searchable Airport and Airline pickers, then the existing
-RecommendedDates before the grid, then daily flights followed by DateBreakdown.
-Airline is sent only to the flight read; levels, breakdown and recommendations
-remain airport-wide. Flight pages preserve project-local UTC airport/date grouping
-while displaying timestamps in Philippine time. The month selection rule uses
-today when in the shown month, otherwise day one.
+src/api/recentRoutes.ts alone manages the last five distinct route pairs under
+predictbook:recent-routes:<user id>, shared by Home and Traffic Calendar. Only
+origin/destination are stored, never optional dates/hours; Clear removes that
+user's routes. The newest saved route with upcoming flights supplies the booking
+count and next three departure times. Clicking a saved route reruns the upcoming
+route search and clears optional controls. RouteResults requests page_size=4;
+See more appends four, shows the total and resets for a new search. FlightCards
+keeps clock/seat icons. Route dates color/ring only matching From-to-To days;
+others are neutral. Accessible names expose route/count/level or No flights on
+this route. Show all crowd levels restores normal mode. There is no booking
+table, and Home still shows neither recommendations nor Why this level.
 
-StaffDashboard adds CrowdChart with 30 keyboard-focusable HTML column buttons,
-score heights and whole-score labels, level colors/text, dashed 50/75 references,
-day/month labels, a legend and selected/hovered date details. Missing scores show
-No data. The backend supplies history fallback for a null manual score without
-writing it. Existing cards, date lists, comparison and own-record counts remain.
-No chart library or SVG is used; the chart scrolls to preserve tap target widths.
+Traffic Calendar uses a main month/panel column and a sticky side column with
+Airport, Airline, My booking, the hint, and recommendations. On narrow screens,
+pickers precede calendar/panel and recommendations follow. My booking is a
+searchable picker over the shared saved routes with No booking first and a clear
+empty-state hint. Selection sets the From airport and route highlights, limits
+flights to From/To departures, and passes destination to recommendations. Airport
+changes clear it; the Booking chip and picker Clear restore normal mode. Airline
+filters only flights. The list requests four per page with See more/count/loading,
+resetting on airport, airline, booking or date changes. Without booking it shows
+UTC departures and arrivals. Grouping remains UTC for forecasts, calendar lists,
+route dates and recommendations; timestamp display and optional search filters
+use Asia/Manila. The UI labels both zones explicitly. Month navigation selects
+UTC today in its month, otherwise day one.
+
+RecommendedDates now shows only qualifying Low dates, route-aware when a booking
+is selected, with up to two real departing flight previews and backend reasons.
+No lower-than-selected requirement remains. Manual missing scores may use 2025
+history read-only; no history score excludes the candidate. Cards still select
+the date and refresh the panel. DateBreakdown remains after the flight list.
+Neither section is rendered on Home.
+
+StaffDashboard uses CrowdChart's seven Sun-to-Sat range buttons from the summary's
+weekday_ranges. Each plots least to most score over the current 30-day period,
+colored by the maximum score's level, with Least/Most labels, Weekdays/Weekend
+brackets, 50/75 reference lines, a text/color legend and No data slots. Selection,
+keyboard focus or hover explains the extrema dates/day count and busiest date's
+booked/total seats and flights. No chart library or SVG is used. History fallback
+for missing manual scores is read-only. The airport picker waits for the server's
+default selection; existing cards, date lists, comparison and own-record counts
+remain. Loading, errors and retry stay independent. Bordered fields own their
+background, with transparent inner input/select/combobox controls and preserved
+focus, error and disabled states.
 
 Staff Flights places text, From/To, airline and date search above the table. Search
 and Clear update URL/server filters and paginated results. Staff Crowd forecasts
-starts with airport cards and forecast counts, fetched through the lookup. An
+starts with airport cards and real forecast counts, fetched through the lookup.
+All calculated/manual forecasts count, with No forecasts yet, 1 forecast, or
+{n} forecasts; absent count data says unavailable instead of zero. An
 airport opens its search/month/level/source filters and existing permitted table
 actions. Global search instead shows matching records across airports; Clear
 search and Back to airports restore the initial list. No flights reads No flight
@@ -325,6 +366,7 @@ uses an info alert. Lists, details and access failures have loading/error handli
 and retry; assignment/removal refresh lists. Narrow screens stack the columns.
 
 Frontend tests cover these changes with mocked APIs/jsdom alongside Standard
-Features. Browser access was unavailable for visual inspection; responsive
+Features. Computer Use stopped because it could not determine the current browser URL
+confidently enough to enforce policy. No further browser automation was used; responsive
 rendering, touch hardware, and the full live UI walkthrough remain unverified.
 Landing, sign-in, sign-up and profile sources were not changed by this increment.

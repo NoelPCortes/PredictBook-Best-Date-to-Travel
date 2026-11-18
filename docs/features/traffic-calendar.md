@@ -93,7 +93,7 @@ constraint failures return field-level 400 messages.
 
 The Staff forecast table shows Airport, Date, Crowd level, Seats booked, Flights,
 Source and Actions. Seats booked uses live numbers and their percentage; with
-zero total seats it says no seat data. View flights links to
+no counted flights it says No flight data. View flights links to
 `/staff/flights?airport=<id>&date=<date>`, where the filter can be cleared.
 Calculated rows have no Edit/Delete actions, including direct edit navigation.
 
@@ -145,19 +145,37 @@ Raw SQL changes require an explicit recalculate_forecasts run.
 
 ## Redesigned layout and filters
 
-/calendar keeps the existing recommendation and explanation logic. The order is
-header, searchable Airport/Airline pickers and hint, Recommended best date to
-travel, then month grid and selected-date panel. Flights precede Why this level
-in that panel. Airline is optional (All airlines) and changes only the flight
-request's airline parameter; airport forecasts, explanation and recommendations
-are unaffected. The hint states: Crowd levels are per airport. The airline filter
-only changes the flight list.
+/calendar has a main column with its month grid, selected-date flights, and
+Why this level, beside a sticky side column with searchable Airport, Airline,
+My booking, the airport-level hint, and Recommended best date to travel. On
+narrow screens the visual order is pickers, calendar/panel, recommendations.
+The hint remains: Crowd levels are per airport. The airline filter only changes
+the flight list. Airline changes neither forecasts, breakdown nor recommendations.
 
-The initial selected date is today in the project's UTC zone. Month navigation
-selects today when returning to its month, otherwise day one. Airline and airport
-changes retain the selected date. Flight lists are paginated and keep their
-existing time/seat icons and direction labels. All airport/airline controls use
-the shared SearchableSelect and existing assets.
+My booking reads the same src/api/recentRoutes.ts browser-only route list as Home,
+keyed by the signed-in user's id. No booking is always available. With no saved
+routes, show No saved bookings yet. Search flights on Home. Selecting From/To
+sets Airport to From, adds a Booking chip with Clear, highlights only its route
+dates and makes other days neutral. Route-day accessible names include the route,
+flight count and level; other days say No flights on this route. The selected
+panel still shows the airport's stored crowd level in text. Changing Airport by
+hand clears the booking; clearing booking retains its airport. Booking sets
+origin/destination on the flight request and destination on recommendations.
+
+The initial selected date is today in UTC. Month navigation selects today when
+returning to its month, otherwise day one. UTC date grouping is intentionally
+shared by forecasts, airport/date flight lists, route highlights and suggestions.
+Flight timestamps and optional Home search dates/hours use Asia/Manila. Labels
+make both zones explicit; TIME_ZONE is unchanged and no data is recalculated.
+
+Selected-date flights request page_size=4 and display Showing {shown} of {total}
+flights. See more appends the next four, with loading and retry states, and hides
+when all results are shown. Airport, airline, booking and date changes reset it.
+Delayed responses from an earlier selection cannot append to the reset list.
+Without booking, flights include matching UTC departures and arrivals; with a
+booking, only From-to-To departures on that UTC date. Existing icons and direction
+labels remain. Recommendations use the new Low-only route-aware rule in
+[date suggestions](date-suggestions.md), with real departure previews.
 
 Forecasts remain airport-wide stored levels. /api/traffic/forecasts/ now returns
 {count,next,previous,results}, default/capped page size 50. Additional optional
@@ -167,7 +185,10 @@ Both calculated source labels count as calculated. Manual source filtering exclu
 those labels and the legacy Sample data marker; blank/null manual sources remain.
 
 Staff Crowd forecasts begins with a global search box and an Airports list with
-code/name/city/country/forecast_count, without downloading all forecasts. Selecting
+code/name/city/country/forecast_count, without downloading all forecasts. Counts
+include every stored calculated/manual row via one aggregate lookup query; cards
+show No forecasts yet, 1 forecast or {n} forecasts. Missing counts are labeled
+unavailable rather than invented as zero. Selecting
 an airport opens its search, month/level/source filters and paginated table, with
 Back to airports and Add forecast. Global search instead shows results across
 all airports; Clear search restores the airport list. No counted flights displays
