@@ -194,7 +194,8 @@ describe('connected account flows', () => {
     expect(readTokens()).toEqual(tokens)
     expect(container.querySelector('.eyebrow')?.textContent).toBe('WELCOME BACK, TRAVELER')
     expect(container.textContent).toContain('No upcoming booking yet. Search flights to get started.')
-    const signout = [...container.querySelectorAll('button')].find(button => button.textContent === 'Sign out')!
+    await act(async () => container.querySelector<HTMLAnchorElement>('a[href="/profile"]')!.click())
+    const signout = [...container.querySelectorAll('button')].find(button => button.textContent === 'Sign Out')!
     await act(async () => signout.click())
     const logoutCall = fetchMock.mock.calls.find(([url]) => String(url).endsWith('/logout/'))!
     expect(JSON.parse(logoutCall[1]!.body as string)).toEqual({ refresh: tokens.refresh })
@@ -219,7 +220,8 @@ describe('connected account flows', () => {
     writeTokens(tokens)
     fetchMock.mockResolvedValueOnce(response(profile)).mockRejectedValueOnce(new TypeError('Offline'))
     await render('/home')
-    await act(async () => [...container.querySelectorAll('button')].find(button => button.textContent === 'Sign out')!.click())
+    await act(async () => container.querySelector<HTMLAnchorElement>('a[href="/profile"]')!.click())
+    await act(async () => [...container.querySelectorAll('button')].find(button => button.textContent === 'Sign Out')!.click())
     expect(readTokens()).toBeNull()
     expect(container.querySelector('h1')?.textContent).toBe('Welcome back')
   })

@@ -1,9 +1,10 @@
 import { NavLink } from 'react-router-dom'
 import Brand from './Brand'
+import userCircleIcon from '../assets/icons/UserCircleIcon.png'
 import { useAuth } from '../api/authState'
 import './AppNavbar.css'
 
-export default function AppNavbar({ userName, onSignOut, isSigningOut, navigation: requestedNavigation = 'traveler' }: { userName: string; onSignOut: () => void; isSigningOut: boolean; navigation?: 'traveler' | 'staff' | 'head' }) {
+export default function AppNavbar({ userName, navigation: requestedNavigation = 'traveler' }: { userName: string; onSignOut?: () => void; isSigningOut?: boolean; navigation?: 'traveler' | 'staff' | 'head' }) {
   const { profile } = useAuth()
   const navigation = profile?.role ?? requestedNavigation
   return (
@@ -21,8 +22,7 @@ export default function AppNavbar({ userName, onSignOut, isSigningOut, navigatio
             <NavLink to="/calendar">Traffic Calendar</NavLink>
           </>}
         </div>
-        <NavLink to="/profile" className="user-chip account-link" aria-label={`My account: ${userName}`}>{userName}</NavLink>
-        <button className="button signout-button" type="button" onClick={onSignOut} disabled={isSigningOut}>{isSigningOut ? 'Signing out?' : 'Sign out'}</button>
+        <NavLink to="/profile" className="user-chip account-link" aria-label={`My account, ${userName}`}><span className="profile-icon-badge"><img src={userCircleIcon} alt="" /></span>{userName}</NavLink>
       </nav>
     </header>
   )

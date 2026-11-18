@@ -22,3 +22,9 @@
 @media (prefers-reduced-motion: reduce) { .signout-button { transition: none; } }
 @media(max-width: 900px) { .app-nav { gap: 24px; flex-wrap: wrap; padding: 16px 24px; } .app-nav-links { order: 3; width: 100%; min-height: 48px; } .app-nav-links a[aria-current="page"]::after { bottom: 0; } }
 @media(max-width: 420px) { .app-nav .brand { font-size: 21px; gap: 8px; } .app-nav { gap: 12px; padding: 14px 16px; } .app-nav-links { gap: 24px; font-size: 14px; } }
+
+.profile-icon-badge { display: inline-grid; place-items: center; border-radius: 50%; background: var(--nav-text); padding: var(--space-4); }
+.profile-icon-badge img { width: var(--space-24); height: var(--space-24); }
+.account-link[aria-current="page"] { border-color: var(--white); background: var(--action-pressed); font-weight: 600; }
+.account-link:hover { background: var(--action-hover); }
+.account-link:active { background: var(--action-pressed); }
