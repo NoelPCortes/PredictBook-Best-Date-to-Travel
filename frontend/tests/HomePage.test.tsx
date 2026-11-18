@@ -242,3 +242,7 @@ it('keeps the top calendar mounted and highlighted when the upcoming booking is 
   expect(container.textContent).not.toContain('Why this level')
   expect(container.textContent).not.toContain('Recommended best date to travel')
 })
+it('keeps Home outside the calendar-only navy page frame', () => {
+  expect(container.querySelector('main.home-page.record-page')).not.toBeNull()
+  expect(container.querySelector('.traffic-calendar-page, .traffic-calendar-title')).toBeNull()
+})

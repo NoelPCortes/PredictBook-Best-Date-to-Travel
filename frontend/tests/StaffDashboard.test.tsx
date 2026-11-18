@@ -145,3 +145,8 @@ it('renders seven no-data slots when the range series has no scores', async () =
   expect(container.querySelectorAll('.crowd-chart-empty')).toHaveLength(7)
   expect(container.textContent).toContain('No forecast data for this airport in this period.')
 })
+it('keeps the Staff dashboard outside the calendar-only navy page frame', async () => {
+  await render()
+  expect(container.querySelector('.staff-dashboard')).not.toBeNull()
+  expect(container.querySelector('.traffic-calendar-page, .traffic-calendar-title')).toBeNull()
+})

@@ -1,3 +1,7 @@
+.traffic-calendar-page { min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; background: var(--ink); }
+.traffic-calendar-page > .record-page { flex: 1; width: 100%; align-content: start; }
+.traffic-calendar-page .traffic-calendar-title { color: var(--white); }
+.traffic-calendar-page > .record-page > :focus-visible { outline-color: var(--white); }
 .calendar-breakdown { display: grid; gap: var(--space-16); min-width: 0; border-top: 1px solid var(--border); padding-top: var(--space-16); }
 .forecast-airport-list { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,var(--account-sidebar-width)),1fr)); gap: var(--space-16); list-style: none; padding: 0; }
 .forecast-airport-list .record-button { display: grid; justify-items: start; text-align: left; width: 100%; height: 100%; padding: var(--space-24); }

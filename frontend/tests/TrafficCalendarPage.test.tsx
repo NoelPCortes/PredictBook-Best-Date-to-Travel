@@ -330,3 +330,18 @@ it('ignores an old See more response after leaving and returning to the same dat
   expect(container.querySelectorAll('.calendar-flight-list li')).toHaveLength(4)
   expect(container.textContent).toContain('Showing 4 of 8 flights')
 })
+it('uses the scoped navy page frame and light title while keeping the existing calendar card', async () => {
+  await render()
+  const frame = container.querySelector('.traffic-calendar-page')!
+  expect(frame).not.toBeNull()
+  expect(frame.querySelector(':scope > .app-header')).not.toBeNull()
+  const main = frame.querySelector(':scope > main.record-page')!
+  expect(main.querySelector(':scope > h1.traffic-calendar-title')?.textContent).toBe('Traffic Calendar')
+  expect(main.querySelector(':scope > .airport-calendar')).not.toBeNull()
+  expect(container.querySelectorAll('.airport-calendar')).toHaveLength(1)
+  expect(main.querySelector('.traffic-calendar-sidebar .calendar-recommendations')).not.toBeNull()
+  expect(main.querySelector('.traffic-calendar-main .calendar-breakdown')).not.toBeNull()
+  expect(main.querySelector('.airport-date-details .record-crowd-chip')?.textContent).toBe('Low crowd')
+  expect(main.querySelectorAll('.calendar-flight-list li')).toHaveLength(1)
+  expect(document.body.classList.contains('traffic-calendar-page')).toBe(false)
+})

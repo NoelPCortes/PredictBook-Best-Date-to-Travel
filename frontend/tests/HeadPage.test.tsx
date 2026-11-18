@@ -229,3 +229,8 @@ it('shows details errors and retries the protected detail read', async () => {
   await act(async () => [...container.querySelectorAll('button')].find(button=>button.textContent==='Retry details')!.click())
   expect(container.querySelector('[aria-label="Staff details"] dl')).not.toBeNull()
 })
+it('keeps Head management outside the calendar-only navy page frame', async () => {
+  await render()
+  expect(container.querySelector('h1')?.textContent).toBe('Head management')
+  expect(container.querySelector('.traffic-calendar-page, .traffic-calendar-title')).toBeNull()
+})
