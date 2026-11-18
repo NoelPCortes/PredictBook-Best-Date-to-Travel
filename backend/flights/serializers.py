@@ -109,6 +109,12 @@ class FlightSerializer(StrictFieldsMixin, serializers.ModelSerializer):
 
 
 class FlightFilterSerializer(serializers.Serializer):
+    departure_date = serializers.DateField(required=False, input_formats=("%Y-%m-%d",))
+    arrival_date = serializers.DateField(required=False, input_formats=("%Y-%m-%d",))
+    departure_hour_from = serializers.RegexField(r"^(?:[0-9]|1[0-9]|2[0-3])$", required=False)
+    departure_hour_to = serializers.RegexField(r"^(?:[0-9]|1[0-9]|2[0-3])$", required=False)
+    arrival_hour_from = serializers.RegexField(r"^(?:[0-9]|1[0-9]|2[0-3])$", required=False)
+    arrival_hour_to = serializers.RegexField(r"^(?:[0-9]|1[0-9]|2[0-3])$", required=False)
     destination = serializers.PrimaryKeyRelatedField(
         queryset=Airport.objects.all(), required=False
     )
@@ -125,6 +131,19 @@ class FlightFilterSerializer(serializers.Serializer):
     )
     date = serializers.DateField(required=False, input_formats=("%Y-%m-%d",))
     mine = serializers.BooleanField(required=False)
+
+    def validate(self, attrs):
+        errors = {}
+        for prefix in ("departure", "arrival"):
+            start = attrs.get(f"{prefix}_hour_from")
+            end = attrs.get(f"{prefix}_hour_to")
+            if start is not None and end is not None and int(end) < int(start):
+                errors[f"{prefix}_hour_to"] = [
+                    "The ending hour cannot be earlier than the starting hour."
+                ]
+        if errors:
+            raise serializers.ValidationError(errors)
+        return attrs
 
 
 class RouteDatesFilterSerializer(serializers.Serializer):
