@@ -18,7 +18,7 @@ export default function RecommendedDates({ airport, destination, date, onSelectD
   const resource = useRemoteResource(`recommendations/${airport}/${date}/${destination}/${attempt}`, load)
   const result = resource.value
   return <section className="calendar-recommendations" aria-labelledby={heading} aria-live="polite">
-    <h2 id={heading}><img src={bulbIcon} alt="" />Recommended best date to travel</h2>
+    <h2 id={heading}><img src={bulbIcon} alt="" className="navy-white-icon" />Recommended best date to travel</h2>
     {!result && !resource.error && <p role="status">Loading recommended dates…</p>}
     {resource.error && <><RecordAlert kind="error">{resource.error}</RecordAlert><button type="button" className="calendar-text-button" onClick={() => setAttempt(value => value + 1)}>Retry recommendations</button></>}
     {result && <>

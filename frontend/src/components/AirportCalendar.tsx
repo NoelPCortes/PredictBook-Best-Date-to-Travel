@@ -91,7 +91,11 @@ function AirportMonth({ airport, renderDetails, renderAfter, showFlightDirection
       {renderDetails?.(selection)}
     </section>
   </div>
-  return sidebar ? <div className="traffic-calendar-grid"><aside className="traffic-calendar-sidebar"><div className="traffic-calendar-controls">{pickers}</div><div className="traffic-calendar-suggestions">{renderBefore?.(selection)}</div></aside><div className="traffic-calendar-main">{body}</div></div> : <>{pickers}{renderBefore?.(selection)}{body}{renderAfter?.(selection)}</>
+  return sidebar ? <div className="traffic-calendar-grid">
+    <aside className="traffic-calendar-sidebar traffic-calendar-navy-panel traffic-calendar-controls" aria-label="Calendar filters">{pickers}</aside>
+    <div className="traffic-calendar-main">{body}</div>
+    <aside className="traffic-calendar-sidebar traffic-calendar-navy-panel traffic-calendar-suggestions" aria-label="Recommended travel dates">{renderBefore?.(selection)}</aside>
+  </div> : <>{pickers}{renderBefore?.(selection)}{body}{renderAfter?.(selection)}</>
 }
 
 export default function AirportCalendar(options: CalendarOptions) {
@@ -107,14 +111,14 @@ export default function AirportCalendar(options: CalendarOptions) {
   const route = options.route ?? (bookingRoute ? { ...bookingRoute, originCode: airportCode(bookingRoute.origin), destinationCode: airportCode(bookingRoute.destination) } : undefined)
   function clearRoute() { if (route) setAirportId(route.origin); setBooking(''); options.onClearRoute?.() }
   const selectedAirport = route?.origin || airportId || String(airports.value?.[0]?.id ?? '')
-  const pickers = <>      <RecordField searchable name="calendar-airport" label="Airport" value={selectedAirport} onChange={value => { setBooking(''); options.onClearRoute?.(); setAirportId(value) }} options={(airports.value ?? []).map(airport => ({ value: String(airport.id), label: `${airport.code} — ${airport.name}`, searchText: `${airport.city} ${airport.country}` }))} />
+  const pickers = <>      <RecordField searchable navy={options.sidebar} name="calendar-airport" label="Airport" value={selectedAirport} onChange={value => { setBooking(''); options.onClearRoute?.(); setAirportId(value) }} options={(airports.value ?? []).map(airport => ({ value: String(airport.id), label: `${airport.code} — ${airport.name}`, searchText: `${airport.city} ${airport.country}` }))} />
       {options.airlineFilter && <>
-        {airlines.value && <RecordField searchable name="calendar-airline" label="Airline" value={airline} onChange={setAirline} options={[{ value: '', label: 'All airlines' }, ...airlineOptions(airlines.value)]} />}
+        {airlines.value && <RecordField searchable navy={options.sidebar} name="calendar-airline" label="Airline" value={airline} onChange={setAirline} options={[{ value: '', label: 'All airlines' }, ...airlineOptions(airlines.value)]} />}
         {!airlines.value && !airlines.error && <p role="status">Loading airlines...</p>}
         {airlines.error && <RecordAlert kind="error">{airlines.error}</RecordAlert>}
       </>}
       {options.bookingRoutes && <>
-        <RecordField searchable name="calendar-booking" label="My booking" value={booking} onChange={value => value ? setBooking(value) : clearRoute()} options={[{ value: '', label: 'No booking' }, ...options.bookingRoutes.map(saved => ({ value: `${saved.origin}/${saved.destination}`, label: `${airportCode(saved.origin)} to ${airportCode(saved.destination)}` }))]} />
+        <RecordField searchable navy={options.sidebar} name="calendar-booking" label="My booking" value={booking} onChange={value => value ? setBooking(value) : clearRoute()} options={[{ value: '', label: 'No booking' }, ...options.bookingRoutes.map(saved => ({ value: `${saved.origin}/${saved.destination}`, label: `${airportCode(saved.origin)} to ${airportCode(saved.destination)}` }))]} />
         {!options.bookingRoutes.length && <p>No saved bookings yet. Search flights on Home.</p>}
         {bookingRoute && <p className="calendar-booking-chip">Booking: {route?.originCode} to {route?.destinationCode} <button type="button" className="calendar-text-button" onClick={clearRoute}>Clear</button></p>}
       </>}
@@ -122,7 +126,7 @@ export default function AirportCalendar(options: CalendarOptions) {
         <p>Crowd levels are per airport. The airline filter only changes the flight list.</p>
       </>}
 </>
-  return <section className="airport-calendar" aria-label="Airport traffic calendar">
+  return <section className={`airport-calendar${options.sidebar ? ' airport-calendar-sidebar-card' : ''}`} aria-label="Airport traffic calendar">
     {!airports.value && !airports.error && <p role="status">Loading airports…</p>}
     {airports.error && <><RecordAlert kind="error">Unable to load airports. Please try again.</RecordAlert><button type="button" className="calendar-text-button" onClick={() => setAttempt(value => value + 1)}>Retry airports</button></>}
     {airports.value && <>

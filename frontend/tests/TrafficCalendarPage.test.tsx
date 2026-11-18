@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { act } from 'react'
+import { readFileSync } from 'node:fs'
 import { createRoot } from 'react-dom/client'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
@@ -12,6 +13,11 @@ import TrafficCalendarPage from '../src/features/calendar/TrafficCalendarPage'
 import type { Forecast } from '../src/types/traffic'
 import { loadDateExplanation, loadDateRecommendations } from '../src/features/calendar/api'
 import type { DateExplanation, DateRecommendations } from '../src/features/calendar/types'
+
+const calendarCss=readFileSync('src/components/AirportCalendar.css','utf8').replace("@import './RecordManagement.css';",'')
+const selectCss=readFileSync('src/components/SearchableSelect.css','utf8')
+const globalCss=readFileSync('src/index.css','utf8')
+const fieldCss=readFileSync('src/components/RecordManagement.css','utf8')
 
 vi.mock('../src/api/lookups', () => ({ loadAirports: vi.fn(), loadAirlines: vi.fn() }))
 vi.mock('../src/api/traffic', () => ({ loadFlights: vi.fn(), loadForecasts: vi.fn(), loadRouteDates: vi.fn() }))
@@ -288,7 +294,7 @@ it('keeps No booking usable without saved routes and clears an active booking', 
   await click('#record-calendar-booking')
   expect(container.querySelectorAll('[role=option]')).toHaveLength(1)
   await click('[role=option][data-value=""]')
-  expect(container.querySelector('.traffic-calendar-sidebar .traffic-calendar-controls')).not.toBeNull()
+  expect(container.querySelector('.traffic-calendar-sidebar.traffic-calendar-controls')).not.toBeNull()
   expect(container.querySelector('.traffic-calendar-main .airport-calendar-month')).not.toBeNull()
 })
 it('appends four flights and resets the list when the selected date changes', async () => {
@@ -344,4 +350,83 @@ it('restores the normal page and heading without changing the calendar card', as
   expect(main.querySelector('.airport-date-details .record-crowd-chip')?.textContent).toBe('Low crowd')
   expect(main.querySelectorAll('.calendar-flight-list li')).toHaveLength(1)
   expect(document.body.classList.contains('traffic-calendar-page')).toBe(false)
+})
+it('joins navy sections into an unscrolled edge-to-edge desktop column with narrow grid areas', async () => {
+  const sheet=document.createElement('style')
+  sheet.textContent=globalCss+fieldCss+calendarCss+selectCss
+  document.head.append(sheet)
+  try {
+    const mediaRules=[...sheet.sheet!.cssRules].filter((rule): rule is CSSMediaRule=>rule.type===CSSRule.MEDIA_RULE)
+    const narrow=mediaRules.find(rule=>rule.conditionText==='(max-width: 1100px)')!
+    expect(narrow).toBeDefined()
+    const narrowGrid=[...narrow.cssRules].find((rule): rule is CSSStyleRule=>'selectorText' in rule && rule.selectorText==='.traffic-calendar-grid')!
+    // Apply each layout explicitly because jsdom does not provide browser viewport layout.
+    for(let index=sheet.sheet!.cssRules.length-1;index>=0;index--) {
+      if(sheet.sheet!.cssRules[index]!.type===CSSRule.MEDIA_RULE) sheet.sheet!.deleteRule(index)
+    }
+    await render()
+    const card=container.querySelector<HTMLElement>('.airport-calendar-sidebar-card')!
+    const grid=card.querySelector<HTMLElement>('.traffic-calendar-grid')!
+    const controls=grid.querySelector<HTMLElement>('.traffic-calendar-controls')!
+    const main=grid.querySelector<HTMLElement>('.traffic-calendar-main')!
+    const suggestions=grid.querySelector<HTMLElement>('.traffic-calendar-suggestions')!
+    expect([...grid.children]).toEqual([controls,main,suggestions])
+    expect(getComputedStyle(card).padding).toBe('0px')
+    expect(getComputedStyle(grid).gap).toMatch(/^0(px)?$/)
+    expect(getComputedStyle(grid).gridTemplateAreas).toBe('"main controls" "main suggestions"')
+    for(const panel of [controls,suggestions]) {
+      expect(panel.classList.contains('traffic-calendar-navy-panel')).toBe(true)
+      expect(getComputedStyle(panel).position).not.toBe('sticky')
+      expect(getComputedStyle(panel).maxHeight).toBe('none')
+      expect(getComputedStyle(panel).overflow).toBe('visible')
+    }
+    expect(getComputedStyle(controls).gridArea).toBe('controls')
+    expect(getComputedStyle(main).gridArea).toBe('main')
+    expect(getComputedStyle(suggestions).gridArea).toBe('suggestions')
+    expect(narrowGrid.style.getPropertyValue('grid-template-areas')).toBe('"controls" "main" "suggestions"')
+    sheet.sheet!.insertRule(narrowGrid.cssText,sheet.sheet!.cssRules.length)
+    expect(getComputedStyle(grid).gridTemplateAreas).toBe('"controls" "main" "suggestions"')
+    expect([...grid.children]).toEqual([controls,main,suggestions])
+    expect(controls.querySelectorAll('[role=combobox]')).toHaveLength(3)
+    expect(suggestions.querySelectorAll('.calendar-recommendations')).toHaveLength(1)
+    expect(main.querySelector('.calendar-breakdown')).not.toBeNull()
+  } finally { sheet.remove() }
+})
+it('uses navy fields and white panel icons while the opened airport list stays light', async () => {
+  const sheet=document.createElement('style')
+  sheet.textContent=globalCss+fieldCss+calendarCss+selectCss
+  document.head.append(sheet)
+  try {
+    await render()
+    const controls=container.querySelector('.traffic-calendar-controls')!
+    expect(controls.querySelectorAll('.record-field-navy')).toHaveLength(3)
+    for(const field of controls.querySelectorAll('.record-field-navy')) {
+      expect(getComputedStyle(field).backgroundColor).toBe('rgba(0, 0, 0, 0)')
+      expect(getComputedStyle(field).borderTopColor).toBe('rgb(213, 220, 230)')
+      expect(getComputedStyle(field.querySelector('label')!).color).toBe('rgb(219, 234, 254)')
+      expect(getComputedStyle(field.querySelector('[role=combobox]')!).color).toBe('rgb(255, 255, 255)')
+      expect(getComputedStyle(field.querySelector('img')!).filter).toBe('brightness(0) invert(1)')
+      expect(field.querySelector('[role=combobox] img.navy-white-icon')).not.toBeNull()
+    }
+    expect(container.querySelector('.calendar-recommendations h2 img.navy-white-icon')).not.toBeNull()
+    await click('#record-calendar-airport')
+    const popover=controls.querySelector('.searchable-popover')!
+    expect(getComputedStyle(popover).color).toBe('rgb(15, 27, 45)')
+    expect(getComputedStyle(popover).backgroundColor).toBe('rgb(255, 255, 255)')
+    const search=popover.querySelector<HTMLInputElement>('input')!
+    expect(document.activeElement).toBe(search)
+    expect(popover.querySelector('img.navy-white-icon')).toBeNull()
+    await click('[role=option][data-value="2"]')
+    expect(loadFlights).toHaveBeenLastCalledWith({airport:'2',date:'2026-01-14',page:1,page_size:4})
+  } finally { sheet.remove() }
+})
+it('keeps the readable booking chip and Clear within the navy controls', async () => {
+  saveRecentRoute(1,{origin:'1',destination:'2'})
+  await render()
+  await click('#record-calendar-booking'); await click('[role=option][data-value="1/2"]')
+  expect(container.querySelector('.traffic-calendar-controls .calendar-booking-chip')?.textContent).toContain('Booking: CEB to MNL')
+  await click('.calendar-booking-chip button')
+  expect(container.querySelector('.calendar-booking-chip')).toBeNull()
+  expect(container.querySelector('#record-calendar-booking')?.textContent).toContain('No booking')
+  expect(day(14).classList.contains('route-highlight')).toBe(false)
 })
