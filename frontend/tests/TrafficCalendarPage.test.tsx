@@ -317,3 +317,16 @@ it('shows the recommendation flight previews and selects their date', async () =
   await click('.calendar-recommendation-card')
   expect(day(15).getAttribute('aria-pressed')).toBe('true')
 })
+it('ignores an old See more response after leaving and returning to the same date', async () => {
+  const original = (await loadFlights())[0]!
+  const first = Object.assign(Array.from({length:4}, (_,index)=>({...original,id:index})),{count:8,next:'?page=2'})
+  let finish: (rows: typeof first) => void = () => {}
+  vi.mocked(loadFlights).mockImplementation(async filters => filters?.page === 2 ? new Promise(resolve=>{finish=resolve}) : first)
+  await render()
+  await act(async()=>[...container.querySelectorAll<HTMLButtonElement>('.airport-date-details button')].find(button=>button.textContent==='See more')!.click())
+  await act(async()=>day(15).click())
+  await act(async()=>day(14).click())
+  await act(async()=>finish(Object.assign(first.map(flight=>({...flight,id:flight.id+4})),{count:8,next:null})))
+  expect(container.querySelectorAll('.calendar-flight-list li')).toHaveLength(4)
+  expect(container.textContent).toContain('Showing 4 of 8 flights')
+})
