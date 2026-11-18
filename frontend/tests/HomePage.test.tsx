@@ -3,7 +3,7 @@ import { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { readRecentRoutes, saveRecentRoute, clearRecentRoutes } from '../src/features/homepage/recentRoutes'
+import { readRecentRoutes, saveRecentRoute, clearRecentRoutes } from '../src/api/recentRoutes'
 import HomePage from '../src/features/homepage/HomePage'
 import { loadAirports } from '../src/api/lookups'
 import { loadFlights, loadForecasts, loadRouteDates } from '../src/api/traffic'
@@ -141,4 +141,46 @@ it('uses the most recent route with upcoming flights for the booking and support
   expect(readRecentRoutes(1)).toEqual([])
   expect(container.textContent).not.toContain('Why this level')
   expect(container.textContent).not.toContain('Recommended best date to travel')
+})
+async function setOptional(name: string, value: string) {
+  const input = container.querySelector<HTMLInputElement | HTMLSelectElement>(`[name="${name}"]`)!
+  const prototype = input.tagName === 'SELECT' ? HTMLSelectElement.prototype : HTMLInputElement.prototype
+  await act(async () => { Object.getOwnPropertyDescriptor(prototype, 'value')!.set!.call(input, value); input.dispatchEvent(new Event(input.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true })) })
+}
+it('validates optional ranges and dates before searching, and saves routes only', async () => {
+  await selectAirport('home-origin', '1'); await selectAirport('home-destination', '2')
+  await setOptional('departure_hour_from', '12'); await setOptional('departure_hour_to', '6')
+  vi.mocked(loadFlights).mockClear()
+  await searchRoute()
+  expect(container.textContent).toContain('The ending hour cannot be earlier than the starting hour.')
+  expect(loadFlights).not.toHaveBeenCalled()
+  await setOptional('departure_hour_to', '23')
+  await setOptional('departure_date', '2026-01-20'); await setOptional('arrival_date', '2026-01-19')
+  await searchRoute()
+  expect(container.textContent).toContain('Arrival date cannot be before the departure date.')
+  expect(loadFlights).not.toHaveBeenCalled()
+  await setOptional('arrival_date', '2026-01-20')
+  await setOptional('arrival_hour_from', '0'); await setOptional('arrival_hour_to', '23')
+  await searchRoute()
+  expect(loadFlights).toHaveBeenCalledWith(expect.objectContaining({ origin: '1', destination: '2', upcoming: false, departure_date: '2026-01-20', arrival_date: '2026-01-20', departure_hour_from: '12', departure_hour_to: '23', arrival_hour_from: '0', arrival_hour_to: '23', page_size: 4 }))
+  expect(readRecentRoutes(1)).toEqual([{ origin: '1', destination: '2' }])
+  expect(container.textContent?.match(/Ranges that cross midnight are not supported./g)).toHaveLength(2)
+  await act(async () => [...container.querySelectorAll('button')].find(button => button.textContent === 'Clear optional filters')!.click())
+  expect(container.querySelector<HTMLInputElement>('[name=departure_date]')!.value).toBe('')
+})
+it('keeps upcoming for hours without dates and appends four-flight pages', async () => {
+  await selectAirport('home-origin', '1'); await selectAirport('home-destination', '2')
+  await setOptional('departure_hour_from', '6')
+  const flights = Array.from({length: 8}, (_, index) => ({ id: index + 1, airline: 1, airline_name: 'Test', airline_code: 'TA', flight_number: `F${index}`, origin: 1, origin_code: 'CEB', origin_name: 'Cebu', destination: 2, destination_code: 'NRT', destination_name: 'Narita', departure_time: '2026-01-20T00:00:00Z', arrival_time: '2026-01-20T02:00:00Z', available_seats: 50, total_seats: 100 }))
+  vi.mocked(loadFlights).mockImplementation(async filters => filters?.page_size === 4 ? Object.assign(flights.slice(filters.page === 2 ? 4 : 0, filters.page === 2 ? 8 : 4), {count: 8, next: filters.page === 2 ? null : '?page=2'}) : [])
+  await searchRoute()
+  const results = container.querySelector('[aria-label="Route search results"]')!
+  expect(results.textContent).toContain('Showing 4 of 8 flights')
+  expect(loadFlights).toHaveBeenCalledWith(expect.objectContaining({upcoming: true, departure_hour_from: '6', page_size: 4}))
+  await act(async () => [...results.querySelectorAll('button')].find(button => button.textContent === 'See more')!.click())
+  expect(results.textContent).toContain('Showing 8 of 8 flights')
+  expect([...results.querySelectorAll('button')].some(button => button.textContent === 'See more')).toBe(false)
+  await searchRoute()
+  expect(container.querySelector('[aria-label="Route search results"]')?.textContent).toContain('Showing 4 of 8 flights')
+  expect(container.querySelector('.home-search-card')!.compareDocumentPosition(container.querySelector('.home-summary')!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
 })
