@@ -16,6 +16,7 @@ from .serializers import (
     DateInsightFilterSerializer,
     ForecastFilterSerializer,
     ForecastSerializer,
+    RecommendationFilterSerializer,
 )
 from .services import save_forecast
 
@@ -91,7 +92,9 @@ class DateRecommendationsView(APIView):
     permission_classes = (IsAuthenticated,)
 
     def get(self, request):
-        filters = DateInsightFilterSerializer(data=request.query_params)
+        filters = RecommendationFilterSerializer(data=request.query_params)
         filters.is_valid(raise_exception=True)
         airport = get_object_or_404(Airport, pk=filters.validated_data["airport"])
-        return Response(date_recommendations(airport, filters.validated_data["date"]))
+        destination_id = filters.validated_data.get("destination")
+        destination = get_object_or_404(Airport, pk=destination_id) if destination_id else None
+        return Response(date_recommendations(airport, filters.validated_data["date"], destination))

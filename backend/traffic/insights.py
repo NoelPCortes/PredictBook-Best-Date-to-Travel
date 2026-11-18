@@ -1,4 +1,7 @@
-from datetime import timedelta
+from collections import defaultdict
+from datetime import datetime, time, timedelta
+
+from flights.models import Flight
 
 from .calculation import (
     FLIGHT_WEIGHT,
@@ -9,6 +12,7 @@ from .calculation import (
     RECOMMENDATION_WINDOW,
     calculate_pairs,
     percentage,
+    project_timezone,
     rounded,
 )
 from .models import CrowdForecast
@@ -93,15 +97,13 @@ def date_explanation(airport, date):
     }
 
 
-def date_recommendations(airport, selected_date):
+def date_recommendations(airport, selected_date, destination=None):
+    start_date = selected_date - timedelta(days=RECOMMENDATION_WINDOW)
+    end_date = selected_date + timedelta(days=RECOMMENDATION_WINDOW)
     forecasts = {
         row.date: row
         for row in CrowdForecast.objects.filter(
-            airport=airport,
-            date__range=(
-                selected_date - timedelta(days=RECOMMENDATION_WINDOW),
-                selected_date + timedelta(days=RECOMMENDATION_WINDOW),
-            ),
+            airport=airport, date__range=(start_date, end_date)
         )
     }
     selected = forecasts.get(selected_date)
@@ -109,65 +111,59 @@ def date_recommendations(airport, selected_date):
     calculations = calculate_pairs(
         {(airport.pk, date) for date in {*forecasts, selected_date}}
     )
-    selected_history = calculations[(airport.pk, selected_date)]["history_average"]
+    zone = project_timezone()
+    flights = Flight.objects.filter(
+        origin=airport,
+        departure_time__gte=datetime.combine(start_date, time.min, tzinfo=zone),
+        departure_time__lt=datetime.combine(end_date + timedelta(days=1), time.min, tzinfo=zone),
+        available_seats__gt=0,
+    ).select_related("airline", "origin", "destination").order_by("departure_time", "pk")
+    if destination:
+        flights = flights.filter(destination=destination)
+    departures = defaultdict(list)
+    for flight in flights:
+        departures[flight.departure_time.astimezone(zone).date()].append(flight)
     candidates = []
     for date, forecast in forecasts.items():
-        if date == selected_date or forecast.crowd_score is None:
+        if date == selected_date or forecast.crowd_level != "low" or not departures[date]:
             continue
         data = calculations[(airport.pk, date)]
-        flights = data["flights"]
-        if flights["open_seats"] <= 0 or (
-            selected_score is not None and forecast.crowd_score >= selected_score
-        ):
+        average = rounded(data["history_average"]) if data["history_average"] is not None else None
+        score = forecast.crowd_score if forecast.crowd_score is not None else average
+        if score is None:
             continue
-        difference = (
-            rounded(str(selected_score - forecast.crowd_score))
-            if selected_score is not None
-            else None
-        )
-        average = (
-            rounded(data["history_average"])
-            if data["history_average"] is not None
-            else None
-        )
-        reasons = []
-        if difference is not None:
-            reasons.append(
-                f"Expected crowd score is {difference:.1f} points lower than {date_label(selected_date)} "
-                f"({forecast.crowd_score:.1f} compared with {selected_score:.1f})."
-            )
+        qualifying = departures[date]
+        open_seats = sum(flight.available_seats for flight in qualifying)
+        count = len(qualifying)
+        difference = rounded(str(selected_score - score)) if selected_score is not None else None
+        reasons = [f"This day has a Low crowd level (score {score:.1f})."]
+        if destination:
+            reasons.append(f"{count} flights from {airport.code} to {destination.code} depart on this date, with {open_seats} open seats.")
+        else:
+            reasons.append(f"{count} flights depart from {airport.code} on this date, with {open_seats} open seats.")
         if average is not None:
-            comparison = (
-                f", compared with {rounded(selected_history):.1f}% for the selected date"
-                if selected_history is not None
-                else ""
-            )
-            reasons.append(
-                f"In 2025, the same weekday around this date averaged {average:.1f}% seats booked{comparison}."
-            )
-        reasons.append(
-            f"{flights['open_seats']} seats are open on {flights['departing_count']} departing flights."
-        )
-        if data["occupancy"] is not None:
-            reasons.append(
-                f"{flights['flight_count']} flights are scheduled that day, with {rounded(data['occupancy']):.1f}% of seats booked."
-            )
-        candidates.append(
-            {
-                "date": date.isoformat(),
-                "weekday": date.strftime("%A"),
-                "crowd_level": forecast.crowd_level,
-                "crowd_score": forecast.crowd_score,
-                "score_difference": difference,
-                "open_seats": flights["open_seats"],
-                "flight_count": flights["flight_count"],
-                "history_average_occupancy_percent": average,
-                "reasons": reasons,
-            }
-        )
-    candidates.sort(
-        key=lambda row: (row["crowd_score"], -row["open_seats"], row["date"])
-    )
+            reasons.append(f"In 2025, the same weekday around this date averaged {average:.1f}% seats booked.")
+        candidates.append({
+            "date": date.isoformat(),
+            "weekday": date.strftime("%A"),
+            "crowd_level": forecast.crowd_level,
+            "crowd_score": score,
+            "score_difference": difference,
+            "open_seats": open_seats,
+            "flight_count": count,
+            "history_average_occupancy_percent": average,
+            "reasons": reasons,
+            "flights": [{
+                "airline_name": flight.airline.name,
+                "airline_code": flight.airline.code,
+                "flight_number": flight.flight_number,
+                "origin_code": flight.origin.code,
+                "destination_code": flight.destination.code,
+                "departure_time": flight.departure_time,
+                "available_seats": flight.available_seats,
+            } for flight in qualifying[:2]],
+        })
+    candidates.sort(key=lambda row: (row["crowd_score"], -row["open_seats"], row["date"]))
     result = candidates[:MAX_RECOMMENDATIONS]
     return {
         "selected": {
@@ -176,12 +172,10 @@ def date_recommendations(airport, selected_date):
             "crowd_score": selected_score,
             "crowd_level": selected.crowd_level if selected else None,
         },
+        "route": {"origin_code": airport.code, "destination_code": destination.code} if destination else None,
         "recommendations": result,
-        "message": ""
-        if len(result) == MAX_RECOMMENDATIONS
-        else (
-            f"Only {len(result)} qualifying dates are available within {RECOMMENDATION_WINDOW} days before or after your selected date."
-            if result
-            else f"No qualifying dates are available within {RECOMMENDATION_WINDOW} days before or after your selected date."
+        "message": "" if len(result) == MAX_RECOMMENDATIONS else (
+            f"Only {len(result)} qualifying Low crowd dates are available within {RECOMMENDATION_WINDOW} days before or after your selected date."
+            if result else f"No qualifying Low crowd dates are available within {RECOMMENDATION_WINDOW} days before or after your selected date."
         ),
     }

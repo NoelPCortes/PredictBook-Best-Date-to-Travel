@@ -56,17 +56,16 @@ def test_window_selected_exclusion_ranking_seats_and_date_ties(scenario):
     }
     assert all(row["score_difference"] == 50 for row in result["recommendations"])
     assert result["recommendations"][0]["reasons"] == [
-        "Expected crowd score is 50.0 points lower than Dec 15, 2026 (40.0 compared with 90.0).",
-        "60 seats are open on 1 departing flights.",
-        "1 flights are scheduled that day, with 40.0% of seats booked.",
+        "This day has a Low crowd level (score 40.0).",
+        "1 flights depart from CEB on this date, with 60 open seats.",
     ]
 
 
 def test_equal_score_open_seats_descending_then_date(scenario):
     add(scenario, 0, available=0)
-    add(scenario, -2, available=50, total=100)
-    add(scenario, -1, available=100, total=200)
-    add(scenario, 1, available=100, total=200)
+    add(scenario, -2, available=60, total=100)
+    add(scenario, -1, available=120, total=200)
+    add(scenario, 1, available=120, total=200)
     recalculate_forecasts(scenario[0])
     assert [row["date"] for row in request(scenario).json()["recommendations"]] == [
         "2026-12-14",
@@ -88,7 +87,7 @@ def test_only_departing_open_seats_qualify_and_manual_null_scores_are_excluded(
         airport=scenario[1][0], date=(SELECTED + timedelta(days=3)).date()
     ).update(crowd_score=None, data_source="Staff entry")
     assert request(scenario).json()["recommendations"] == []
-    assert "No qualifying dates" in request(scenario).json()["message"]
+    assert "No qualifying Low crowd dates" in request(scenario).json()["message"]
 
 
 def test_missing_selected_forecast_returns_fewer_without_difference_or_invented_history(
@@ -110,18 +109,15 @@ def test_missing_selected_forecast_returns_fewer_without_difference_or_invented_
 def test_history_reasons_only_compare_when_selected_history_exists(scenario):
     selected = add(scenario, 0, available=0)
     candidate = add(scenario, 1, available=60)
-    history(candidate, 364, 60)
+    history(candidate, 364, 40)
     recalculate_forecasts(scenario[0])
-    reason = request(scenario).json()["recommendations"][0]["reasons"][1]
+    reason = request(scenario).json()["recommendations"][0]["reasons"][2]
     assert (
         reason
-        == "In 2025, the same weekday around this date averaged 60.0% seats booked."
+        == "In 2025, the same weekday around this date averaged 40.0% seats booked."
     )
     history(selected, 364, 80)
-    assert (
-        "compared with 80.0% for the selected date"
-        in request(scenario).json()["recommendations"][0]["reasons"][1]
-    )
+    assert "compared with" not in request(scenario).json()["recommendations"][0]["reasons"][2]
 
 
 def test_recommendation_permissions_validation_and_constant_query_count(scenario):
@@ -141,8 +137,48 @@ def test_recommendation_permissions_validation_and_constant_query_count(scenario
     recalculate_forecasts(scenario[0])
     with CaptureQueriesContext(connection) as second:
         result = request(scenario).json()
-    assert len(first) == len(second) == 5
+    assert len(first) == len(second) == 6
     assert not any(
         value in str(result)
         for value in [scenario[0].username, scenario[0].email, "created_by"]
     )
+
+
+def test_low_only_route_previews_and_no_lower_than_selected_requirement(scenario):
+    add(scenario, 0, available=90)
+    candidate = add(scenario, 1, available=60)
+    add(scenario, 2, available=40)
+    add(scenario, 3, available=70, destination=scenario[1][2])
+    make_flight(scenario, number="extra1", departure=candidate.departure_time + timedelta(hours=1), available=80)
+    make_flight(scenario, number="extra2", departure=candidate.departure_time + timedelta(hours=2), available=90)
+    recalculate_forecasts(scenario[0])
+    result = request(scenario, destination=scenario[1][1].pk).json()
+    assert result["route"] == {"origin_code": "CEB", "destination_code": "MNL"}
+    assert len(result["recommendations"]) == 1
+    row = result["recommendations"][0]
+    assert row["date"] == "2026-12-16"
+    assert row["flight_count"] == 3 and row["open_seats"] == 230
+    assert len(row["flights"]) == 2
+    assert [flight["flight_number"] for flight in row["flights"]] == ["1", "extra1"]
+    assert set(row["flights"][0]) == {"airline_name", "airline_code", "flight_number", "origin_code", "destination_code", "departure_time", "available_seats"}
+    assert row["reasons"][1] == "3 flights from CEB to MNL depart on this date, with 230 open seats."
+    assert row["score_difference"] < 0
+    assert len(request(scenario).json()["recommendations"]) == 2
+    assert request(scenario, destination=scenario[1][0].pk).status_code == 400
+    assert request(scenario, destination=999999).status_code == 404
+    assert request(scenario, destination="bad").status_code == 400
+
+
+def test_manual_low_without_score_uses_history_read_only_or_is_excluded(scenario):
+    candidate = add(scenario, 1, available=60)
+    recalculate_forecasts(scenario[0])
+    forecast = CrowdForecast.objects.get(airport=candidate.origin, date=candidate.departure_time.date())
+    forecast.crowd_score = None
+    forecast.data_source = "Staff entry"
+    forecast.save()
+    assert request(scenario).json()["recommendations"] == []
+    history(candidate, 364, 35)
+    row = request(scenario).json()["recommendations"][0]
+    assert row["crowd_score"] == 35
+    forecast.refresh_from_db()
+    assert forecast.crowd_score is None and forecast.data_source == "Staff entry"
