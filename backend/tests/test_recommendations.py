@@ -128,16 +128,22 @@ def test_recommendation_permissions_validation_and_constant_query_count(scenario
     client.force_authenticate(scenario[0])
     assert client.get(PATH).status_code == 400
     add(scenario, 0, available=0)
-    add(scenario, 1)
+    add(scenario, 1, available=60)
     recalculate_forecasts(scenario[0])
     with CaptureQueriesContext(connection) as first:
         assert request(scenario).status_code == 200
     for offset in [-7, -6, -5, -4, -3, -2, -1, 2, 3, 4, 5, 6, 7]:
-        add(scenario, offset)
+        add(scenario, offset, available=60)
     recalculate_forecasts(scenario[0])
     with CaptureQueriesContext(connection) as second:
         result = request(scenario).json()
+    assert len(result["recommendations"]) == 3
+    assert all(row["flights"] for row in result["recommendations"])
     assert len(first) == len(second) == 6
+    with CaptureQueriesContext(connection) as route_queries:
+        route_result = request(scenario, destination=scenario[1][1].pk).json()
+    assert len(route_result["recommendations"]) == 3
+    assert len(route_queries) == 7
     assert not any(
         value in str(result)
         for value in [scenario[0].username, scenario[0].email, "created_by"]
@@ -182,3 +188,12 @@ def test_manual_low_without_score_uses_history_read_only_or_is_excluded(scenario
     assert row["crowd_score"] == 35
     forecast.refresh_from_db()
     assert forecast.crowd_score is None and forecast.data_source == "Staff entry"
+
+
+def test_low_candidates_include_seven_day_boundaries_and_exclude_selected(scenario):
+    for offset in [-8, -7, 0, 7, 8]:
+        add(scenario, offset, available=99 if abs(offset) == 8 else 90)
+    recalculate_forecasts(scenario[0])
+    result = request(scenario).json()
+    assert [row["date"] for row in result["recommendations"]] == ["2026-12-08", "2026-12-22"]
+    assert all(row["score_difference"] == 0 for row in result["recommendations"])
