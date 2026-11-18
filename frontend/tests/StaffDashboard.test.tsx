@@ -13,6 +13,16 @@ import type { DashboardSummary } from '../src/features/staff-dashboard/types'
 vi.mock('../src/features/staff-dashboard/api', () => ({ getDashboardAccess: vi.fn(), getDashboardSummary: vi.fn(), getOwnRecordCounts: vi.fn() }))
 vi.mock('../src/api/lookups', () => ({ loadAirports: vi.fn() }))
 const summary: DashboardSummary = {
+  weekday_ranges: ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'].map((weekday, index) => ({
+    weekday, day_count: index >= 1 && index <= 3 ? 2 : 0,
+    min_score: index === 1 ? 20 : index === 2 ? 60 : index === 3 ? 40 : null,
+    max_score: index === 1 ? 80.4 : index === 2 ? 60 : index === 3 ? 40 : null,
+    min_date: index >= 1 && index <= 3 ? '2026-11-23' : null,
+    max_date: index >= 1 && index <= 3 ? '2026-11-16' : null,
+    max_day_seats_booked: index >= 1 && index <= 3 ? 124 : null,
+    max_day_seats_total: index >= 1 && index <= 3 ? 180 : null,
+    max_day_flight_count: index >= 1 && index <= 3 ? 3 : null,
+  })),
   days: [
     {date:'2026-11-16',weekday:'Monday',crowd_level:'high',crowd_score:80.4,seats_booked:124,seats_total:180,flight_count:3},
     {date:'2026-11-17',weekday:'Tuesday',crowd_level:'medium',crowd_score:60,seats_booked:60,seats_total:100,flight_count:1},
@@ -105,20 +115,33 @@ it('handles own-record count errors independently', async () => {
   expect(container.querySelector('.staff-metrics')).not.toBeNull()
 })
 
-it('renders 30 accessible bars, levels, heights, references and selected details', async () => {
+it('renders seven accessible weekday ranges, references and selected details', async () => {
   await render()
-  expect(container.querySelectorAll('.crowd-chart-day')).toHaveLength(30)
-  expect([...container.querySelectorAll<HTMLElement>('.crowd-chart-fill')].map(bar=>bar.style.height)).toEqual(['80.4%','60%','40%'])
+  expect(container.querySelectorAll('.crowd-chart-day')).toHaveLength(7)
+  expect([...container.querySelectorAll('.crowd-chart-date strong')].map(item=>item.textContent)).toEqual(['Sun','Mon','Tue','Wed','Thu','Fri','Sat'])
+  const fills=[...container.querySelectorAll<HTMLElement>('.crowd-chart-fill')]
+  expect(fills.map(bar=>bar.style.height)).toEqual(['60.4%','0%','0%'])
+  expect(fills.map(bar=>bar.style.bottom)).toEqual(['20%','60%','40%'])
   expect(container.querySelector('.crowd-chart-fill.high')).not.toBeNull()
   expect(container.querySelector('.crowd-chart-fill.medium')).not.toBeNull()
   expect(container.querySelector('.crowd-chart-fill.low')).not.toBeNull()
   expect(container.querySelector('.crowd-chart-legend')?.textContent).toBe('LowMediumHighNo data')
   expect(container.querySelector('.crowd-chart-references')?.textContent).toContain('Medium from 50')
   expect(container.querySelector('.crowd-chart-references')?.textContent).toContain('High from 75')
-  expect(container.querySelector('.crowd-chart-score')?.textContent).toBe('80')
-  const first=container.querySelector<HTMLButtonElement>('.crowd-chart-day')!
-  expect(first.getAttribute('aria-label')).toBe('Monday, Nov 16: High crowd, score 80.4%, 124 of 180 seats booked on 3 flights.')
-  await act(async () => container.querySelectorAll<HTMLButtonElement>('.crowd-chart-day')[3]!.click())
-  expect(container.querySelector('.crowd-chart-details')?.textContent).toContain('No data')
-  expect(container.querySelectorAll('.crowd-chart-date')[15]?.textContent).toContain('Dec')
+  expect(container.querySelector('.weekday-bracket')?.textContent).toBe('Weekdays')
+  expect(container.querySelector('.weekend-bracket')?.textContent).toContain('Weekend')
+  expect(container.querySelector('.crowd-chart-most')?.textContent).toBe('Most 80.4%')
+  expect(container.querySelector('.crowd-chart-least')?.textContent).toBe('Least 20%')
+  const monday=container.querySelectorAll<HTMLButtonElement>('.crowd-chart-day')[1]!
+  expect(monday.getAttribute('aria-label')).toBe('Monday: least 20% on Nov 23, most 80.4% on Nov 16, across 2 days. The busiest day has 124 of 180 seats booked on 3 flights.')
+  await act(async () => monday.click())
+  expect(container.querySelector('.crowd-chart-details')?.textContent).toBe(monday.getAttribute('aria-label'))
+  await act(async () => container.querySelectorAll<HTMLButtonElement>('.crowd-chart-day')[0]!.focus())
+  expect(container.querySelector('.crowd-chart-details')?.textContent).toContain('Sunday: No data')
+})
+it('renders seven no-data slots when the range series has no scores', async () => {
+  vi.mocked(getDashboardSummary).mockResolvedValue({...summary, weekday_ranges: summary.weekday_ranges.map(row=>({...row,day_count:0,min_score:null,max_score:null,min_date:null,max_date:null,max_day_seats_booked:null,max_day_seats_total:null,max_day_flight_count:null}))})
+  await render()
+  expect(container.querySelectorAll('.crowd-chart-empty')).toHaveLength(7)
+  expect(container.textContent).toContain('No forecast data for this airport in this period.')
 })
