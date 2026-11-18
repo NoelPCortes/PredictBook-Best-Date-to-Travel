@@ -15,6 +15,6 @@ export function deleteForecast(id: number) { return apiRequest<void>(`/api/traff
 export function loadDateExplanation(airport: string, date: string) {
   return apiRequest<DateExplanation>(`/api/traffic/explanation/?${new URLSearchParams({ airport, date })}`)
 }
-export function loadDateRecommendations(airport: string, date: string) {
-  return apiRequest<DateRecommendations>(`/api/traffic/recommendations/?${new URLSearchParams({ airport, date })}`)
+export function loadDateRecommendations(airport: string, date: string, destination?: string) {
+  return apiRequest<DateRecommendations>(`/api/traffic/recommendations/?${new URLSearchParams({ airport, date, ...(destination ? { destination } : {}) })}`)
 }

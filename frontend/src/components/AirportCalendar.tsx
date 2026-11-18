@@ -4,7 +4,7 @@ import type { Forecast } from '../types/traffic'
 import { loadAirports, loadAirlines } from '../api/lookups'
 import { loadFlights, loadForecasts, loadRouteDates } from '../api/traffic'
 import { airlineOptions } from './lookupOptions'
-import PageControls from './PageControls'
+import { useAppendPages } from './useAppendPages'
 import RecordField from './RecordField'
 import RecordAlert from './RecordAlert'
 import CrowdChip from './CrowdChip'
@@ -17,11 +17,11 @@ import clockIcon from '../assets/icons/ClockIcon.png'
 import seatIcon from '../assets/icons/SeatIcon.png'
 import './AirportCalendar.css'
 
-export type CalendarSelection = { airport: string; date: string; forecast?: Forecast; onSelectDate: (date: string) => void }
+export type CalendarSelection = { airport: string; destination?: string; date: string; forecast?: Forecast; onSelectDate: (date: string) => void }
 export type CalendarRoute = { origin: string; destination: string; originCode: string; destinationCode: string }
-type CalendarOptions = { airlineFilter?: boolean; renderBefore?: (selection: CalendarSelection) => ReactNode; route?: CalendarRoute; onClearRoute?: () => void; renderDetails?: (selection: CalendarSelection) => ReactNode; renderAfter?: (selection: CalendarSelection) => ReactNode; showFlightDirections?: boolean }
+type CalendarOptions = { sidebar?: boolean; bookingRoutes?: { origin: string; destination: string }[]; airlineFilter?: boolean; renderBefore?: (selection: CalendarSelection) => ReactNode; route?: CalendarRoute; onClearRoute?: () => void; renderDetails?: (selection: CalendarSelection) => ReactNode; renderAfter?: (selection: CalendarSelection) => ReactNode; showFlightDirections?: boolean }
 
-function AirportMonth({ airport, renderDetails, renderAfter, showFlightDirections, route, onClearRoute, renderBefore, airline }: { airport: string; airline?: string } & CalendarOptions) {
+function AirportMonth({ airport, renderDetails, renderAfter, showFlightDirections, route, onClearRoute, renderBefore, airline, sidebar, pickers }: { airport: string; airline?: string; pickers?: ReactNode } & CalendarOptions) {
   const routeOrigin = route?.origin
   const routeDestination = route?.destination
   const [routeAttempt, setRouteAttempt] = useState(0)
@@ -30,13 +30,11 @@ function AirportMonth({ airport, renderDetails, renderAfter, showFlightDirection
   const month = selectedDate.slice(0, 7)
   const [forecastAttempt, setForecastAttempt] = useState(0)
   const flightContext = `${airport}/${selectedDate}/${airline}/${route?.origin}/${route?.destination}`
-  const [flightPage, setFlightPage] = useState({ key: '', page: 1 })
-  const page = flightPage.key === flightContext ? flightPage.page : 1
-  const [flightAttempt, setFlightAttempt] = useState(0)
   const fetchForecasts = useCallback(() => loadForecasts({ airport, month }), [airport, month])
-  const fetchFlights = useCallback(() => loadFlights({ airport, date: selectedDate, ...(airline ? { airline } : {}), ...(page > 1 ? { page } : {}), ...(routeOrigin && routeDestination ? { origin: routeOrigin, destination: routeDestination } : {}) }), [airport, selectedDate, routeOrigin, routeDestination, airline, page])
+  const fetchFlights = useCallback((page: number) => loadFlights({ airport, date: selectedDate, page, page_size: 4, ...(airline ? { airline } : {}), ...(routeOrigin && routeDestination ? { origin: routeOrigin, destination: routeDestination } : {}) }), [airport, selectedDate, routeOrigin, routeDestination, airline])
   const forecasts = useRemoteResource(`${airport}/${month}/${forecastAttempt}`, fetchForecasts)
-  const flights = useRemoteResource(`${flightContext}/${page}/${flightAttempt}`, fetchFlights)
+  const flightPages = useAppendPages(flightContext, fetchFlights)
+  const flights = { value: flightPages.result?.page ? flightPages.result.rows : undefined, error: flightPages.result?.error }
   const fetchRouteDates = useCallback(() => routeOrigin && routeDestination ? loadRouteDates(routeOrigin, routeDestination, month) : Promise.resolve(null), [routeOrigin, routeDestination, month])
   const routeDates = useRemoteResource(`route-dates/${route?.origin}/${route?.destination}/${month}/${routeAttempt}`, fetchRouteDates)
   const headingId = useId()
@@ -47,7 +45,8 @@ function AirportMonth({ airport, renderDetails, renderAfter, showFlightDirection
     const target = changeMonth(month, offset)
     setSelectedDate(target === today.slice(0,7) ? today : `${target}-01`)
   }
-  return <>{renderBefore?.({ airport, date: selectedDate, forecast: selectedForecast, onSelectDate: setSelectedDate })}<div className={`airport-calendar-layout${route ? ' route-mode' : ''}`}>
+  const selection = { airport, destination: routeDestination, date: selectedDate, forecast: selectedForecast, onSelectDate: setSelectedDate }
+  const body = <div className={`airport-calendar-layout${route ? ' route-mode' : ''}`}>
     <section className="airport-calendar-month" aria-labelledby={headingId}>
       {route && <><p>Route: {route.originCode} to {route.destinationCode}. Only route dates have crowd colors and a highlight ring.</p><button type="button" className="calendar-text-button" onClick={onClearRoute}>Show all crowd levels</button></>}
       {route && !routeDates.value && !routeDates.error && <p role="status">Loading route dates...</p>}
@@ -76,10 +75,10 @@ function AirportMonth({ airport, renderDetails, renderAfter, showFlightDirection
     <section className="airport-date-details" aria-live="polite" aria-atomic="true" aria-label="Selected date details">
       <h3>{calendarDateLabel(selectedDate)}</h3>
       {forecasts.value ? <CrowdChip level={selectedForecast?.crowd_level} /> : <p>{forecasts.error ? 'Crowd forecast unavailable.' : 'Loading crowd forecast…'}</p>}
-      <p>Forecast dates: UTC. Flights include arrivals and departures.</p>
+      <p>Forecast dates: UTC. Calendar flights, route highlights and recommendations use UTC dates.</p><p>{route ? 'Flights depart on the selected UTC date on this route.' : 'Flights include arrivals and departures on the selected UTC date.'}</p>
       <p>Flight times: Philippine time (Asia/Manila, UTC+08:00).</p>
       {!flights.value && !flights.error && <p role="status">Loading flights…</p>}
-      {flights.error && <><RecordAlert kind="error">Unable to load flights. Please try again.</RecordAlert><button type="button" className="calendar-text-button" onClick={() => setFlightAttempt(value => value + 1)}>Retry flights</button></>}
+      {flights.error && <><RecordAlert kind="error">Unable to load flights. Please try again.</RecordAlert><button type="button" className="calendar-text-button" onClick={flightPages.result?.page ? flightPages.seeMore : flightPages.retry}>Retry flights</button></>}
       {flights.value?.length === 0 && <p>No flights listed for this date.</p>}
       {flights.value && flights.value.length > 0 && <ul className="calendar-flight-list">{flights.value.map(flight => <li key={flight.id}>
         <h4>{flight.airline_name} ({flight.airline_code}) · {flight.flight_number}</h4>
@@ -88,32 +87,46 @@ function AirportMonth({ airport, renderDetails, renderAfter, showFlightDirection
         <p><img src={clockIcon} alt="" /><span>Departure: <time dateTime={flight.departure_time}>{formatFlightTime(flight.departure_time)}</time><br />Arrival: <time dateTime={flight.arrival_time}>{formatFlightTime(flight.arrival_time)}</time></span></p>
         <p><img src={seatIcon} alt="" />{flight.available_seats} open seats / {flight.total_seats} total seats</p>
       </li>)}</ul>}
-      {flights.value && <PageControls rows={flights.value} page={page} onChange={value => setFlightPage({ key: flightContext, page: value })} />}
-      {renderDetails?.({ airport, date: selectedDate, forecast: selectedForecast, onSelectDate: setSelectedDate })}
+      {flights.value && <><p>Showing {flights.value.length} of {flightPages.result?.count} flights</p>{flightPages.result?.hasMore && <button type="button" className="calendar-text-button" onClick={flightPages.seeMore} disabled={flightPages.result.loading}>{flightPages.result.loading ? 'Loading more flights...' : 'See more'}</button>}</>}
+      {renderDetails?.(selection)}
     </section>
-  </div>{renderAfter?.({ airport, date: selectedDate, forecast: selectedForecast, onSelectDate: setSelectedDate })}</>
+  </div>
+  return sidebar ? <div className="traffic-calendar-grid"><aside className="traffic-calendar-sidebar"><div className="traffic-calendar-controls">{pickers}</div><div className="traffic-calendar-suggestions">{renderBefore?.(selection)}</div></aside><div className="traffic-calendar-main">{body}</div></div> : <>{pickers}{renderBefore?.(selection)}{body}{renderAfter?.(selection)}</>
 }
 
 export default function AirportCalendar(options: CalendarOptions) {
+  const [booking, setBooking] = useState('')
   const [airline, setAirline] = useState('')
   const loadAirlineOptions = useCallback(() => options.airlineFilter ? loadAirlines() : Promise.resolve([]), [options.airlineFilter])
   const airlines = useRemoteResource(`calendar-airlines/${options.airlineFilter}`, loadAirlineOptions)
   const [airportId, setAirportId] = useState('')
   const [attempt, setAttempt] = useState(0)
   const airports = useRemoteResource(`airports/${attempt}`, loadAirports)
-  const selectedAirport = options.route?.origin || airportId || String(airports.value?.[0]?.id ?? '')
-  return <section className="airport-calendar" aria-label="Airport traffic calendar">
-    {!airports.value && !airports.error && <p role="status">Loading airports…</p>}
-    {airports.error && <><RecordAlert kind="error">Unable to load airports. Please try again.</RecordAlert><button type="button" className="calendar-text-button" onClick={() => setAttempt(value => value + 1)}>Retry airports</button></>}
-    {airports.value && <>
-      <RecordField searchable name="calendar-airport" label="Airport" value={selectedAirport} onChange={value => { setAirportId(value); options.onClearRoute?.() }} options={airports.value.map(airport => ({ value: String(airport.id), label: `${airport.code} — ${airport.name}`, searchText: `${airport.city} ${airport.country}` }))} />
+  const bookingRoute = options.bookingRoutes?.find(route => `${route.origin}/${route.destination}` === booking)
+  const airportCode = (id: string) => airports.value?.find(airport => String(airport.id) === id)?.code ?? id
+  const route = options.route ?? (bookingRoute ? { ...bookingRoute, originCode: airportCode(bookingRoute.origin), destinationCode: airportCode(bookingRoute.destination) } : undefined)
+  function clearRoute() { if (route) setAirportId(route.origin); setBooking(''); options.onClearRoute?.() }
+  const selectedAirport = route?.origin || airportId || String(airports.value?.[0]?.id ?? '')
+  const pickers = <>      <RecordField searchable name="calendar-airport" label="Airport" value={selectedAirport} onChange={value => { setBooking(''); options.onClearRoute?.(); setAirportId(value) }} options={(airports.value ?? []).map(airport => ({ value: String(airport.id), label: `${airport.code} — ${airport.name}`, searchText: `${airport.city} ${airport.country}` }))} />
       {options.airlineFilter && <>
         {airlines.value && <RecordField searchable name="calendar-airline" label="Airline" value={airline} onChange={setAirline} options={[{ value: '', label: 'All airlines' }, ...airlineOptions(airlines.value)]} />}
         {!airlines.value && !airlines.error && <p role="status">Loading airlines...</p>}
         {airlines.error && <RecordAlert kind="error">{airlines.error}</RecordAlert>}
+      </>}
+      {options.bookingRoutes && <>
+        <RecordField searchable name="calendar-booking" label="My booking" value={booking} onChange={value => value ? setBooking(value) : clearRoute()} options={[{ value: '', label: 'No booking' }, ...options.bookingRoutes.map(saved => ({ value: `${saved.origin}/${saved.destination}`, label: `${airportCode(saved.origin)} to ${airportCode(saved.destination)}` }))]} />
+        {!options.bookingRoutes.length && <p>No saved bookings yet. Search flights on Home.</p>}
+        {bookingRoute && <p className="calendar-booking-chip">Booking: {route?.originCode} to {route?.destinationCode} <button type="button" className="calendar-text-button" onClick={clearRoute}>Clear</button></p>}
+      </>}
+      {options.airlineFilter && <>
         <p>Crowd levels are per airport. The airline filter only changes the flight list.</p>
       </>}
-      {selectedAirport ? <AirportMonth airline={airline} airport={selectedAirport} {...options} onClearRoute={() => { if (options.route) setAirportId(options.route.origin); options.onClearRoute?.() }} /> : <p>No airports available.</p>}
+</>
+  return <section className="airport-calendar" aria-label="Airport traffic calendar">
+    {!airports.value && !airports.error && <p role="status">Loading airports…</p>}
+    {airports.error && <><RecordAlert kind="error">Unable to load airports. Please try again.</RecordAlert><button type="button" className="calendar-text-button" onClick={() => setAttempt(value => value + 1)}>Retry airports</button></>}
+    {airports.value && <>
+      {selectedAirport ? <AirportMonth airline={airline} airport={selectedAirport} {...options} route={route} pickers={pickers} onClearRoute={clearRoute} /> : <p>No airports available.</p>}
     </>}
   </section>
 }

@@ -75,7 +75,7 @@ describe('Home page', () => {
     const panel = container.querySelector('.airport-date-details')
     expect(panel?.querySelector('h3')?.textContent).toBe('January 17, 2026')
     expect(panel?.querySelector('.record-crowd-chip')?.textContent).toBe('Medium crowd')
-    expect(loadFlights).toHaveBeenLastCalledWith({ airport: '1', date: '2026-01-17' })
+    expect(loadFlights).toHaveBeenLastCalledWith({ airport: '1', date: '2026-01-17', page: 1, page_size: 4 })
     expect(dayButton(17).getAttribute('aria-pressed')).toBe('true')
     expect(dayButton(14).getAttribute('aria-pressed')).toBe('false')
   })
