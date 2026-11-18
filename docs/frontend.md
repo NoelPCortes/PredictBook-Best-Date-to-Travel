@@ -297,7 +297,7 @@ native From/To hour groups. Each has visible labels, Any first and the exact
 midnight-range hint. Hours filter inclusively in Asia/Manila with or without a
 date; reversed ranges/dates show linked errors, focus an invalid field and do not
 call the API. Upcoming stays enabled unless a departure date is filled. Clear
-optional filters resets only those controls. The Home main column is header, Traffic calendar, search card, then active route results; the approximately 340px booking/recent-search side column stays top-aligned, while narrow screens stack header, calendar, search, booking, recent searches, results without search-triggered scrolling.
+optional filters resets only those controls. The Home main column is header, search card, active route results, then Traffic calendar; the approximately 340px booking/recent-search column stays alongside it, while narrow screens stack header, search, booking, recent searches, results, calendar without search-triggered scrolling.
 
 src/api/recentRoutes.ts alone manages the last five distinct route pairs under
 predictbook:recent-routes:<user id>, shared by Home and Traffic Calendar. Only
@@ -311,11 +311,9 @@ others are neutral. Accessible names expose route/count/level or No flights on
 this route. Show all crowd levels restores normal mode. There is no booking
 table, and Home still shows neither recommendations nor Why this level.
 
-Only `/calendar` uses a full-viewport Navy (`--ink`) page frame around its unchanged white card, with a white title and white focus rings directly on Navy; all other pages keep their light backgrounds.
+Traffic Calendar keeps its Gray 50 page background and dark title; its card has a full-height, flush Navy (`--ink`) right column with no sticky position or inner scrollbar, navy searchable fields/light labels/white focus rings, readable booking Clear, white recommendation cards and a sidebar-only white-icon filter; adjoining grid sections form one continuous wide panel and stack as pickers, calendar/panel, recommendations on narrow screens.
 
-Traffic Calendar uses a main month/panel column and a sticky side column with
-Airport, Airline, My booking, the hint, and recommendations. On narrow screens,
-pickers precede calendar/panel and recommendations follow. My booking is a
+My booking is a
 searchable picker over the shared saved routes with No booking first and a clear
 empty-state hint. Selection sets the From airport and route highlights, limits
 flights to From/To departures, and passes destination to recommendations. Airport
