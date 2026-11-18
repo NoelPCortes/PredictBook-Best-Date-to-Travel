@@ -119,6 +119,7 @@ Rules:
 ### PredictBook page navigation
 
 - The signed-in Homepage and Traffic Calendar use the Navy top navigation bar with Home and Traffic Calendar links.
+- Only the Traveler Traffic Calendar (`/calendar`) uses a full-viewport Navy page background around its white card, with a white title and white focus rings for controls directly on Navy; every other page retains the Gray 50 page background.
 - Staff pages use the same top bar with Dashboard and Charts links. The Dashboard and Charts are separate pages.
 - The My Account page uses a Navy sidebar.
 - The signed-in Homepage provides flight search and an interactive traffic calendar preview.

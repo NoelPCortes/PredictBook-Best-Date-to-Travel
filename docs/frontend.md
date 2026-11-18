@@ -297,9 +297,7 @@ native From/To hour groups. Each has visible labels, Any first and the exact
 midnight-range hint. Hours filter inclusively in Asia/Manila with or without a
 date; reversed ranges/dates show linked errors, focus an invalid field and do not
 call the API. Upcoming stays enabled unless a departure date is filled. Clear
-optional filters resets only those controls. The main column has header, search,
-active results, calendar/panel; the approximately 340px side column holds booking
-and recent routes. Narrow order is header, search, side cards, results, calendar.
+optional filters resets only those controls. The Home main column is header, Traffic calendar, search card, then active route results; the approximately 340px booking/recent-search side column stays top-aligned, while narrow screens stack header, calendar, search, booking, recent searches, results without search-triggered scrolling.
 
 src/api/recentRoutes.ts alone manages the last five distinct route pairs under
 predictbook:recent-routes:<user id>, shared by Home and Traffic Calendar. Only
@@ -312,6 +310,8 @@ keeps clock/seat icons. Route dates color/ring only matching From-to-To days;
 others are neutral. Accessible names expose route/count/level or No flights on
 this route. Show all crowd levels restores normal mode. There is no booking
 table, and Home still shows neither recommendations nor Why this level.
+
+Only `/calendar` uses a full-viewport Navy (`--ink`) page frame around its unchanged white card, with a white title and white focus rings directly on Navy; all other pages keep their light backgrounds.
 
 Traffic Calendar uses a main month/panel column and a sticky side column with
 Airport, Airline, My booking, the hint, and recommendations. On narrow screens,
