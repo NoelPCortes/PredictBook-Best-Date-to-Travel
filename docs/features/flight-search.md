@@ -4,16 +4,26 @@
 
 ## Traveler Home route search
 
-/home is Traveler-only. It starts with From and To searchable airport pickers and
-Search flights. Airports must differ; no date, passengers or seat class is part
-of a search. Results stay on Home and use origin, destination and upcoming=true:
-only From-to-To departures at or after now, ordered by departure_time then id.
-Pagination controls fetch one page at a time. Results show airline, flight number,
+/home is Traveler-only. Required From and To searchable airports must differ.
+Optional Departure date and Arrival date, plus Departure/Arrival hours groups,
+use Philippine time (Asia/Manila). Each group has native From/To selects with
+Any first: hour starts 00:00 through 23:00 and hour ends 00:59 through 23:59.
+Bounds are inclusive and work with or without dates. A From bound alone means
+that hour or later; a To bound alone means through the end of that hour.
+Ranges that cross midnight are not supported. Reversed ranges and arrival dates
+before departure dates show linked errors, focus an invalid control and block
+requests. Clear optional filters clears those values.
+
+With no departure date, upcoming=true limits departure to now or later, including
+hours-only and arrival-date-only searches. A departure date disables upcoming.
+Results stay on Home, ordered by departure_time then id. Request page_size=4;
+See more appends four and Showing {shown} of {total} flights uses the count.
+New searches reset the list; loading/errors support retry. Results show airline, flight number,
 route, Philippine departure date/time with ClockIcon, and open seats with SeatIcon.
 Empty results name the searched route. Loading, errors and Retry are separate.
 
-recentRoutes.ts in features/homepage is the one route-storage module. It stores
-only {origin,destination} pairs under predictbook:recent-routes:<user id>, retains
+recentRoutes.ts in src/api is the one route-storage module. It stores
+only {origin,destination} pairs (never optional filters) under predictbook:recent-routes:<user id>, retains
 five distinct routes newest first, and exposes Clear. It stores no timestamps,
 passenger data or booking details and never logs the list. Your upcoming booking
 means the most recent saved route with at least one upcoming flight, its total
@@ -26,14 +36,23 @@ departure counts. Only route days receive crowd colors and a visible ring; other
 days are neutral and say No flights on this route. Accessible route-day names
 include date, route, flight count and crowd level. Show all crowd levels clears
 the active route. Home shows neither recommendations nor Why this level.
-Landing's separate inactive marketing search remains unchanged.
+Home uses a main column for its header, search, results and calendar, beside an
+approximately 340px side column for booking/recent searches. On narrow screens
+the order is header, search, side cards, results, calendar. Clicking a saved route
+clears optional filters and reruns its upcoming search. Landing's separate
+inactive marketing search remains unchanged.
 
 ## Flight reads and route dates
 
 Every signed-in role can GET /api/flights/. Responses use
 {count,next,previous,results}, default/capped page size 50, page initially 1.
 Filters combine: origin, destination, airline (lookup ids), airport, date,
-search, upcoming=true, and mine=true. Search partially matches flight number,
+search, upcoming=true, mine=true, departure_date, arrival_date,
+departure_hour_from, departure_hour_to, arrival_hour_from and arrival_hour_to.
+New date filters are YYYY-MM-DD in Asia/Manila; hour parameters must be whole
+numbers 0 through 23. Invalid hours and To below From return field-level 400.
+These filters combine with existing filters. page_size is optional, capped at 50;
+the count always describes all filtered results, independent of the page size. Search partially matches flight number,
 airline name/code and origin/destination code, name or city, case-insensitively.
 Default ordering remains departure_time then id.
 

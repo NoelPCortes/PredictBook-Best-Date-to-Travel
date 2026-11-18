@@ -31,7 +31,8 @@ function DashboardContent() {
     <header className="staff-heading">
       <div><p className="eyebrow">STAFF DASHBOARD</p><h1>Crowd overview</h1><p>Expected airport crowd levels from the available forecasts.</p></div>
       <div className="staff-context">
-        {airports.value && <RecordField searchable name="dashboard-airport" label="Airport" value={selectedAirport} onChange={setAirport} options={airports.value.map(option => ({ value: String(option.id), label: `${option.code} ? ${option.name}`, searchText: `${option.city} ${option.country}` }))} />}
+        {airports.value && selectedAirport && <RecordField searchable name="dashboard-airport" label="Airport" value={selectedAirport} onChange={setAirport} options={airports.value.map(option => ({ value: String(option.id), label: `${option.code} ? ${option.name}`, searchText: `${option.city} ${option.country}` }))} />}
+        {!selectedAirport && isLoading && <p role="status">Loading airport selection...</p>}
         <p><strong>Next 30 days</strong>{result && <span>{calendarDateLabel(result.period_start)} ? {calendarDateLabel(result.period_end)}</span>}</p>
       </div>
     </header>

@@ -1,7 +1,8 @@
 import { apiRequest } from '../../api/client'
 import type { Profile } from '../../types/auth'
 import { loadFlights } from '../../api/traffic'
-import type { RecentRoute } from './recentRoutes'
+import type { FlightFilters } from '../../api/traffic'
+import type { RecentRoute } from '../../api/recentRoutes'
 
 export function loadProfile() {
   return apiRequest<Profile>('/api/accounts/profile/')
@@ -9,8 +10,8 @@ export function loadProfile() {
 
 export { logout } from '../../api/session'
 
-export function searchRoute(route: RecentRoute, page = 1, pageSize?: number) {
-  return loadFlights({ ...route, upcoming: true, page, ...(pageSize ? { page_size: pageSize } : {}) })
+export function searchRoute(route: RecentRoute, page = 1, pageSize = 4, filters: FlightFilters = {}) {
+  return loadFlights({ ...route, upcoming: !filters.departure_date, ...filters, page, page_size: pageSize })
 }
 export async function upcomingBooking(routes: RecentRoute[]) {
   const results = await Promise.all(routes.map(route => searchRoute(route, 1, 3)))

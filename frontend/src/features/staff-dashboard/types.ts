@@ -2,7 +2,9 @@ import type { CrowdLevel } from '../../types/traffic'
 
 export type SummaryDate = { date: string; weekday: string }
 export type SummaryDay = SummaryDate & { crowd_level: CrowdLevel; crowd_score: number | null; seats_booked: number; seats_total: number; flight_count: number }
+export type WeekdayRange = { weekday: string; day_count: number; min_score: number | null; min_date: string | null; max_score: number | null; max_date: string | null; max_day_seats_booked: number | null; max_day_seats_total: number | null; max_day_flight_count: number | null }
 export type DashboardSummary = {
+  weekday_ranges: WeekdayRange[]
   days: SummaryDay[]
   airport: { id: number; code: string; name: string } | null
   period_start: string; period_end: string

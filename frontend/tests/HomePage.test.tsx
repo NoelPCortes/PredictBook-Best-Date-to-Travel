@@ -3,7 +3,7 @@ import { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { readRecentRoutes, saveRecentRoute, clearRecentRoutes } from '../src/features/homepage/recentRoutes'
+import { readRecentRoutes, saveRecentRoute, clearRecentRoutes } from '../src/api/recentRoutes'
 import HomePage from '../src/features/homepage/HomePage'
 import { loadAirports } from '../src/api/lookups'
 import { loadFlights, loadForecasts, loadRouteDates } from '../src/api/traffic'
@@ -75,7 +75,7 @@ describe('Home page', () => {
     const panel = container.querySelector('.airport-date-details')
     expect(panel?.querySelector('h3')?.textContent).toBe('January 17, 2026')
     expect(panel?.querySelector('.record-crowd-chip')?.textContent).toBe('Medium crowd')
-    expect(loadFlights).toHaveBeenLastCalledWith({ airport: '1', date: '2026-01-17' })
+    expect(loadFlights).toHaveBeenLastCalledWith({ airport: '1', date: '2026-01-17', page: 1, page_size: 4 })
     expect(dayButton(17).getAttribute('aria-pressed')).toBe('true')
     expect(dayButton(14).getAttribute('aria-pressed')).toBe('false')
   })
@@ -141,4 +141,108 @@ it('uses the most recent route with upcoming flights for the booking and support
   expect(readRecentRoutes(1)).toEqual([])
   expect(container.textContent).not.toContain('Why this level')
   expect(container.textContent).not.toContain('Recommended best date to travel')
+})
+async function setOptional(name: string, value: string) {
+  const input = container.querySelector<HTMLInputElement | HTMLSelectElement>(`[name="${name}"]`)!
+  const prototype = input.tagName === 'SELECT' ? HTMLSelectElement.prototype : HTMLInputElement.prototype
+  await act(async () => { Object.getOwnPropertyDescriptor(prototype, 'value')!.set!.call(input, value); input.dispatchEvent(new Event(input.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true })) })
+}
+it('validates optional ranges and dates before searching, and saves routes only', async () => {
+  await selectAirport('home-origin', '1'); await selectAirport('home-destination', '2')
+  await setOptional('departure_hour_from', '12'); await setOptional('departure_hour_to', '6')
+  vi.mocked(loadFlights).mockClear()
+  await searchRoute()
+  expect(container.textContent).toContain('The ending hour cannot be earlier than the starting hour.')
+  expect(loadFlights).not.toHaveBeenCalled()
+  await setOptional('departure_hour_to', '23')
+  await setOptional('departure_date', '2026-01-20'); await setOptional('arrival_date', '2026-01-19')
+  await searchRoute()
+  expect(container.textContent).toContain('Arrival date cannot be before the departure date.')
+  expect(loadFlights).not.toHaveBeenCalled()
+  await setOptional('arrival_date', '2026-01-20')
+  await setOptional('arrival_hour_from', '0'); await setOptional('arrival_hour_to', '23')
+  await searchRoute()
+  expect(loadFlights).toHaveBeenCalledWith(expect.objectContaining({ origin: '1', destination: '2', upcoming: false, departure_date: '2026-01-20', arrival_date: '2026-01-20', departure_hour_from: '12', departure_hour_to: '23', arrival_hour_from: '0', arrival_hour_to: '23', page_size: 4 }))
+  expect(readRecentRoutes(1)).toEqual([{ origin: '1', destination: '2' }])
+  expect(container.textContent?.match(/Ranges that cross midnight are not supported./g)).toHaveLength(2)
+  await act(async () => [...container.querySelectorAll('button')].find(button => button.textContent === 'Clear optional filters')!.click())
+  expect(container.querySelector<HTMLInputElement>('[name=departure_date]')!.value).toBe('')
+})
+it('keeps upcoming for hours without dates and appends four-flight pages', async () => {
+  await selectAirport('home-origin', '1'); await selectAirport('home-destination', '2')
+  await setOptional('departure_hour_from', '6')
+  const flights = Array.from({length: 8}, (_, index) => ({ id: index + 1, airline: 1, airline_name: 'Test', airline_code: 'TA', flight_number: `F${index}`, origin: 1, origin_code: 'CEB', origin_name: 'Cebu', destination: 2, destination_code: 'NRT', destination_name: 'Narita', departure_time: '2026-01-20T00:00:00Z', arrival_time: '2026-01-20T02:00:00Z', available_seats: 50, total_seats: 100 }))
+  vi.mocked(loadFlights).mockImplementation(async filters => filters?.page_size === 4 ? Object.assign(flights.slice(filters.page === 2 ? 4 : 0, filters.page === 2 ? 8 : 4), {count: 8, next: filters.page === 2 ? null : '?page=2'}) : [])
+  await searchRoute()
+  const results = container.querySelector('[aria-label="Route search results"]')!
+  expect(results.textContent).toContain('Showing 4 of 8 flights')
+  expect(loadFlights).toHaveBeenCalledWith(expect.objectContaining({upcoming: true, departure_hour_from: '6', page_size: 4}))
+  await act(async () => [...results.querySelectorAll('button')].find(button => button.textContent === 'See more')!.click())
+  expect(results.textContent).toContain('Showing 8 of 8 flights')
+  expect([...results.querySelectorAll('button')].some(button => button.textContent === 'See more')).toBe(false)
+  await searchRoute()
+  expect(container.querySelector('[aria-label="Route search results"]')?.textContent).toContain('Showing 4 of 8 flights')
+  expect(container.querySelector('.home-search-card')!.compareDocumentPosition(container.querySelector('.home-summary')!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+})
+
+function expectHomeBlockOrder(hasResults: boolean) {
+  const selectors = ['.home-hero', '.home-search-card', '[aria-labelledby="upcoming-title"]', '[aria-labelledby="recent-title"]', ...(hasResults ? ['.home-route-results'] : []), '.home-calendar-preview']
+  const blocks = selectors.map(selector => container.querySelector(selector)!)
+  for (let index = 1; index < blocks.length; index++) {
+    expect(blocks[index - 1]!.compareDocumentPosition(blocks[index]!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  }
+}
+it('places search and active results before the unchanged calendar', async () => {
+  expectHomeBlockOrder(false)
+  const calendar = container.querySelector('.home-calendar-preview')
+  expect(container.querySelectorAll('.home-calendar-preview')).toHaveLength(1)
+  await selectAirport('home-origin', '1'); await selectAirport('home-destination', '2'); await searchRoute()
+  expectHomeBlockOrder(true)
+  expect(container.querySelector('.home-calendar-preview')).toBe(calendar)
+  expect(dayButton(14).classList.contains('route-highlight')).toBe(true)
+})
+it('keeps header, search, booking, recent searches, results and calendar in narrow-screen DOM order', async () => {
+  const originalWidth = window.innerWidth
+  Object.defineProperty(window, 'innerWidth', { configurable: true, value: 390 })
+  try {
+    await selectAirport('home-origin', '1'); await selectAirport('home-destination', '2'); await searchRoute()
+    expectHomeBlockOrder(true)
+  } finally { Object.defineProperty(window, 'innerWidth', { configurable: true, value: originalWidth }) }
+})
+it('keeps the scroll position while a search and saved-route click update results and calendar highlights', async () => {
+  const originalScrollY = window.scrollY
+  const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
+  const scrollBy = vi.spyOn(window, 'scrollBy').mockImplementation(() => {})
+  Object.defineProperty(window, 'scrollY', { configurable: true, value: 420 })
+  try {
+    await selectAirport('home-origin', '1'); await selectAirport('home-destination', '2'); await searchRoute()
+    await act(async () => container.querySelector<HTMLButtonElement>('.home-recent-routes button')!.click())
+    expect(dayButton(14).getAttribute('aria-label')).toContain('3 flights from CEB to NRT, High crowd')
+    expect(container.querySelector('.home-route-results')).not.toBeNull()
+    expect(window.scrollY).toBe(420)
+    expect(scrollTo).not.toHaveBeenCalled(); expect(scrollBy).not.toHaveBeenCalled()
+  } finally {
+    scrollTo.mockRestore(); scrollBy.mockRestore()
+    Object.defineProperty(window, 'scrollY', { configurable: true, value: originalScrollY })
+  }
+})
+it('keeps the calendar mounted and highlighted when the upcoming booking is opened', async () => {
+  saveRecentRoute(1, { origin: '1', destination: '2' })
+  const flight = {id:9, airline:1,airline_code:'PR',airline_name:'Airline',flight_number:'123',origin:1,origin_code:'CEB',origin_name:'Cebu',destination:2,destination_code:'NRT',destination_name:'Narita',departure_time:'2026-01-15T00:00:00Z',arrival_time:'2026-01-15T02:00:00Z',total_seats:100,available_seats:50}
+  vi.mocked(loadFlights).mockImplementation(async filters => filters?.upcoming ? Object.assign([flight], {count:1,next:null}) : [])
+  await act(async () => root.render(<MemoryRouter initialEntries={['/home']}><HomePage key="booking-layout" /></MemoryRouter>))
+  const calendar = container.querySelector('.home-calendar-preview')
+  await act(async () => container.querySelector<HTMLButtonElement>('[aria-labelledby="upcoming-title"] button')!.click())
+  expectHomeBlockOrder(true)
+  expect(container.querySelector('.home-calendar-preview')).toBe(calendar)
+  expect(loadFlights).toHaveBeenCalledWith(expect.objectContaining({origin:'1',destination:'2',upcoming:true,page_size:4}))
+  expect(loadRouteDates).toHaveBeenLastCalledWith('1','2','2026-01')
+  expect(dayButton(14).classList.contains('route-highlight')).toBe(true)
+  expect(dayButton(14).getAttribute('aria-label')).toContain('3 flights from CEB to NRT, High crowd')
+  expect(container.textContent).not.toContain('Why this level')
+  expect(container.textContent).not.toContain('Recommended best date to travel')
+})
+it('keeps Home outside the calendar-only navy page frame', () => {
+  expect(container.querySelector('main.home-page.record-page')).not.toBeNull()
+  expect(container.querySelector('.traffic-calendar-page, .traffic-calendar-title')).toBeNull()
 })

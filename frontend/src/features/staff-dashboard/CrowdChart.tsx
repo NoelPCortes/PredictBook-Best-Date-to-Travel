@@ -1,40 +1,36 @@
 import { useState } from 'react'
 import { calendarDate } from '../../components/calendarDates'
-import type { DashboardSummary, SummaryDay } from './types'
+import type { DashboardSummary, WeekdayRange } from './types'
 
 const shortDate = (date: string) => new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', month: 'short', day: 'numeric' }).format(calendarDate(date))
-function detail(date: string, row?: SummaryDay) {
-  const weekday = row?.weekday ?? new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', weekday: 'long' }).format(calendarDate(date))
-  return row?.crowd_score !== null && row?.crowd_score !== undefined
-    ? `${weekday}, ${shortDate(date)}: ${row.crowd_level[0]!.toUpperCase()}${row.crowd_level.slice(1)} crowd, score ${row.crowd_score}%, ${row.seats_booked} of ${row.seats_total} seats booked on ${row.flight_count} flights.`
-    : `${weekday}, ${shortDate(date)}: No data.`
+function detail(row: WeekdayRange) {
+  return row.day_count && row.min_date && row.max_date
+    ? `${row.weekday}: least ${row.min_score}% on ${shortDate(row.min_date)}, most ${row.max_score}% on ${shortDate(row.max_date)}, across ${row.day_count} days. The busiest day has ${row.max_day_seats_booked} of ${row.max_day_seats_total} seats booked on ${row.max_day_flight_count} flights.`
+    : `${row.weekday}: No data.`
 }
-
 export default function CrowdChart({ summary }: { summary: DashboardSummary }) {
   const [selected, setSelected] = useState('')
-  const dates = Array.from({ length: 30 }, (_, index) => { const date = calendarDate(summary.period_start); date.setUTCDate(date.getUTCDate() + index); return date.toISOString().slice(0,10) })
-  const rowFor = (date: string) => summary.days.find(day => day.date === date)
-  const selectedDate = dates.includes(selected) ? selected : dates[0]!
+  const rows = summary.weekday_ranges
+  const active = rows.find(row => row.weekday === selected) ?? rows[0]
   return <section className="staff-card" aria-labelledby="crowd-chart-title">
-    <h2 id="crowd-chart-title">Crowd overview by day</h2>
-    <p>Score scale: 0 to 100%. Manual forecasts without a score use matching 2025 history when available.</p>
-    {!summary.days.length && <p>No forecast data for this airport in this period.</p>}
-    <div className="crowd-chart-scroll" role="region" aria-label="30-day crowd score column chart" tabIndex={0}>
+    <h2 id="crowd-chart-title">Crowd overview by weekday</h2>
+    <p>Least to most congested day for each weekday in the next 30 days. UTC dates; score scale: 0 to 100%. Manual forecasts without a score use matching 2025 history when available.</p>
+    {rows.every(row => !row.day_count) && <p>No forecast data for this airport in this period.</p>}
+    <div className="crowd-chart-scroll" role="region" aria-label="Weekday crowd score range chart" tabIndex={0}>
       <div className="crowd-chart-plot">
         <div className="crowd-chart-references" aria-hidden="true"><span className="crowd-reference medium-line">Medium from 50</span><span className="crowd-reference high-line">High from 75</span></div>
-        <div className="crowd-chart-columns">{dates.map((date, index) => {
-          const row = rowFor(date)
-          const score = row?.crowd_score
-          const known = score !== null && score !== undefined
-          const monthChange = index === 0 || dates[index - 1]!.slice(0,7) !== date.slice(0,7)
-          return <button type="button" className="crowd-chart-day" key={date} aria-label={detail(date,row)} aria-pressed={selectedDate === date} onClick={() => setSelected(date)} onFocus={() => setSelected(date)} onMouseEnter={() => setSelected(date)}>
-            <span className="crowd-chart-track">{known ? <span className={`crowd-chart-fill ${row!.crowd_level}`} style={{ height: `${Math.max(0,Math.min(100,score))}%` }}><span className="crowd-chart-score">{Math.round(score)}</span></span> : <span className="crowd-chart-empty">No data</span>}</span>
-            <span className="crowd-chart-date"><strong>{Number(date.slice(-2))}</strong>{monthChange && <span>{new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', month: 'short', weekday: 'short' }).format(calendarDate(date))}</span>}</span>
+        <div className="crowd-chart-columns">{rows.map(row => {
+          const known = row.day_count > 0 && row.min_score !== null && row.max_score !== null
+          const level = row.max_score !== null && row.max_score >= 75 ? 'high' : row.max_score !== null && row.max_score >= 50 ? 'medium' : 'low'
+          return <button type="button" className="crowd-chart-day" key={row.weekday} aria-label={detail(row)} aria-pressed={active?.weekday === row.weekday} onClick={() => setSelected(row.weekday)} onFocus={() => setSelected(row.weekday)} onMouseEnter={() => setSelected(row.weekday)}>
+            <span className="crowd-chart-track">{known ? <span className={`crowd-chart-fill ${level}`} style={{ bottom: `${row.min_score}%`, height: `${Number((row.max_score! - row.min_score!).toFixed(1))}%` }}><span className="crowd-chart-most">Most {row.max_score}%</span><span className="crowd-chart-least">Least {row.min_score}%</span></span> : <span className="crowd-chart-empty">No data</span>}</span>
+            <span className="crowd-chart-date"><strong>{row.weekday.slice(0,3)}</strong></span>
           </button>
         })}</div>
+        <div className="crowd-chart-groups" aria-label="Weekday groups"><span className="weekday-bracket">Weekdays</span><span className="weekend-bracket">Weekend <span className="sr-only">(Sun and Sat)</span></span></div>
       </div>
     </div>
     <div className="crowd-chart-legend">{['low','medium','high','no-data'].map(level => <span key={level}><i aria-hidden="true" className={level} />{level === 'no-data' ? 'No data' : level[0]!.toUpperCase() + level.slice(1)}</span>)}</div>
-    <p className="crowd-chart-details" aria-live="polite">{detail(selectedDate,rowFor(selectedDate))}</p>
+    {active && <p className="crowd-chart-details" aria-live="polite">{detail(active)}</p>}
   </section>
 }

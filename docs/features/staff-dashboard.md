@@ -49,7 +49,7 @@ been removed. There are no sample labels or fixed future dates on this page.
 Heads retain Dashboard, Flights, Crowd forecasts and Head management navigation
 on this and every other Staff page. Staff see the first three links only.
 
-The Dashboard column chart is implemented below. A separate Charts page, its
+The Dashboard weekday range chart is implemented below. A separate Charts page, its
 additional chart definitions/API contracts and routes remain TBD. There is no
 new dashboard table or individual traveler detail in these summaries.
 
@@ -83,7 +83,7 @@ airport, summary loading/error/retry and period. API-mocked tests cover values
 and the no-history case; backend tests use hand-calculated daily averages.
 
 
-## Daily column chart and counts
+## Weekday range chart and counts
 
 The summary adds days for forecast dates in the period, each with date, weekday,
 crowd_level, crowd_score, seats_booked, seats_total and flight_count. The existing
@@ -93,13 +93,27 @@ only; no stored manual field or level changes. Without that history it stays nul
 The backend regression test guards five data queries for an explicit airport,
 with authentication resolved, across different numbers of dates.
 
-CrowdChart renders 30 day slots with native focusable buttons, no chart library
-or SVG. Height is score on a 0-100 scale, color is the stored level, and whole
-scores appear above bars. Dashed lines mark Medium from 50 and High from 75.
-Day numbers appear under every bar; month/weekday labels appear first and on a
-month change. Missing scores/days show No data. A text/color legend and each
-bar's accessible name expose meaning. Hover, focus or selection updates the
-weekday/date, level, score and live booked/total seat and flight-count line.
+The summary also returns weekday_ranges: exactly seven rows, Sunday through
+Saturday, with weekday, day_count, min_score, min_date, max_score, max_date,
+max_day_seats_booked, max_day_seats_total and max_day_flight_count. Ranges include
+forecast dates with a usable numeric score (including the history fallback).
+Missing usable scores give day_count=0 and null numeric/date values. Equal-score
+dates choose the earlier date. Existing bulk aggregates supply the busiest
+(maximum score) date's flight totals without additional queries per weekday.
+
+CrowdChart renders seven focusable range buttons, Sun to Sat, on a 0-100 scale.
+Each bar starts at the weekday's least score and ends at its most, with Least/Most
+labels and the crowd color of its maximum score. Zero-width ranges keep a visible
+line. Empty weekdays say No data. Weekdays and Weekend brackets, dashed 50/75
+reference lines, and a Low/Medium/High/No data text legend explain the chart.
+Hover, focus or selection updates the accessible detail line with weekday,
+minimum/maximum scores and dates, number of days, and the maximum date's booked
+seats, total seats and flight count. No chart library or SVG is used.
+
+The Airport picker waits for the server's selected default rather than showing
+an empty Choose airport value. The server still prefers the first code with a
+forecast in the period, otherwise the first alphabetical code. Summary loading,
+error/retry and empty states apply to the chart; unrelated cards remain intact.
 
 All summary cards, level date lists, Next 7 days, comparison and Your records
 remain. Loading/errors use the summary's existing states. Your records requests

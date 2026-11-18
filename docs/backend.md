@@ -39,7 +39,14 @@ rows include an aggregate forecast_count. No lookup write permission is added.
 
 Flight filters combine origin, destination, airline, airport, date, search,
 upcoming and mine. Lookup ids select origin/destination/airline; upcoming=true
-means departure_time >= now. Search partially matches flight number, airline
+means departure_time >= now. New optional departure_date and arrival_date
+(YYYY-MM-DD) filter their local dates in Asia/Manila. departure_hour_from,
+departure_hour_to, arrival_hour_from and arrival_hour_to filter local whole hours
+0 through 23, inclusively (To 11 includes 11:59). Hour bounds work without dates
+and can be one-sided. Invalid/non-integer/out-of-range bounds or To below From
+return a field-level 400. These filters combine with the old filters; they do not
+change the airport/date UTC grouping or TIME_ZONE. page_size is already supported,
+maximum 50, and the count covers all matching flights. Home/calendar request four. Search partially matches flight number, airline
 name/code and origin/destination code/name/city case-insensitively. With airport,
 date counts origin/departure and destination/arrival in project-local UTC dates,
 matching forecasts; without airport, existing date filtering stays Philippine
@@ -206,11 +213,20 @@ this endpoint explains the computed blend independently of their stored levels.
 
 Recommendations return selected {date,has_data,crowd_score,crowd_level},
 recommendations [{date,weekday,crowd_level,crowd_score,score_difference,open_seats,
-flight_count,history_average_occupancy_percent,reasons}], and message. Ranking,
+flight_count,history_average_occupancy_percent,reasons,flights}], route and message.
+Optional destination=<airport id> restricts qualifying departures to that route;
+equal airport/destination is 400 and an unknown destination is 404. route is
+{origin_code,destination_code} or null. flights contains up to two positive-seat
+qualifying departures in time/id order, each with airline_name, airline_code,
+flight_number, origin_code, destination_code, departure_time and available_seats.
+Only stored Low dates qualify; no lower-than-selected condition remains. Missing
+manual scores use matching history read-only or are excluded. Counts and open
+seats describe qualifying departures, never arrivals. Score differences can be
+zero or negative; missing selected scores leave them null. Ranking,
 window, missing/manual-score behavior and exact numerical reason conditions are
 specified in [date suggestions](features/date-suggestions.md). Backend templates
 build all sentences/reasons from measured values; no results are padded.
-Query guards hold explanations at four data queries and recommendations at five,
+Query guards hold explanations at four data queries and recommendations at six (seven with destination lookup),
 with authentication already resolved.
 
 The airport-filtered flight list includes direction=departing or arriving relative
@@ -237,6 +253,15 @@ Only dates with a forecast appear; the UI supplies the missing-day slots. Flight
 aggregates are shared with comparison, avoiding queries per day. Null manual
 scores fall back to matching 2025 history for this read only; stored manual
 forecasts and their levels remain untouched. No history leaves score null.
+
+The summary adds weekday_ranges, exactly seven rows ordered Sunday to Saturday:
+weekday, day_count, min_score, min_date, max_score, max_date,
+max_day_seats_booked, max_day_seats_total and max_day_flight_count. It groups
+usable daily scores from the same bulk result, including the read-only history
+fallback; empty groups have day_count=0 and null numeric/date fields. Tied extrema
+choose the earlier date. The busiest/max date's flight numbers are live and
+reuse the existing aggregates; an explicit-airport request still takes five data
+queries with authentication resolved.
 
 Migration flights.0003_flight_filter_indexes adds only flight_departure_idx,
 flight_origin_departure_idx and flight_dest_arrival_idx. They support ordered
@@ -272,3 +297,26 @@ There was no short client timeout; a regression test permits a 16-second respons
 and a retry after failure. The measured local data calls meet the two-second
 target, not a claim about full browser rendering. Browser access was unavailable
 for the attempted visual check.
+
+
+## Screenshot bug diagnosis and read-only verification
+
+Multiple development-server processes shared port 8000. A November 16 no-reload
+backend process served obsolete code while the
+checkout contained the newer endpoints/filters. Its live Home route response was
+an unpaginated 727 flights (643 wrong-route rows); the BKK/date response returned
+19 rows including 16 unrelated flights. Recommendations and dashboard summary
+returned non-JSON 404 responses, and airport rows omitted forecast_count. The
+frontend's legacy array compatibility and count-or-zero display concealed that
+backend mismatch. Stop the stale development server and run the current checkout;
+the transport now rejects obsolete unpaginated lists with a clear restart error.
+
+After stopping the verified duplicate workspace servers and restarting one current
+server, live HTTP checks confirmed the new summary/recommendation response fields.
+On November 18, 2026, read-only checks on the existing PostgreSQL data found seven
+upcoming CEB-to-BKK flights, four BKK flights on November 17, 2026 with no unrelated
+routes, HTTP 200 recommendations/summary, seven weekday ranges, and airport counts
+summing to all 3,614 forecasts. Flights remain 7,300. No application rows were
+edited, deleted or recalculated. The bulb PNG, import and asset HTTP response were
+valid; the reported broken-image symptom was not reproduced and no icon was
+replaced. Explicit UTC/Manila labels retain the owner's chosen date policy.

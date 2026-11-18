@@ -2,7 +2,7 @@ from datetime import datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
 from django.db.models import Count, Q, Sum
-from django.db.models.functions import TruncDate
+from django.db.models.functions import ExtractHour, TruncDate
 from django.utils import timezone
 from rest_framework import generics
 from rest_framework.exceptions import NotFound
@@ -95,6 +95,21 @@ class FlightListCreateView(generics.ListCreateAPIView):
             )
         if values.get("mine"):
             flights = flights.filter(created_by=self.request.user)
+        display_zone = ZoneInfo("Asia/Manila")
+        for prefix in ("departure", "arrival"):
+            field = f"{prefix}_time"
+            if f"{prefix}_date" in values:
+                start = datetime.combine(values[f"{prefix}_date"], time.min, tzinfo=display_zone)
+                flights = flights.filter(**{
+                    f"{field}__gte": start,
+                    f"{field}__lt": start + timedelta(days=1),
+                })
+            for bound, lookup in (("from", "gte"), ("to", "lte")):
+                parameter = f"{prefix}_hour_{bound}"
+                if parameter in values:
+                    alias = f"{prefix}_local_hour"
+                    flights = flights.alias(**{alias: ExtractHour(field, tzinfo=display_zone)})
+                    flights = flights.filter(**{f"{alias}__{lookup}": int(values[parameter])})
         return flights.order_by("departure_time", "pk")
 
     def perform_create(self, serializer):

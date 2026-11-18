@@ -120,3 +120,12 @@ class ForecastFilterSerializer(serializers.Serializer):
 class DateInsightFilterSerializer(serializers.Serializer):
     airport = serializers.IntegerField(min_value=1)
     date = serializers.DateField(input_formats=("%Y-%m-%d",))
+
+
+class RecommendationFilterSerializer(DateInsightFilterSerializer):
+    destination = serializers.IntegerField(min_value=1, required=False)
+
+    def validate(self, attrs):
+        if attrs.get("destination") == attrs["airport"]:
+            raise serializers.ValidationError({"destination": ["Origin and destination must be different."]})
+        return attrs

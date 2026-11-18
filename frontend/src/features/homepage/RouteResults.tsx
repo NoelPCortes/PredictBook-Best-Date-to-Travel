@@ -1,21 +1,20 @@
-import { useCallback, useState } from 'react'
-import { useRemoteResource } from '../../components/useRemoteResource'
+import { useCallback } from 'react'
 import RecordAlert from '../../components/RecordAlert'
-import PageControls from '../../components/PageControls'
 import FlightCards from '../../components/FlightCards'
+import { useAppendPages } from '../../components/useAppendPages'
 import { searchRoute } from './api'
-import type { RecentRoute } from './recentRoutes'
+import type { RecentRoute } from '../../api/recentRoutes'
+import type { FlightFilters } from '../../api/traffic'
 
-export default function RouteResults({ route, label }: { route: RecentRoute; label: string }) {
+export default function RouteResults({ route, label, filters = {} }: { route: RecentRoute; label: string; filters?: FlightFilters }) {
   const { origin, destination } = route
-  const [page, setPage] = useState(1)
-  const [attempt, setAttempt] = useState(0)
-  const load = useCallback(() => searchRoute({ origin, destination }, page), [origin, destination, page])
-  const result = useRemoteResource(`route-results/${route.origin}/${route.destination}/${page}/${attempt}`, load)
-  return <section className="summary-card" aria-label="Route search results">
-    <h2>Upcoming flights: {label}</h2><p>Flight times: Philippine time (Asia/Manila, UTC+08:00).</p>
-    {!result.value && !result.error && <p role="status">Loading route flights...</p>}
-    {result.error && <><RecordAlert kind="error">{result.error}</RecordAlert><button className="record-button record-secondary" onClick={() => setAttempt(value => value + 1)}>Retry route search</button></>}
-    {result.value && <>{result.value.length ? <FlightCards flights={result.value} /> : <p>No upcoming flights from {label}.</p>}<PageControls rows={result.value} page={page} onChange={setPage} /></>}
+  const filterKey = JSON.stringify(filters)
+  const load = useCallback((page: number) => searchRoute({ origin, destination }, page, 4, JSON.parse(filterKey) as FlightFilters), [origin, destination, filterKey])
+  const { result, seeMore, retry } = useAppendPages(`${origin}/${destination}/${filterKey}`, load)
+  return <section className="summary-card home-route-results" aria-label="Route search results">
+    <h2>Upcoming flights: {label}</h2><p>Flight times and search dates/hours: Philippine time (Asia/Manila, UTC+08:00).</p>
+    {(!result || (result.loading && !result.page)) && <p role="status">Loading route flights...</p>}
+    {result?.error && <><RecordAlert kind="error">{result.error}</RecordAlert><button className="record-button record-secondary" onClick={result.page ? seeMore : retry}>Retry route search</button></>}
+    {result && result.page > 0 && <>{result.rows.length ? <FlightCards flights={result.rows} /> : <p>No upcoming flights from {label}.</p>}<p>Showing {result.rows.length} of {result.count} flights</p>{result.hasMore && <button className="record-button record-secondary" disabled={result.loading} onClick={seeMore}>{result.loading ? 'Loading more flights...' : 'See more'}</button>}</>}
   </section>
 }

@@ -78,6 +78,7 @@ def dashboard_summary(airport=None):
         "next_7_days": next_days,
         "comparison": period_comparison(airport, rows, calculations),
         "days": days,
+        "weekday_ranges": weekday_ranges(days),
     }
 
 
@@ -121,3 +122,23 @@ def period_comparison(airport, forecasts, calculations=None):
         ),
         "days_compared": len(paired),
     }
+
+
+def weekday_ranges(days):
+    ranges = []
+    for weekday in ("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"):
+        known = [day for day in days if day["weekday"] == weekday and day["crowd_score"] is not None]
+        least = min(known, key=lambda day: (day["crowd_score"], day["date"])) if known else None
+        most = min(known, key=lambda day: (-day["crowd_score"], day["date"])) if known else None
+        ranges.append({
+            "weekday": weekday,
+            "day_count": len(known),
+            "min_score": least["crowd_score"] if least else None,
+            "min_date": least["date"] if least else None,
+            "max_score": most["crowd_score"] if most else None,
+            "max_date": most["date"] if most else None,
+            "max_day_seats_booked": most["seats_booked"] if most else None,
+            "max_day_seats_total": most["seats_total"] if most else None,
+            "max_day_flight_count": most["flight_count"] if most else None,
+        })
+    return ranges

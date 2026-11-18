@@ -14,10 +14,11 @@ type RecordFieldProps = {
   placeholder?: string
   options?: SelectOption[]
   searchable?: boolean
+  navy?: boolean
 }
 
-export default function RecordField({ name, label, value, onChange, error, type = 'text', step, maxLength, options, searchable, placeholder }: RecordFieldProps) {
-  if (searchable && options) return <SearchableSelect name={name} label={label} value={value} onChange={onChange} error={error} options={options} />
+export default function RecordField({ name, label, value, onChange, error, type = 'text', step, maxLength, options, searchable, placeholder, navy }: RecordFieldProps) {
+  if (searchable && options) return <SearchableSelect name={name} label={label} value={value} onChange={onChange} error={error} options={options} navy={navy} />
   const id = `record-${name}`
   const errorId = `${id}-error`
   const accessibility = { id, name, 'aria-invalid': error ? true as const : undefined, 'aria-describedby': error ? errorId : undefined }

@@ -34,3 +34,31 @@
 .airport-day-grid .route-highlight { outline: 2px solid var(--ink); outline-offset: -3px; }
 
 .route-mode .calendar-day.no-data:not(.route-highlight)[aria-pressed=true] { background: var(--no-data-background); color: var(--disabled-text); }
+
+.airport-calendar.airport-calendar-sidebar-card { padding: 0; }
+.traffic-calendar-grid { display: grid; grid-template-columns: minmax(0, 1fr) var(--travel-sidebar-width); grid-template-rows: auto 1fr; grid-template-areas: "main controls" "main suggestions"; gap: 0; align-items: stretch; }
+.traffic-calendar-sidebar { position: static; max-height: none; overflow: visible; min-width: 0; padding: var(--space-24); }
+.traffic-calendar-navy-panel { background: var(--ink); color: var(--white); }
+.traffic-calendar-controls { grid-area: controls; display: grid; align-content: start; gap: var(--space-16); border-top-right-radius: var(--radius); position: relative; }
+.traffic-calendar-controls:focus-within { z-index: 2; }
+.traffic-calendar-suggestions { grid-area: suggestions; border-bottom-right-radius: var(--radius); }
+.traffic-calendar-controls > p, .traffic-calendar-suggestions .calendar-recommendations > p { color: var(--nav-text); }
+.traffic-calendar-suggestions .calendar-recommendations h2 { color: var(--white); }
+.traffic-calendar-sidebar .navy-white-icon { filter: brightness(0) invert(1); }
+.traffic-calendar-sidebar .calendar-recommendation-card:focus-visible { outline-color: var(--white); }
+.traffic-calendar-main { grid-area: main; min-width: 0; padding: var(--space-24); }
+.traffic-calendar-main .airport-calendar-layout { grid-template-columns: 1fr; }
+.traffic-calendar-main .airport-date-details { border-left: 0; padding-left: 0; border-top: 1px solid var(--border); padding-top: var(--space-24); }
+.traffic-calendar-suggestions .calendar-recommendation-grid { grid-template-columns: 1fr; }
+.calendar-booking-chip { border: 1px solid var(--border); border-radius: var(--control-radius); padding: var(--space-8); }
+.traffic-calendar-controls .calendar-booking-chip .calendar-text-button { background: transparent; color: var(--white); border-color: var(--border); }
+.traffic-calendar-controls .calendar-booking-chip .calendar-text-button:hover { background: var(--action-pressed); border-color: var(--input-hover-border); }
+.traffic-calendar-controls .calendar-booking-chip .calendar-text-button:active { background: var(--action-hover); }
+.traffic-calendar-controls .calendar-booking-chip .calendar-text-button:focus-visible { outline-color: var(--white); }
+.recommendation-flight { display: grid; gap: var(--space-8); border-top: 1px solid var(--border); padding-top: var(--space-8); }
+.recommendation-flight > span { display: flex; align-items: center; gap: var(--space-8); }
+@media(max-width: 1100px) {
+  .traffic-calendar-grid { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto; grid-template-areas: "controls" "main" "suggestions"; gap: var(--space-24); }
+  .traffic-calendar-sidebar { border-radius: var(--radius); }
+}
+@media(max-width: 600px) { .traffic-calendar-main { padding: var(--space-16); } }

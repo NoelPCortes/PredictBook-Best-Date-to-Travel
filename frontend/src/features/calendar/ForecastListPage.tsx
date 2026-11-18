@@ -81,6 +81,6 @@ export default function ForecastListPage() {
     {airports.value && (search.trim() || airport ? <>
       {!search.trim() && <button type="button" className="record-button record-ghost" onClick={() => setAirport('')}>Back to airports</button>}
       <ForecastRecords key={`${airport}/${search.trim()}`} airport={airport} globalSearch={search.trim()} airports={airports.value} onSuccess={setSuccess} />
-    </> : <section aria-label="Airports"><h2>Airports</h2><ul className="forecast-airport-list">{airports.value.map(record => <li key={record.id}><button type="button" className="record-button record-secondary" onClick={() => setAirport(String(record.id))}><strong>{record.code} — {record.name}</strong><span>{record.city}, {record.country}</span><span>{record.forecast_count ?? 0} forecasts</span></button></li>)}</ul>{!airports.value.length && <p>No airports available.</p>}</section>)}
+    </> : <section aria-label="Airports"><h2>Airports</h2><ul className="forecast-airport-list">{airports.value.map(record => <li key={record.id}><button type="button" className="record-button record-secondary" onClick={() => setAirport(String(record.id))}><strong>{record.code} — {record.name}</strong><span>{record.city}, {record.country}</span><span>{record.forecast_count === undefined ? 'Forecast count unavailable' : record.forecast_count === 0 ? 'No forecasts yet' : `${record.forecast_count} ${record.forecast_count === 1 ? 'forecast' : 'forecasts'}`}</span></button></li>)}</ul>{!airports.value.length && <p>No airports available.</p>}</section>)}
   </RecordLayout>
 }

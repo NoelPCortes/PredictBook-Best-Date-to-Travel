@@ -10,14 +10,20 @@ import { formatFlightTime } from '../../components/flightTime'
 import { useSignOut } from '../../components/useSignOut'
 import AppNavbar from '../../components/AppNavbar'
 import HomeCalendar from '../../components/HomeCalendar'
-import { readRecentRoutes, saveRecentRoute, clearRecentRoutes } from './recentRoutes'
-import type { RecentRoute } from './recentRoutes'
+import { readRecentRoutes, saveRecentRoute, clearRecentRoutes } from '../../api/recentRoutes'
+import type { RecentRoute } from '../../api/recentRoutes'
 import { upcomingBooking } from './api'
 import RouteResults from './RouteResults'
+import OptionalFlightFilters from './OptionalFlightFilters'
+import { optionalFilterErrors } from './searchFilters'
+import type { OptionalFilters } from './searchFilters'
 import '../../components/RecordManagement.css'
 import './HomePage.css'
 
 function HomeContent({ userId }: { userId: number }) {
+  const [optional, setOptional] = useState<OptionalFilters>({})
+  const [applied, setApplied] = useState<OptionalFilters>({})
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [origin, setOrigin] = useState('')
   const [destination, setDestination] = useState('')
   const [recent, setRecent] = useState(() => readRecentRoutes(userId))
@@ -32,7 +38,8 @@ function HomeContent({ userId }: { userId: number }) {
   const booking = useRemoteResource(`upcoming-route/${userId}/${recentKey}/${attempt}`, loadBooking)
   const code = (id: string) => airports.value?.find(airport => String(airport.id) === id)?.code ?? id
   const label = (route: RecentRoute) => `${code(route.origin)} to ${code(route.destination)}`
-  function search(route: RecentRoute) {
+  function search(route: RecentRoute, filters: OptionalFilters = {}) {
+    setOptional(filters); setApplied(filters); setFieldErrors({})
     setOrigin(route.origin); setDestination(route.destination); setActive(route); setRun(value => value + 1); setError('')
     try { setRecent(saveRecentRoute(userId, route)); setStorageError('') }
     catch { setStorageError('Unable to save recent searches in this browser.') }
@@ -40,13 +47,21 @@ function HomeContent({ userId }: { userId: number }) {
   function submit(event: FormEvent) {
     event.preventDefault()
     if (!origin || !destination || origin === destination) { setError(!origin || !destination ? 'Choose From and To airports.' : 'From and To must be different airports.'); return }
-    search({ origin, destination })
+    const errors = optionalFilterErrors(optional)
+    setFieldErrors(errors)
+    if (Object.keys(errors).length) {
+      document.querySelector<HTMLElement>(`[name="${Object.keys(errors)[0]}"]`)?.focus()
+      return
+    }
+    search({ origin, destination }, optional)
   }
   return <>
-    <section className="summary-card" aria-label="Search flights">
+    <section className="summary-card home-search-card" aria-label="Search flights">
       <form onSubmit={submit} className="home-route-search" noValidate>
         <RecordField searchable name="home-origin" label="From" value={origin} onChange={setOrigin} options={airportOptions(airports.value ?? [])} error={error && !origin ? error : undefined} />
         <RecordField searchable name="home-destination" label="To" value={destination} onChange={setDestination} options={airportOptions(airports.value ?? [])} error={error && destination === origin ? error : undefined} />
+        <OptionalFlightFilters value={optional} onChange={setOptional} errors={fieldErrors} />
+        {Object.values(optional).some(Boolean) && <button className="record-button record-ghost" type="button" onClick={() => { setOptional({}); setFieldErrors({}) }}>Clear optional filters</button>}
         <button className="record-button" type="submit" disabled={!airports.value}>Search flights</button>
       </form>
       {error && <RecordAlert kind="error">{error}</RecordAlert>}
@@ -67,7 +82,7 @@ function HomeContent({ userId }: { userId: number }) {
         <ul className="home-recent-routes">{recent.map(route => <li key={`${route.origin}/${route.destination}`}><button className="record-button record-secondary" onClick={() => search(route)}>{label(route)}</button></li>)}</ul>
       </section>
     </div>
-    {active && <RouteResults key={`${active.origin}/${active.destination}/${run}`} route={active} label={label(active)} />}
+    {active && <RouteResults key={`${active.origin}/${active.destination}/${run}`} route={active} label={label(active)} filters={applied} />}
     <HomeCalendar route={active ? { ...active, originCode: code(active.origin), destinationCode: code(active.destination) } : undefined} onClearRoute={() => setActive(undefined)} />
   </>
 }
