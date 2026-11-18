@@ -25,6 +25,6 @@
 
 .profile-icon-badge { display: inline-grid; place-items: center; border-radius: 50%; background: var(--nav-text); padding: var(--space-4); }
 .profile-icon-badge img { width: var(--space-24); height: var(--space-24); }
-.account-link[aria-current="page"] { border-color: var(--white); background: var(--action-pressed); font-weight: 600; }
+.account-link[aria-current="page"] { border-color: var(--white); border-bottom: 3px solid var(--accent); background: var(--action-pressed); font-weight: 600; }
 .account-link:hover { background: var(--action-hover); }
 .account-link:active { background: var(--action-pressed); }
