@@ -330,13 +330,13 @@ it('ignores an old See more response after leaving and returning to the same dat
   expect(container.querySelectorAll('.calendar-flight-list li')).toHaveLength(4)
   expect(container.textContent).toContain('Showing 4 of 8 flights')
 })
-it('uses the scoped navy page frame and light title while keeping the existing calendar card', async () => {
+it('restores the normal page and heading without changing the calendar card', async () => {
   await render()
-  const frame = container.querySelector('.traffic-calendar-page')!
-  expect(frame).not.toBeNull()
-  expect(frame.querySelector(':scope > .app-header')).not.toBeNull()
-  const main = frame.querySelector(':scope > main.record-page')!
-  expect(main.querySelector(':scope > h1.traffic-calendar-title')?.textContent).toBe('Traffic Calendar')
+  expect(container.querySelector('.traffic-calendar-page, .traffic-calendar-title')).toBeNull()
+  expect(container.querySelector('.app-header')).not.toBeNull()
+  const main = container.querySelector('main.record-page')!
+  expect(main.querySelector(':scope > h1')?.textContent).toBe('Traffic Calendar')
+  expect(main.querySelector(':scope > h1')?.className).toBe('')
   expect(main.querySelector(':scope > .airport-calendar')).not.toBeNull()
   expect(container.querySelectorAll('.airport-calendar')).toHaveLength(1)
   expect(main.querySelector('.traffic-calendar-sidebar .calendar-recommendations')).not.toBeNull()
