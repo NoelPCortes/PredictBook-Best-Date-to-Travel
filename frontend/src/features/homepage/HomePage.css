@@ -12,7 +12,7 @@
 @media(max-width: 900px) { .home-route-search { grid-template-columns: 1fr; } }
 @media(max-width: 600px) { .home-page { padding: var(--space-24) var(--space-16); } .home-summary { grid-template-columns: 1fr; } }
 
-.home-page { display: grid; grid-template-columns: minmax(0, 1fr) var(--travel-sidebar-width); gap: var(--space-24); align-items: start; }
+.home-page { overflow-anchor: none; display: grid; grid-template-columns: minmax(0, 1fr) var(--travel-sidebar-width); gap: var(--space-24); align-items: start; }
 .home-hero, .home-search-card, .home-route-results, .home-calendar-preview { grid-column: 1; }
 .home-summary { grid-column: 2; grid-row: 1 / span 4; grid-template-columns: 1fr; margin: 0; }
 .home-optional-filters { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-16); }

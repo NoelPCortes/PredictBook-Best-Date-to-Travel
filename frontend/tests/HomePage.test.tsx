@@ -184,3 +184,61 @@ it('keeps upcoming for hours without dates and appends four-flight pages', async
   expect(container.querySelector('[aria-label="Route search results"]')?.textContent).toContain('Showing 4 of 8 flights')
   expect(container.querySelector('.home-search-card')!.compareDocumentPosition(container.querySelector('.home-summary')!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
 })
+
+function expectHomeBlockOrder(hasResults: boolean) {
+  const selectors = ['.home-hero', '.home-calendar-preview', '.home-search-card', '[aria-labelledby="upcoming-title"]', '[aria-labelledby="recent-title"]', ...(hasResults ? ['.home-route-results'] : [])]
+  const blocks = selectors.map(selector => container.querySelector(selector)!)
+  for (let index = 1; index < blocks.length; index++) {
+    expect(blocks[index - 1]!.compareDocumentPosition(blocks[index]!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  }
+}
+it('places the unchanged calendar directly after the header and before search/results', async () => {
+  expectHomeBlockOrder(false)
+  const calendar = container.querySelector('.home-calendar-preview')
+  expect(container.querySelectorAll('.home-calendar-preview')).toHaveLength(1)
+  await selectAirport('home-origin', '1'); await selectAirport('home-destination', '2'); await searchRoute()
+  expectHomeBlockOrder(true)
+  expect(container.querySelector('.home-calendar-preview')).toBe(calendar)
+  expect(dayButton(14).classList.contains('route-highlight')).toBe(true)
+})
+it('keeps header, calendar, search, booking, recent searches and results in narrow-screen DOM order', async () => {
+  const originalWidth = window.innerWidth
+  Object.defineProperty(window, 'innerWidth', { configurable: true, value: 390 })
+  try {
+    await selectAirport('home-origin', '1'); await selectAirport('home-destination', '2'); await searchRoute()
+    expectHomeBlockOrder(true)
+  } finally { Object.defineProperty(window, 'innerWidth', { configurable: true, value: originalWidth }) }
+})
+it('keeps the scroll position while a search and saved-route click update results and calendar highlights', async () => {
+  const originalScrollY = window.scrollY
+  const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
+  const scrollBy = vi.spyOn(window, 'scrollBy').mockImplementation(() => {})
+  Object.defineProperty(window, 'scrollY', { configurable: true, value: 420 })
+  try {
+    await selectAirport('home-origin', '1'); await selectAirport('home-destination', '2'); await searchRoute()
+    await act(async () => container.querySelector<HTMLButtonElement>('.home-recent-routes button')!.click())
+    expect(dayButton(14).getAttribute('aria-label')).toContain('3 flights from CEB to NRT, High crowd')
+    expect(container.querySelector('.home-route-results')).not.toBeNull()
+    expect(window.scrollY).toBe(420)
+    expect(scrollTo).not.toHaveBeenCalled(); expect(scrollBy).not.toHaveBeenCalled()
+  } finally {
+    scrollTo.mockRestore(); scrollBy.mockRestore()
+    Object.defineProperty(window, 'scrollY', { configurable: true, value: originalScrollY })
+  }
+})
+it('keeps the top calendar mounted and highlighted when the upcoming booking is opened', async () => {
+  saveRecentRoute(1, { origin: '1', destination: '2' })
+  const flight = {id:9, airline:1,airline_code:'PR',airline_name:'Airline',flight_number:'123',origin:1,origin_code:'CEB',origin_name:'Cebu',destination:2,destination_code:'NRT',destination_name:'Narita',departure_time:'2026-01-15T00:00:00Z',arrival_time:'2026-01-15T02:00:00Z',total_seats:100,available_seats:50}
+  vi.mocked(loadFlights).mockImplementation(async filters => filters?.upcoming ? Object.assign([flight], {count:1,next:null}) : [])
+  await act(async () => root.render(<MemoryRouter initialEntries={['/home']}><HomePage key="booking-layout" /></MemoryRouter>))
+  const calendar = container.querySelector('.home-calendar-preview')
+  await act(async () => container.querySelector<HTMLButtonElement>('[aria-labelledby="upcoming-title"] button')!.click())
+  expectHomeBlockOrder(true)
+  expect(container.querySelector('.home-calendar-preview')).toBe(calendar)
+  expect(loadFlights).toHaveBeenCalledWith(expect.objectContaining({origin:'1',destination:'2',upcoming:true,page_size:4}))
+  expect(loadRouteDates).toHaveBeenLastCalledWith('1','2','2026-01')
+  expect(dayButton(14).classList.contains('route-highlight')).toBe(true)
+  expect(dayButton(14).getAttribute('aria-label')).toContain('3 flights from CEB to NRT, High crowd')
+  expect(container.textContent).not.toContain('Why this level')
+  expect(container.textContent).not.toContain('Recommended best date to travel')
+})
