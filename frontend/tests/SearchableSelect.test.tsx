@@ -7,7 +7,7 @@ import SearchableSelect from '../src/components/SearchableSelect'
 let container: HTMLDivElement
 let root: ReturnType<typeof createRoot>
 const options = [{ value: '', label: 'All airports' }, { value: '1', label: 'MNL — Manila', searchText: 'Pasay Philippines' }, { value: '2', label: 'NRT — Narita', searchText: 'Tokyo Japan' }]
-function Picker({ disabled = false, error = '' }) { const [value, setValue] = useState(''); return <SearchableSelect name="airport" label="Airport" options={options} value={value} onChange={setValue} disabled={disabled} error={error} /> }
+function Picker({ disabled = false, error = '', navy = false }) { const [value, setValue] = useState(''); return <SearchableSelect name="airport" label="Airport" options={options} value={value} onChange={setValue} disabled={disabled} error={error} navy={navy} /> }
 beforeEach(() => { Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true }); container = document.createElement('div'); document.body.append(container); root = createRoot(container) })
 afterEach(async () => { await act(async () => root.unmount()); container.remove() })
 async function render(props = {}) { await act(async () => root.render(<Picker {...props} />)) }
@@ -44,4 +44,22 @@ it('closes outside, exposes errors, and respects disabled', async () => {
   expect(button.getAttribute('aria-invalid')).toBe('true')
   expect(document.getElementById(button.getAttribute('aria-describedby')!)?.textContent).toBe('Choose an airport.')
   await render({disabled:true}); expect((container.querySelector('[role=combobox]') as HTMLButtonElement).disabled).toBe(true)
+})
+
+it('preserves keyboard selection, clearing, errors and disabled access in navy fields', async () => {
+  await render({navy:true,error:'Choose an airport.'})
+  expect(container.querySelector('.record-field-navy')).not.toBeNull()
+  expect(container.querySelector('[role=combobox] img')?.classList.contains('navy-white-icon')).toBe(true)
+  const trigger=container.querySelector<HTMLButtonElement>('[role=combobox]')!
+  expect(document.getElementById(trigger.getAttribute('aria-describedby')!)?.textContent).toBe('Choose an airport.')
+  await key('[role=combobox]','ArrowDown')
+  expect(container.querySelector('.searchable-popover [role=listbox]')).not.toBeNull()
+  expect(container.querySelector('.searchable-search img')?.classList.contains('navy-white-icon')).toBe(false)
+  await search('Tokyo'); await key('input','Enter')
+  expect(trigger.value).toBe('2')
+  expect(document.activeElement).toBe(trigger)
+  await click('[aria-label="Clear Airport"]')
+  expect(trigger.value).toBe('')
+  await render({navy:true,disabled:true})
+  expect(container.querySelector<HTMLButtonElement>('[role=combobox]')!.disabled).toBe(true)
 })

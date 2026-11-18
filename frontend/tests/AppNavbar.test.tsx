@@ -28,3 +28,16 @@ it.each(['staff', 'traveler'] as const)('shows only the approved navigation for 
   expect(labels).toEqual(role === 'staff' ? ['Dashboard', 'Flights', 'Crowd forecasts'] : ['Home', 'Traffic Calendar'])
   expect(container.querySelector('a[href="/head"]')).toBeNull()
 })
+it.each(['traveler', 'staff', 'head'] as const)('shows the profile icon link and no top-bar sign out for %s', async role => {
+  Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
+  setProfile({ id: 1, username: role, email: `${role}@example.com`, role, first_name: '', last_name: '' })
+  container = document.createElement('div'); document.body.append(container); root = createRoot(container)
+  await act(async () => root!.render(<MemoryRouter initialEntries={['/profile']}><AppNavbar userName={role} /></MemoryRouter>))
+  const account = container.querySelector<HTMLAnchorElement>(`[aria-label="My account, ${role}"]`)!
+  expect(account.getAttribute('href')).toBe('/profile')
+  expect(account.getAttribute('aria-current')).toBe('page')
+  expect(account.querySelector('.profile-icon-badge img')?.getAttribute('src')).toContain('UserCircleIcon')
+  expect(account.querySelector('img')?.getAttribute('alt')).toBe('')
+  expect(container.textContent).not.toContain('Sign out')
+  account.focus(); expect(document.activeElement).toBe(account)
+})

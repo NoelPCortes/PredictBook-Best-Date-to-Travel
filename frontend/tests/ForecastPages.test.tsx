@@ -188,3 +188,15 @@ it('applies per-airport month, level and source filters and labels missing fligh
   await edit('forecast-month','2026-12'); await edit('forecast-level','low'); await edit('forecast-source','manual')
   expect(loadForecastList).toHaveBeenLastCalledWith({airport:'1',month:'2026-12',level:'low',source:'manual',page:1})
 })
+
+
+it.each([[0, 'No forecasts yet'], [1, '1 forecast'], [362, '362 forecasts']] as const)('shows the real forecast count %s with the correct label', async (count, label) => {
+  vi.mocked(loadForecastAirports).mockResolvedValue([{...airports[0]!, forecast_count:count}])
+  await render('/staff/forecasts', false)
+  expect(container.querySelector('.forecast-airport-list')?.textContent).toContain(label)
+})
+it('does not invent a zero count when the server omits the count', async () => {
+  await render('/staff/forecasts', false)
+  expect(container.querySelector('.forecast-airport-list')?.textContent).toContain('Forecast count unavailable')
+  expect(container.querySelector('.forecast-airport-list')?.textContent).not.toContain('0 forecasts')
+})

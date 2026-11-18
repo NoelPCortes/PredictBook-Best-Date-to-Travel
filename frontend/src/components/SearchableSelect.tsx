@@ -5,9 +5,9 @@ import chevronIcon from '../assets/icons/chevron-downIcon.png'
 import './SearchableSelect.css'
 
 export type SelectOption = { value: string; label: string; searchText?: string }
-type Props = { name: string; label: string; value: string; options: SelectOption[]; onChange: (value: string) => void; error?: string; disabled?: boolean; clearable?: boolean }
+type Props = { name: string; label: string; value: string; options: SelectOption[]; onChange: (value: string) => void; error?: string; disabled?: boolean; clearable?: boolean; navy?: boolean }
 
-export default function SearchableSelect({ name, label, value, options, onChange, error, disabled, clearable = true }: Props) {
+export default function SearchableSelect({ name, label, value, options, onChange, error, disabled, clearable = true, navy = false }: Props) {
   const id = useId()
   const listId = `${id}-list`
   const [open, setOpen] = useState(false)
@@ -41,12 +41,12 @@ export default function SearchableSelect({ name, label, value, options, onChange
     }
   }
   const activeId = open && filtered[active] ? `${listId}-${active}` : undefined
-  return <div className="record-field-group searchable-select" ref={wrapper}>
-    <div className={`record-field${error ? ' record-field-invalid' : ''}`}>
+  return <div className={`record-field-group searchable-select${navy ? ' searchable-select-navy' : ''}`} ref={wrapper}>
+    <div className={`record-field${error ? ' record-field-invalid' : ''}${navy ? ' record-field-navy' : ''}`}>
       <label id={`${id}-label`} htmlFor={`record-${name}`}>{label}</label>
       <div className="searchable-select-control">
         <button type="button" id={`record-${name}`} name={name} value={value} ref={trigger} role="combobox" aria-haspopup="listbox" aria-expanded={open} aria-controls={listId} aria-activedescendant={activeId} aria-labelledby={`${id}-label`} aria-invalid={error ? true : undefined} aria-describedby={error ? `${id}-error` : undefined} disabled={disabled} onClick={() => open ? close() : show()} onKeyDown={key}>
-          <span>{options.find(option => option.value === value)?.label ?? `Choose ${label.toLowerCase()}`}</span><img src={chevronIcon} alt="" />
+          <span>{options.find(option => option.value === value)?.label ?? `Choose ${label.toLowerCase()}`}</span><img src={chevronIcon} alt="" className={navy ? 'navy-white-icon' : undefined} />
         </button>
         {clearable && value && <button type="button" className="searchable-clear" aria-label={`Clear ${label}`} disabled={disabled} onClick={() => onChange('')}>Clear</button>}
       </div>

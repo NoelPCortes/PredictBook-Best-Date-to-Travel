@@ -16,8 +16,12 @@ export function loadForecasts(filters: { airport?: string; month?: string; searc
   return readPage<Forecast>(`/api/traffic/forecasts/${query.size ? `?${query}` : ''}`)
 }
 
-export function loadFlights(filters: { origin?: string; destination?: string; airline?: string; search?: string; upcoming?: boolean; airport?: string; date?: string; mine?: boolean; page?: number; page_size?: number } = {}) {
+export type FlightFilters = { origin?: string; destination?: string; airline?: string; search?: string; upcoming?: boolean; airport?: string; date?: string; mine?: boolean; page?: number; page_size?: number; departure_date?: string; departure_hour_from?: string; departure_hour_to?: string; arrival_date?: string; arrival_hour_from?: string; arrival_hour_to?: string }
+export function loadFlights(filters: FlightFilters = {}) {
   const query = new URLSearchParams()
+  for (const field of ['departure_date', 'departure_hour_from', 'departure_hour_to', 'arrival_date', 'arrival_hour_from', 'arrival_hour_to'] as const) {
+    if (filters[field] !== undefined && filters[field] !== '') query.set(field, filters[field]!)
+  }
   if (filters.origin) query.set('origin', filters.origin)
   if (filters.destination) query.set('destination', filters.destination)
   if (filters.airline) query.set('airline', filters.airline)

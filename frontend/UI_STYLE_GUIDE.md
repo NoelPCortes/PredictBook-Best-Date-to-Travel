@@ -119,6 +119,7 @@ Rules:
 ### PredictBook page navigation
 
 - The signed-in Homepage and Traffic Calendar use the Navy top navigation bar with Home and Traffic Calendar links.
+- Every page, including Traveler Traffic Calendar, uses the normal Gray 50 page background and dark heading; the Traffic Calendar sidebar is a full-height Navy panel inside its white card.
 - Staff pages use the same top bar with Dashboard and Charts links. The Dashboard and Charts are separate pages.
 - The My Account page uses a Navy sidebar.
 - The signed-in Homepage provides flight search and an interactive traffic calendar preview.
@@ -131,7 +132,7 @@ Rules:
 ### Top bar
 
 - Background Navy, white text, at least 60px tall, soft shadow underneath.
-- Logo on the left, navigation links next to it, and the user menu on the right.
+- Logo on the left, navigation links next to it, and one profile button on the right linking to `/profile` (My account). It contains UserCircleIcon in a White or Blue 100 circular badge and the signed-in username, with accessible name `My account, {username}`, at least 44px height, the current-page highlight and visible white focus ring. Do not recolor the icon or add a new icon. There is no top-bar Sign out button; Sign Out remains on My account.
 
 ### Sidebar
 
@@ -177,6 +178,8 @@ Bar rules:
 
 Rules:
 
+- A bordered field container owns the field background. Its inner text, date, select, or searchable-dropdown control has a transparent background so it uses the container background. Keep the border, label, focus ring, error, and disabled states above; disabled containers use Gray 100.
+- Navy-panel field boxes are transparent against Navy, with a 1px Gray 300 border, white control/Clear text and Blue 100 labels; hover uses a Blue 500 border and keyboard focus a white 3px ring. Disabled navy fields retain Navy with Gray 300 text and a Gray 500 border; errors use a light-red border and red text on a light-red message background. Open dropdown lists and their search boxes remain white with dark text. This scoped variant takes precedence over the light-field defaults above.
 - Every input has a **visible label**. The label sits at the top of the input box in small, bold, Gray 600 text. Do not use placeholder text as the label.
 - Hints appear below the field in small Gray 600 text.
 - Error messages say what is wrong and how to fix it, right next to the field.
@@ -211,6 +214,7 @@ Rules:
 - The Homepage calendar preview allows users to select dates and view available crowd-level and flight information.
 - Selecting Traffic Calendar in navigation opens the full interactive calendar.
 - The full Traffic Calendar includes smart date suggestions based on crowd levels and available seats.
+- The Traffic Calendar right column is one continuous full-height Navy panel, flush with the card's top/right/bottom edges and right rounded corners, with navy field boxes, light text and white recommendation cards. It has no sticky positioning or inner scrollbar; the page grows with the taller column. One content set uses grid areas: main calendar beside controls/recommendations on wide screens; on narrow screens, pickers and recommendations become separate rounded navy blocks with the white calendar/panel between them.
 - Selecting a calendar date updates the corresponding date information.
 - Calendar and prediction information must come from the available data. Sample values must be clearly identified, for example with a "Sample data" label.
 
@@ -303,6 +307,7 @@ Home (homepage navigation), Email (email field), and Lock (password field). Ask 
 - An icon sits beside a text label whenever there is room. An icon-only button needs an accessible name and a 44px tap target.
 - Icons that only decorate a label are hidden from screen readers.
 - Black icons on white or light surfaces are fine. Icons on dark Navy bars need a white version. The owner supplies white versions or SVGs (TBD). Until then, ask before placing an icon on a dark bar.
+- Owner-approved exception: only inside the Traffic Calendar navy sidebar, existing dark icons on Navy (chevron-downIcon, SearchIcon, bulbIcon, or an existing clear/close icon when used) may use the shared `navy-white-icon` CSS class with `brightness(0) invert(1)` to render white. Do not edit the icon files, add icons, or draw SVG. Icons on the white dropdown/search popover or white recommendation cards remain dark. The white-version rule elsewhere remains unchanged.
 - `CalendarLogo` and `AirplaneIconColored` keep their own colors. Never recolor them.
 - Show images at the size they are needed. Do not load a large image to display a small one.
 
